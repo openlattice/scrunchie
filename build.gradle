@@ -53,11 +53,11 @@ dependencies {
 	 */
 	if (project.hasProperty("developmentMode") && project.developmentMode) {
         logger.quiet(project.name + " using project dependencies.")
-    //    compile project(":kryptnostic-mapstores")
+        compile project(":kryptnostic-conductor-client")
     }
     else {
         logger.quiet(project.name + " using jar dependencies.")
-    //    compile "com.kryptnostic:kryptnostic-mapstores:${mapstores_version}"
+        compile "com.kryptnostic:kryptnostic-conductor-client:${conductor_client_version}"
     } 
 
      /**
