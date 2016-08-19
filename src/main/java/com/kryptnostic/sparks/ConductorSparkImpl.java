@@ -47,4 +47,11 @@ public class ConductorSparkImpl implements ConductorSparkApi {
                 (int) e.getAs( "salary" ) ) ).collect() );
     }
 
+    @Override
+    public List<Employee> uploadEmployees() {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException(
+                "THIS METHOD HAS NOT BEEN IMPLEMENTED, BLAME Drew Bailey drew@kryptnostic.com" );
+    }
+
 }
