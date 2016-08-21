@@ -16,6 +16,7 @@ import com.kryptnostic.conductor.rpc.ConductorSparkApi;
 import com.kryptnostic.conductor.rpc.Employee;
 
 public class ConductorSparkImpl implements ConductorSparkApi {
+    private static final long serialVersionUID = 4630183624909263596L;
     private static final Logger    logger = LoggerFactory.getLogger( ConductorSparkImpl.class );
     private final JavaSparkContext spark;
 
@@ -46,5 +47,4 @@ public class ConductorSparkImpl implements ConductorSparkApi {
                 e.getAs( "title" ),
                 (int) e.getAs( "salary" ) ) ).collect() );
     }
-
 }
