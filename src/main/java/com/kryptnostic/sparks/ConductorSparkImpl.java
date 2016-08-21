@@ -16,6 +16,7 @@ import com.kryptnostic.conductor.rpc.ConductorSparkApi;
 import com.kryptnostic.conductor.rpc.Employee;
 
 public class ConductorSparkImpl implements ConductorSparkApi {
+    private static final long serialVersionUID = 4630183624909263596L;
     private static final Logger    logger = LoggerFactory.getLogger( ConductorSparkImpl.class );
     private final JavaSparkContext spark;
 
@@ -46,12 +47,4 @@ public class ConductorSparkImpl implements ConductorSparkApi {
                 e.getAs( "title" ),
                 (int) e.getAs( "salary" ) ) ).collect() );
     }
-
-    @Override
-    public List<Employee> uploadEmployees() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException(
-                "THIS METHOD HAS NOT BEEN IMPLEMENTED, BLAME Drew Bailey drew@kryptnostic.com" );
-    }
-
 }
