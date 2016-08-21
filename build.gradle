@@ -32,6 +32,12 @@ sourceSets {
     test.runtimeClasspath += configurations.provided
 }
 
+configurations.all {
+  resolutionStrategy {
+    force 'com.fasterxml.jackson.core:jackson-core:2.4.4','com.fasterxml.jackson.core:jackson-databind:2.4.4','com.fasterxml.jackson.module:jackson-module-afterburner:2.4.4','com.fasterxml.jackson.datatype:jackson-datatype-guava:2.4.4','com.fasterxml.jackson.dataformat:jackson-dataformat-smile:2.4.4','com.fasterxml.jackson.module:jackson-module-jaxb-annotations:2.4.4','com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.4.4','com.fasterxml.jackson.jaxrs:jackson-jaxrs-json-provider:2.4.4'
+  }
+}
+
 dependencies {
     compile "com.fasterxml.jackson.dataformat:jackson-dataformat-csv:${jackson_version}"
     compile "com.datastax.spark:spark-cassandra-connector-java_2.10:${spark_cassandra_connector_version}"
