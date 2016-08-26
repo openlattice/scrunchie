@@ -20,8 +20,7 @@ import com.kryptnostic.types.services.CassandraTableManager;
 import com.kryptnostic.types.services.EntityStorageClient;
 
 public class KindlingReadTests extends BaseKindlingSparkTest {
-    private static UUID EMP_ID = UUID.randomUUID();
-
+    private static UUID EMP_ID;
     @BeforeClass
     public static void initData() {
         EntityStorageClient esc = ds.getContext().getBean( EntityStorageClient.class );
@@ -31,7 +30,7 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
         Property empSalary = new Property();
         empId.setName( EMPLOYEE_ID );
         empId.setType( new FullQualifiedName( NAMESPACE, EMPLOYEE_ID ).getFullQualifiedNameAsString() );
-        empId.setValue( ValueType.PRIMITIVE, EMP_ID );
+        empId.setValue( ValueType.PRIMITIVE, UUID.randomUUID() );
 
         empName.setName( EMPLOYEE_NAME );
         empName.setType( new FullQualifiedName( NAMESPACE, EMPLOYEE_NAME ).getFullQualifiedNameAsString() );
@@ -48,11 +47,11 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
         Entity e = new Entity();
         e.setType( ENTITY_TYPE.getFullQualifiedNameAsString() );
         e.addProperty( empId ).addProperty( empName ).addProperty( empTitle ).addProperty( empSalary );
-        esc.createEntityData( ACLs.EVERYONE_ACL,
+        EMP_ID = esc.createEntityData( ACLs.EVERYONE_ACL,
                 Syncs.BASE.getSyncId(),
                 ENTITY_SET_NAME,
                 ENTITY_TYPE,
-                e );
+                e ).getKey();
     }
 
     @Test
