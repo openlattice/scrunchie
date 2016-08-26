@@ -47,18 +47,6 @@ public class ConductorSparkImpl implements ConductorSparkApi {
                         .distinct() )
                 .reduce( ( lhs, rhs ) -> lhs.intersection( rhs ) ).get().collect();
 
-//        return entityKey.getPropertyTableToValueMap().entrySet().stream()
-//                .map( e -> cassandraContext
-//                        .cassandraSql( QueryBuilder
-//                                .select( CommonColumns.OBJECTID.cql() ).distinct()
-//                                .from( keyspace, e.getKey() )
-//                                .where( QueryBuilder.eq( CommonColumns.VALUE.cql(), e.getValue() ) )
-//                                .and( QueryBuilder.in( CommonColumns.ACLID.cql(),
-//                                        authzManager.getAuthorizedAcls( entityKey.getUserId(),
-//                                                Permission.READ ) ) )
-//                                .getQueryString() )
-//                        .toJavaRDD().map( row -> UUID.fromString( row.getAs( CommonColumns.OBJECTID.cql() ) ) ) )
-//                .reduce( ( lhs, rhs ) -> lhs.intersection( rhs ) ).get().collect();
     }
 
     //
