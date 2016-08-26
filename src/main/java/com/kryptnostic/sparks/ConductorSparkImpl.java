@@ -12,7 +12,6 @@ import org.apache.spark.sql.cassandra.CassandraSQLContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.datastax.spark.connector.japi.CassandraJavaUtil;
 import com.datastax.spark.connector.japi.SparkContextJavaFunctions;
 import com.google.common.collect.ImmutableList;
@@ -20,10 +19,9 @@ import com.kryptnostic.conductor.rpc.ConductorSparkApi;
 import com.kryptnostic.conductor.rpc.LoadEntitiesRequest;
 import com.kryptnostic.conductor.rpc.UUIDs.ACLs;
 import com.kryptnostic.datastore.cassandra.CommonColumns;
-import com.kryptnostic.mapstores.v2.Permission;
 
 public class ConductorSparkImpl implements ConductorSparkApi {
-    private static final Logger             logger           = LoggerFactory.getLogger( ConductorSparkImpl.class );
+    private static final Logger             logger = LoggerFactory.getLogger( ConductorSparkImpl.class );
     private final JavaSparkContext          spark;
     private final CassandraSQLContext       cassandraContext;
     private final SparkContextJavaFunctions cassandraJavaContext;
@@ -39,27 +37,28 @@ public class ConductorSparkImpl implements ConductorSparkApi {
 
     @Override
     public List<UUID> lookupEntities( String keyspace, LoadEntitiesRequest entityKey ) {
-        entityKey.getPropertyTableToValueMap().entrySet().stream()
+        return entityKey.getPropertyTableToValueMap().entrySet().stream()
                 .map( e -> cassandraJavaContext.cassandraTable( keyspace,
                         e.getKey(),
                         CassandraJavaUtil.mapColumnTo( UUID.class ) )
                         .select( CommonColumns.OBJECTID.cql() ).where( "value = ? and aclId IN ?",
                                 e.getValue(),
                                 ImmutableList.of( ACLs.EVERYONE_ACL ) )
-                        .distinct() );
-
-        return entityKey.getPropertyTableToValueMap().entrySet().stream()
-                .map( e -> cassandraContext
-                        .cassandraSql( QueryBuilder
-                                .select( CommonColumns.OBJECTID.cql() ).distinct()
-                                .from( e.getKey() )
-                                .where( QueryBuilder.eq( CommonColumns.VALUE.cql(), e.getValue() ) )
-                                .and( QueryBuilder.in( CommonColumns.ACLID.cql(),
-                                        authzManager.getAuthorizedAcls( entityKey.getUserId(),
-                                                Permission.READ ) ) )
-                                .getQueryString() )
-                        .toJavaRDD().map( row -> UUID.fromString( row.getAs( CommonColumns.OBJECTID.cql() ) ) ) )
+                        .distinct() )
                 .reduce( ( lhs, rhs ) -> lhs.intersection( rhs ) ).get().collect();
+
+//        return entityKey.getPropertyTableToValueMap().entrySet().stream()
+//                .map( e -> cassandraContext
+//                        .cassandraSql( QueryBuilder
+//                                .select( CommonColumns.OBJECTID.cql() ).distinct()
+//                                .from( keyspace, e.getKey() )
+//                                .where( QueryBuilder.eq( CommonColumns.VALUE.cql(), e.getValue() ) )
+//                                .and( QueryBuilder.in( CommonColumns.ACLID.cql(),
+//                                        authzManager.getAuthorizedAcls( entityKey.getUserId(),
+//                                                Permission.READ ) ) )
+//                                .getQueryString() )
+//                        .toJavaRDD().map( row -> UUID.fromString( row.getAs( CommonColumns.OBJECTID.cql() ) ) ) )
+//                .reduce( ( lhs, rhs ) -> lhs.intersection( rhs ) ).get().collect();
     }
 
     //

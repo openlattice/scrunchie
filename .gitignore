@@ -4,6 +4,7 @@ bin/
 build/
 artifacts/
 src/main/webapp/auth/
+target/
 
 # IDE generated files
 .classpath
@@ -17,3 +18,4 @@ src/main/webapp/auth/
 # source maps
 *.css.map
 *.js.map
+
