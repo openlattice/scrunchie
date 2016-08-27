@@ -11,7 +11,7 @@ description = "Kryptnostic Spark RPC Library"
 group = "com.kryptnostic"
 ext.projectName = "kindling"
 
-apply from: "http://api.krypt.int/gradle/kryptnostic.gradle"
+apply from: 'https://raw.githubusercontent.com/kryptnostic/gradles/master/kryptnostic.gradle'
 
 mainClassName = "com.kryptnostic.sparks.Kindling"
 applicationDefaultJvmArgs = ["-Xmx4G","-Xms4G","-server"]
@@ -85,14 +85,3 @@ idea {
 }
 
 eclipse.classpath.plusConfigurations += [configurations.provided] 
-
-task sourcesJar(type : Jar) {
-  classifier = 'sources'
-  from sourceSets.main.allSource
-}
-
-task javadocJar(type: Jar) {
-    classifier = 'javadoc'
-    from javadoc
-}
-
