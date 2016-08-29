@@ -59,6 +59,7 @@ dependencies {
         testCompile( project(path: ":datastore", configuration: "tests"))
         testCompile( project(path: ":rhizome", configuration: "tests"))
         testCompile project(":datastore")
+        testCompile project(":rhizome")
 
     }
     else {
@@ -67,6 +68,7 @@ dependencies {
         testCompile "com.kryptnostic:datastore:${datastore_version}:tests"
         testCompile "com.kryptnostic:rhizome:${rhizome_version}:tests"
         testCompile "com.kryptnostic:datastore:${datastore_version}"
+        testCompile "com.kryptnostic:rhizome:${rhizome_version}"
     } 
 
      /**
