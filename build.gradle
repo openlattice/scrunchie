@@ -57,11 +57,16 @@ dependencies {
         logger.quiet(project.name + " using project dependencies.")
         compile project(":kryptnostic-conductor-client")
         testCompile( project(path: ":datastore", configuration: "tests"))
+        testCompile( project(path: ":rhizome", configuration: "tests"))
+        testCompile project(":datastore")
+
     }
     else {
         logger.quiet(project.name + " using jar dependencies.")
         compile "com.kryptnostic:kryptnostic-conductor-client:${conductor_client_version}"
         testCompile "com.kryptnostic:datastore:${datastore_version}:tests"
+        testCompile "com.kryptnostic:rhizome:${rhizome_version}:tests"
+        testCompile "com.kryptnostic:datastore:${datastore_version}"
     } 
 
      /**
