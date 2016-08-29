@@ -12,6 +12,7 @@ import org.junit.BeforeClass;
 
 import com.datastax.spark.connector.japi.SparkContextJavaFunctions;
 import com.geekbeast.rhizome.tests.bootstrap.EmbeddedCassandraServerHelper;
+import com.kryptnostic.conductor.rpc.odata.DatastoreConstants;
 import com.kryptnostic.datastore.edm.BootstrapDatastoreWithCassandra;
 import com.kryptnostic.rhizome.configuration.cassandra.CassandraConfiguration;
 
@@ -43,7 +44,7 @@ public class BaseKindlingSparkTest extends BootstrapDatastoreWithCassandra {
         cassandraContext = new CassandraSQLContext( spark );
         cassandraJavaContext = javaFunctions( spark );
         authzManager = new SparkAuthorizationManager();
-        csi = new ConductorSparkImpl( javaContext, authzManager );
+        csi = new ConductorSparkImpl( DatastoreConstants.KEYSPACE, javaContext, authzManager );
     }
 
 }

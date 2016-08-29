@@ -22,6 +22,7 @@ import com.kryptnostic.types.services.EntityStorageClient;
 public class KindlingReadTests extends BaseKindlingSparkTest {
     private static UUID OBJECT_ID;
     private static UUID EMP_ID = UUID.randomUUID();
+
     @BeforeClass
     public static void initData() {
         EntityStorageClient esc = ds.getContext().getBean( EntityStorageClient.class );
@@ -57,12 +58,13 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
 
     @Test
     public void testGroundControlToMajorTom() {
+        UUID userId = UUID.randomUUID();
         CassandraTableManager ctb = ds.getContext().getBean( CassandraTableManager.class );
         String typename = ctb.getTablenameForPropertyIndex( new FullQualifiedName( NAMESPACE, EMPLOYEE_ID ) );
         LoadEntitiesRequest request = new LoadEntitiesRequest(
-                UUID.randomUUID(),
+                userId,
                 ImmutableMap.of( typename, EMP_ID ) );
-        List<UUID> ids = csi.lookupEntities( DatastoreConstants.KEYSPACE, request );
+        List<UUID> ids = csi.lookupEntities( userId, request );
 
         Assert.assertTrue( ids.contains( OBJECT_ID ) );
     }
