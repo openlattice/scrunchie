@@ -55,7 +55,7 @@ public class Employee implements Serializable {
         int s;
         try {
             s = CONVERTER.parse( salary ).intValue();
-        } catch ( ParseException | NumberFormatException e ) {
+        } catch ( ArrayIndexOutOfBoundsException | ParseException | NumberFormatException e ) {
             s = 0;
         }
         this.salary = s;
