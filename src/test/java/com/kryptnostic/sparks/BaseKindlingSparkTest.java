@@ -9,6 +9,8 @@ import org.apache.spark.SparkContext;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.cassandra.CassandraSQLContext;
 import org.junit.BeforeClass;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.datastax.spark.connector.japi.SparkContextJavaFunctions;
 import com.kryptnostic.conductor.rpc.odata.DatastoreConstants;
@@ -24,6 +26,7 @@ public class BaseKindlingSparkTest extends BootstrapDatastoreWithCassandra {
     protected static SparkContextJavaFunctions cassandraJavaContext;
     protected static SparkAuthorizationManager authzManager;
     protected static ConductorSparkImpl        csi;
+    protected final Logger logger = LoggerFactory.getLogger( getClass() );
 
     @BeforeClass
     public static void initSpark() {
