@@ -38,8 +38,6 @@ configurations.all {
   }
 }
 
-ext.netty_epoll_version='4.0.36.Final'
-
 dependencies {
     compile "com.fasterxml.jackson.dataformat:jackson-dataformat-csv:${jackson_version}"
     compile "com.datastax.spark:spark-cassandra-connector-java_2.10:${spark_cassandra_connector_version}"
