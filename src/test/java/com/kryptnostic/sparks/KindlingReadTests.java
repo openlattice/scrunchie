@@ -7,15 +7,20 @@ import org.apache.olingo.commons.api.data.Entity;
 import org.apache.olingo.commons.api.data.Property;
 import org.apache.olingo.commons.api.data.ValueType;
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
+import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.sql.DataFrame;
+import org.apache.spark.sql.SQLContext;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.kryptnostic.conductor.rpc.Employee;
 import com.kryptnostic.conductor.rpc.LoadEntitiesRequest;
 import com.kryptnostic.conductor.rpc.UUIDs.ACLs;
 import com.kryptnostic.conductor.rpc.UUIDs.Syncs;
-import com.kryptnostic.conductor.rpc.odata.DatastoreConstants;
 import com.kryptnostic.types.services.CassandraTableManager;
 import com.kryptnostic.types.services.EntityStorageClient;
 
@@ -67,5 +72,30 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
         List<UUID> ids = csi.lookupEntities( userId, request );
 
         Assert.assertTrue( ids.contains( OBJECT_ID ) );
+    }
+    
+    @Test
+    public void takeYourProteinPillsMajorTom() {
+        JavaRDD<String> s = javaContext.textFile( "src/test/resources/employees.csv" );
+        s.foreach( l -> System.out.println( l ) );
+        JavaRDD<Employee> t = s.map( e -> Employee.EmployeeCsvReader.getEmployee( e ) );
+        SQLContext context = new SQLContext( spark );
+        logger.info( "Total # of employees: {}", t.count() );
+        DataFrame df = context.createDataFrame( t, Employee.class );
+        df.registerTempTable( "employees" );
+        DataFrame emps = context.sql( "SELECT * from employees WHERE salary > 81500" );
+        List<String> highlyPaidEmps = emps.javaRDD().map( e -> String.format( "%s,%s,%s,%d",
+                e.getAs( "name" ),
+                e.getAs( "dept" ),
+                e.getAs( "title" ),
+                e.getAs( "salary" ) ) ).collect();
+        highlyPaidEmps.forEach( e -> logger.info( e ) );
+
+        logger.info( "emps: {}", Lists.newArrayList( emps.javaRDD().map( e -> new Employee(
+                e.getAs( "name" ),
+                e.getAs( "dept" ),
+                e.getAs( "title" ),
+                (int) e.getAs( "salary" ) ) ).collect() ) );
+
     }
 }
