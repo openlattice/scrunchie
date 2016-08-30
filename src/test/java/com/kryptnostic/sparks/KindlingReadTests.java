@@ -71,7 +71,7 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
 
         Assert.assertTrue( ids.contains( OBJECT_ID ) );
     }
-    
+
     @Test
     public void takeYourProteinPillsMajorTom() {
         JavaRDD<String> s = javaContext.textFile( "src/test/resources/employees.csv" );
@@ -87,7 +87,7 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
                 e.getAs( "dept" ),
                 e.getAs( "title" ),
                 e.getAs( "salary" ) ) ).collect();
-        highlyPaidEmps.forEach( e -> logger.info( e ) );
+        highlyPaidEmps.forEach( e -> System.out.println( e ) );
 
         logger.info( "emps: {}", Lists.newArrayList( emps.javaRDD().map( e -> new Employee(
                 e.getAs( "name" ),
