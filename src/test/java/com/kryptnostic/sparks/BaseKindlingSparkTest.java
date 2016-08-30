@@ -38,7 +38,7 @@ public class BaseKindlingSparkTest extends BootstrapDatastoreWithCassandra {
                 .setAppName( "Kindling" )
                 .set( "spark.cassandra.connection.host", hosts )
                 .set( "spark.cassandra.connection.port",
-                        Integer.toString( EmbeddedCassandraServerHelper.getNativeTransportPort() ) );
+                        Integer.toString( 9042 ) );
         spark = new SparkContext( conf );
         javaContext = new JavaSparkContext( spark );
         cassandraContext = new CassandraSQLContext( spark );
