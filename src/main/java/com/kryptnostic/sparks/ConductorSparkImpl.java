@@ -1,7 +1,5 @@
 package com.kryptnostic.sparks;
 
-import static com.datastax.spark.connector.japi.CassandraJavaUtil.javaFunctions;
-
 import java.util.List;
 import java.util.UUID;
 
@@ -22,16 +20,21 @@ import com.kryptnostic.mapstores.v2.Permission;
 public class ConductorSparkImpl implements ConductorSparkApi {
     private static final Logger             logger = LoggerFactory.getLogger( ConductorSparkImpl.class );
     private final JavaSparkContext          spark;
-    private final CassandraSQLContext       cassandraContext;
+    private final CassandraSQLContext       cassandraSqlContext;
     private final SparkContextJavaFunctions cassandraJavaContext;
     private final SparkAuthorizationManager authzManager;
     private final String                    keyspace;
 
     @Inject
-    public ConductorSparkImpl( String keyspace, JavaSparkContext spark, SparkAuthorizationManager authzManager ) {
+    public ConductorSparkImpl(
+            String keyspace,
+            JavaSparkContext spark,
+            CassandraSQLContext cassandraSqlContext,
+            SparkContextJavaFunctions cassandraJavaContext,
+            SparkAuthorizationManager authzManager ) {
         this.spark = spark;
-        this.cassandraContext = new CassandraSQLContext( spark.sc() );
-        this.cassandraJavaContext = javaFunctions( spark );
+        this.cassandraSqlContext = cassandraSqlContext;
+        this.cassandraJavaContext = cassandraJavaContext;
         this.authzManager = authzManager;
         this.keyspace = keyspace;
     }
