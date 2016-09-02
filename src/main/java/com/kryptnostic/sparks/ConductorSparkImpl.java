@@ -5,6 +5,10 @@ import java.util.UUID;
 
 import javax.inject.Inject;
 
+import com.kryptnostic.conductor.rpc.QueryResult;
+import com.kryptnostic.conductor.rpc.odata.EntitySet;
+import com.kryptnostic.datastore.services.CassandraTableManager;
+import com.kryptnostic.datastore.services.EdmManager;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.cassandra.CassandraSQLContext;
 import org.slf4j.Logger;
@@ -18,12 +22,14 @@ import com.kryptnostic.datastore.cassandra.CommonColumns;
 import com.kryptnostic.mapstores.v2.Permission;
 
 public class ConductorSparkImpl implements ConductorSparkApi {
-    private static final Logger             logger = LoggerFactory.getLogger( ConductorSparkImpl.class );
+    private static final Logger logger = LoggerFactory.getLogger( ConductorSparkImpl.class );
     private final JavaSparkContext          spark;
     private final CassandraSQLContext       cassandraSqlContext;
     private final SparkContextJavaFunctions cassandraJavaContext;
     private final SparkAuthorizationManager authzManager;
     private final String                    keyspace;
+    private final CassandraTableManager     cassandraTableManager;
+    private final EdmManager                dataModelService;
 
     @Inject
     public ConductorSparkImpl(
@@ -31,12 +37,16 @@ public class ConductorSparkImpl implements ConductorSparkApi {
             JavaSparkContext spark,
             CassandraSQLContext cassandraSqlContext,
             SparkContextJavaFunctions cassandraJavaContext,
+            CassandraTableManager cassandraTableManager,
+            EdmManager dataModelService,
             SparkAuthorizationManager authzManager ) {
         this.spark = spark;
         this.cassandraSqlContext = cassandraSqlContext;
         this.cassandraJavaContext = cassandraJavaContext;
         this.authzManager = authzManager;
         this.keyspace = keyspace;
+        this.cassandraTableManager = cassandraTableManager;
+        this.dataModelService = dataModelService;
     }
 
     @Override
@@ -51,6 +61,11 @@ public class ConductorSparkImpl implements ConductorSparkApi {
                                 authzManager.getAuthorizedAcls( userId, Permission.READ ) )
                         .distinct() )
                 .reduce( ( lhs, rhs ) -> lhs.intersection( rhs ) ).get().collect();
+    }
+
+    @Override
+    public QueryResult loadEntitySet( EntitySet setType ) {
+        return null;
     }
 
     //
