@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory;
 import com.datastax.spark.connector.japi.CassandraJavaUtil;
 import com.datastax.spark.connector.japi.SparkContextJavaFunctions;
 import com.kryptnostic.conductor.rpc.ConductorSparkApi;
-import com.kryptnostic.conductor.rpc.LoadEntitiesRequest;
+import com.kryptnostic.conductor.rpc.LookupEntitiesRequest;
 import com.kryptnostic.datastore.cassandra.CommonColumns;
 import com.kryptnostic.mapstores.v2.Permission;
 
@@ -40,7 +40,8 @@ public class ConductorSparkImpl implements ConductorSparkApi {
     }
 
     @Override
-    public List<UUID> lookupEntities( UUID userId, LoadEntitiesRequest entityKey ) {
+    public List<UUID> lookupEntities( LookupEntitiesRequest entityKey ) {
+        UUID userId = entityKey.getUserId();
         return entityKey.getPropertyTableToValueMap().entrySet().stream()
                 .map( e -> cassandraJavaContext.cassandraTable( keyspace,
                         e.getKey(),

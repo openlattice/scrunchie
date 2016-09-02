@@ -16,11 +16,11 @@ import org.junit.Test;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.kryptnostic.conductor.rpc.LoadEntitiesRequest;
+import com.kryptnostic.conductor.rpc.LookupEntitiesRequest;
 import com.kryptnostic.conductor.rpc.UUIDs.ACLs;
 import com.kryptnostic.conductor.rpc.UUIDs.Syncs;
-import com.kryptnostic.types.services.CassandraTableManager;
-import com.kryptnostic.types.services.EntityStorageClient;
+import com.kryptnostic.datastore.services.CassandraTableManager;
+import com.kryptnostic.datastore.services.EntityStorageClient;
 
 public class KindlingReadTests extends BaseKindlingSparkTest {
     private static UUID OBJECT_ID;
@@ -64,10 +64,10 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
         UUID userId = UUID.randomUUID();
         CassandraTableManager ctb = ds.getContext().getBean( CassandraTableManager.class );
         String typename = ctb.getTablenameForPropertyIndex( new FullQualifiedName( NAMESPACE, EMPLOYEE_ID ) );
-        LoadEntitiesRequest request = new LoadEntitiesRequest(
+        LookupEntitiesRequest request = new LookupEntitiesRequest(
                 userId,
                 ImmutableMap.of( typename, EMP_ID ) );
-        List<UUID> ids = csi.lookupEntities( userId, request );
+        List<UUID> ids = csi.lookupEntities( request );
 
         Assert.assertTrue( ids.contains( OBJECT_ID ) );
     }
