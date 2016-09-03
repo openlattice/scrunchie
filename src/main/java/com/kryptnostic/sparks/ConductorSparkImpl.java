@@ -14,6 +14,8 @@ import com.datastax.spark.connector.japi.CassandraJavaUtil;
 import com.datastax.spark.connector.japi.SparkContextJavaFunctions;
 import com.kryptnostic.conductor.rpc.ConductorSparkApi;
 import com.kryptnostic.conductor.rpc.LookupEntitiesRequest;
+import com.kryptnostic.conductor.rpc.QueryResult;
+import com.kryptnostic.conductor.rpc.odata.EntitySet;
 import com.kryptnostic.datastore.cassandra.CommonColumns;
 import com.kryptnostic.mapstores.v2.Permission;
 
@@ -51,6 +53,12 @@ public class ConductorSparkImpl implements ConductorSparkApi {
                                 authzManager.getAuthorizedAcls( userId, Permission.READ ) )
                         .distinct() )
                 .reduce( ( lhs, rhs ) -> lhs.intersection( rhs ) ).get().collect();
+    }
+
+    @Override
+    public QueryResult loadEntitySet( EntitySet setType ) {
+        // TODO Auto-generated method stub
+        return null;
     }
 
     //
