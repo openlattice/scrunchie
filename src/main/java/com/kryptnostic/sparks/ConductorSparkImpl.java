@@ -2,9 +2,19 @@ package com.kryptnostic.sparks;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
+import com.datastax.driver.core.Session;
+import com.datastax.spark.connector.cql.CassandraConnector;
+import com.kryptnostic.conductor.rpc.QueryResult;
+import com.kryptnostic.conductor.rpc.odata.EntitySet;
+import com.kryptnostic.conductor.rpc.odata.PropertyType;
+import com.kryptnostic.datastore.cassandra.CassandraTableBuilder;
+import com.kryptnostic.datastore.services.CassandraTableManager;
+import com.kryptnostic.datastore.services.EdmManager;
+import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.cassandra.CassandraSQLContext;
 import org.slf4j.Logger;
@@ -18,12 +28,14 @@ import com.kryptnostic.datastore.cassandra.CommonColumns;
 import com.kryptnostic.mapstores.v2.Permission;
 
 public class ConductorSparkImpl implements ConductorSparkApi {
-    private static final Logger             logger = LoggerFactory.getLogger( ConductorSparkImpl.class );
+    private static final Logger logger = LoggerFactory.getLogger( ConductorSparkImpl.class );
     private final JavaSparkContext          spark;
     private final CassandraSQLContext       cassandraSqlContext;
     private final SparkContextJavaFunctions cassandraJavaContext;
     private final SparkAuthorizationManager authzManager;
     private final String                    keyspace;
+    private final CassandraTableManager     cassandraTableManager;
+    private final EdmManager                dataModelService;
 
     @Inject
     public ConductorSparkImpl(
@@ -31,12 +43,16 @@ public class ConductorSparkImpl implements ConductorSparkApi {
             JavaSparkContext spark,
             CassandraSQLContext cassandraSqlContext,
             SparkContextJavaFunctions cassandraJavaContext,
+            CassandraTableManager cassandraTableManager,
+            EdmManager dataModelService,
             SparkAuthorizationManager authzManager ) {
         this.spark = spark;
         this.cassandraSqlContext = cassandraSqlContext;
         this.cassandraJavaContext = cassandraJavaContext;
         this.authzManager = authzManager;
         this.keyspace = keyspace;
+        this.cassandraTableManager = cassandraTableManager;
+        this.dataModelService = dataModelService;
     }
 
     @Override
@@ -51,6 +67,51 @@ public class ConductorSparkImpl implements ConductorSparkApi {
                                 authzManager.getAuthorizedAcls( userId, Permission.READ ) )
                         .distinct() )
                 .reduce( ( lhs, rhs ) -> lhs.intersection( rhs ) ).get().collect();
+    }
+
+    @Override
+    public QueryResult loadEntitySet( EntitySet setType ) {
+        return null;
+    }
+
+    private List<PropertyType> loadPropertiesOfType(String namespace, String entityName) {
+        List<PropertyType> targetPropertyTypes = dataModelService.getEntityType( namespace, entityName ).getProperties()
+                .stream()
+                .map( e -> dataModelService.getPropertyType( e ) ).collect( Collectors.toList());
+
+        return targetPropertyTypes;
+    }
+
+    public QueryResult loadEntitySet( String namespace, String entityName ) {
+
+
+
+
+        return null;
+    }
+
+    private String initializeTempTable( String entityName, List<PropertyType> propertyTypes ) {
+        String tableName = "";
+
+        //TODO: construct the CQL for create table
+        StringBuilder sb = new StringBuilder( "CREATE TABLE cache." );
+        sb.append( tableName );
+        sb.append( " (" );
+        for( PropertyType pt: propertyTypes){
+            sb.append( pt.getFullQualifiedName() );
+            sb.append( " " );
+            sb.append( pt.getDatatype().toString() );
+            sb.append( ", " );
+        }
+        //TODO: formatting CQL and add PRIMARY KEY
+
+        CassandraConnector cassandraConnector = CassandraConnector.apply( spark.getConf() );
+        try( Session session = cassandraConnector.openSession()){
+            session.execute( "DROP KEYSPACE IF EXISTS cache" );
+            session.execute( "CREATE KEYSPACE cache WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1" );
+            session.execute( sb.toString() );
+        }
+        return null;
     }
 
     //
