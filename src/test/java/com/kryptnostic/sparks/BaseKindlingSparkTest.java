@@ -15,6 +15,8 @@ import org.slf4j.LoggerFactory;
 import com.datastax.spark.connector.japi.SparkContextJavaFunctions;
 import com.kryptnostic.conductor.rpc.odata.DatastoreConstants;
 import com.kryptnostic.datastore.edm.BootstrapDatastoreWithCassandra;
+import com.kryptnostic.datastore.services.CassandraTableManager;
+import com.kryptnostic.datastore.services.EdmManager;
 import com.kryptnostic.rhizome.configuration.cassandra.CassandraConfiguration;
 
 public class BaseKindlingSparkTest extends BootstrapDatastoreWithCassandra {
@@ -26,12 +28,13 @@ public class BaseKindlingSparkTest extends BootstrapDatastoreWithCassandra {
     protected static SparkContextJavaFunctions cassandraJavaContext;
     protected static SparkAuthorizationManager authzManager;
     protected static ConductorSparkImpl        csi;
-    protected final Logger logger = LoggerFactory.getLogger( getClass() );
+    protected final Logger                     logger = LoggerFactory.getLogger( getClass() );
 
     @BeforeClass
     public static void initSpark() {
         CassandraConfiguration cassandraConfiguration = ds.getContext().getBean( CassandraConfiguration.class );
-
+        CassandraTableManager ctb = ds.getContext().getBean( CassandraTableManager.class );
+        EdmManager edm = ds.getContext().getBean( EdmManager.class );
         String hosts = cassandraConfiguration.getCassandraSeedNodes().stream().map( host -> host.getHostAddress() )
                 .collect( Collectors.joining( "," ) );
         // TODO: Right now this test will only pass with in JVM spark master. For running on a spark cluster, you must
@@ -50,7 +53,14 @@ public class BaseKindlingSparkTest extends BootstrapDatastoreWithCassandra {
         cassandraContext = new CassandraSQLContext( spark );
         cassandraJavaContext = javaFunctions( spark );
         authzManager = new SparkAuthorizationManager();
-        csi = new ConductorSparkImpl( DatastoreConstants.KEYSPACE, javaContext, cassandraContext, cassandraJavaContext, authzManager );
+        csi = new ConductorSparkImpl(
+                DatastoreConstants.KEYSPACE,
+                javaContext,
+                cassandraContext,
+                cassandraJavaContext,
+                ctb,
+                edm,
+                authzManager );
     }
 
 }

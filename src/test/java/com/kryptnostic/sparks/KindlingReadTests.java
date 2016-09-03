@@ -60,6 +60,11 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
     }
 
     @Test
+    public void testStepOutOfTheCapsule() {
+        csi.loadAllEntitiesOfType( ENTITY_TYPE );
+    }
+    
+    @Test
     public void testGroundControlToMajorTom() {
         UUID userId = UUID.randomUUID();
         CassandraTableManager ctb = ds.getContext().getBean( CassandraTableManager.class );
