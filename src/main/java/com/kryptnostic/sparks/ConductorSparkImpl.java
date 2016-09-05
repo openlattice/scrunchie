@@ -11,12 +11,17 @@ import java.util.stream.Stream;
 
 import javax.inject.Inject;
 
+import com.datastax.spark.connector.ColumnRef;
+import com.datastax.spark.connector.cql.TableDef;
+import com.datastax.spark.connector.writer.RowWriter;
+import com.datastax.spark.connector.writer.RowWriterFactory;
 import org.apache.commons.lang.StringUtils;
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.Column;
 import org.apache.spark.sql.DataFrame;
+import org.apache.spark.sql.Row;
 import org.apache.spark.sql.cassandra.CassandraSQLContext;
 import org.apache.spark.sql.catalyst.plans.JoinType;
 import org.apache.spark.sql.catalyst.plans.logical.Join;
@@ -45,9 +50,11 @@ import com.kryptnostic.mapstores.v2.Permission;
 
 import breeze.linalg.ptp;
 import jersey.repackaged.com.google.common.collect.Lists;
+import scala.collection.IndexedSeq;
+import scala.collection.Seq;
 
 public class ConductorSparkImpl implements ConductorSparkApi {
-    private static final Logger             logger = LoggerFactory.getLogger( ConductorSparkImpl.class );
+    private static final Logger logger = LoggerFactory.getLogger( ConductorSparkImpl.class );
     private final JavaSparkContext          spark;
     private final CassandraSQLContext       cassandraSqlContext;
     private final SparkContextJavaFunctions cassandraJavaContext;
@@ -93,7 +100,8 @@ public class ConductorSparkImpl implements ConductorSparkApi {
         cassandraSqlContext.setKeyspace( keyspace );
         DataFrame df = cassandraSqlContext.cassandraSql( "select * from entity_nbo9mf6nml3p49zq21funofw" )
                 .where( new Column( "clock" ).geq( "2016-09-03 00:51:42" ) );
-        JavaRDD<String> rdd = new JavaRDD<String>( df.toJSON(), scala.reflect.ClassTag$.MODULE$.apply( String.class ) );// CassandraJavaUtil.javaFunctions(
+        JavaRDD<String> rdd = new JavaRDD<String>( df.toJSON(),
+                scala.reflect.ClassTag$.MODULE$.apply( String.class ) );// CassandraJavaUtil.javaFunctions(
         // df.toJSON() )
         rdd.foreach( s -> System.err.println( s ) );
         // JavaRDD<CassandraRow> rdd =cassandraJavaContext.cassandraTable( keyspace, "entitySetMembership" ).select(
@@ -104,41 +112,8 @@ public class ConductorSparkImpl implements ConductorSparkApi {
         return null;
     }
 
-    private List<PropertyType> loadPropertiesOfType( String namespace, String entityName ) {
-        List<PropertyType> targetPropertyTypes = dataModelService.getEntityType( namespace, entityName ).getProperties()
-                .stream()
-                .map( e -> dataModelService.getPropertyType( e ) ).collect( Collectors.toList() );
-
-        return targetPropertyTypes;
-    }
-
     public QueryResult loadEntitySet( String namespace, String entityName ) {
 
-        return null;
-    }
-
-    private String initializeTempTable( String entityName, List<PropertyType> propertyTypes ) {
-        String tableName = "";
-
-        // TODO: construct the CQL for create table
-        StringBuilder sb = new StringBuilder( "CREATE TABLE cache." );
-        sb.append( tableName );
-        sb.append( " (" );
-        for ( PropertyType pt : propertyTypes ) {
-            sb.append( pt.getFullQualifiedName() );
-            sb.append( " " );
-            sb.append( pt.getDatatype().toString() );
-            sb.append( ", " );
-        }
-        // TODO: formatting CQL and add PRIMARY KEY
-
-        CassandraConnector cassandraConnector = CassandraConnector.apply( spark.getConf() );
-        try ( Session session = cassandraConnector.openSession() ) {
-            session.execute( "DROP KEYSPACE IF EXISTS cache" );
-            session.execute(
-                    "CREATE KEYSPACE cache WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1" );
-            session.execute( sb.toString() );
-        }
         return null;
     }
 
@@ -153,6 +128,8 @@ public class ConductorSparkImpl implements ConductorSparkApi {
                         .from( this.cassandraTableManager.getTablenameForEntityType( entityTypeFqn ) ).toString(),
                 ";" );
         logger.error( "Query = {}", query );
+
+        //Get DataFrame of ??
         DataFrame df = cassandraSqlContext.cassandraSql( query );
         Stream<Entry<FullQualifiedName, PropertyType>> entryStream = propertyTypenames.entrySet().stream();
         Map<FullQualifiedName, DataFrame> propertyDataframes = entryStream
@@ -183,15 +160,65 @@ public class ConductorSparkImpl implements ConductorSparkApi {
 
         df.show();
 
-        JavaRDD<String> rdd = new JavaRDD<String>(
-                df.toJSON(),
-                scala.reflect.ClassTag$.MODULE$.apply( String.class ) );
-        rdd.foreach( s -> System.err.println( s ) );
+//        CassandraJavaUtil.javaFunctions( df.toJavaRDD() ).writerBuilder( "cache",
+//                "test-table",
+//                new RowWriterFactory<Row>() {
+//                    @Override public RowWriter<Row> rowWriter(
+//                            TableDef table, IndexedSeq<ColumnRef> selectedColumns ) {
+//                        List<String> propertyFqnList = propertyTypenames.keySet().stream().map( e->e.getFullQualifiedNameAsString() ).collect( Collectors.toList() );
+//                        return new RowWriter<Row>() {
+//                            @Override public Seq<String> columnNames() {
+//                                return scala.collection.JavaConversions.asScalaBuffer( propertyFqnList );
+//                            }
+//
+//                            @Override public void readColumnValues( Row data, Object[] buffer ) {
+//                                int i = 0;
+//                                for(String columnName: propertyFqnList) {
+//                                    buffer[i] = data.getAs( columnName );
+//                                }
+//
+//                            }
+//                        };
+//                    }
+//                } )
+////                .withColumnSelector(CassandraJavaUtil.someColumns( propertyDataframes.keySet().toArray( new String[0] ) ))//TODO: add objectid column name
+//                .withConstantTTL(2 *  60 * 60 * 1000)
+//                .saveToCassandra();
 
-        // rdd = new JavaRDD<String>( df.toJSON(), scala.reflect.ClassTag$.MODULE$.apply( String.class ) );
-        // rdd.foreach( s -> System.err.println( s ) );
+//        JavaRDD<String> rdd = new JavaRDD<String>(
+//                df.toJSON(),
+//                scala.reflect.ClassTag$.MODULE$.apply( String.class ) );
+//        rdd.foreach( s -> System.err.println( s ) );
+
         return null;
     }
+
+    private String initializeTempTable( String entityName, List<PropertyType> propertyTypes ) {
+        String tableName = "";
+
+        // TODO: construct the CQL for create table
+        StringBuilder sb = new StringBuilder( "CREATE TABLE cache." );
+        sb.append( tableName );
+        sb.append( " (" );
+        for ( PropertyType pt : propertyTypes ) {
+            sb.append( pt.getFullQualifiedName() );
+            sb.append( " " );
+            sb.append( pt.getDatatype().toString() );
+            sb.append( ", " );
+        }
+        // TODO: formatting CQL and add PRIMARY KEY
+
+        CassandraConnector cassandraConnector = CassandraConnector.apply( spark.getConf() );
+        try ( Session session = cassandraConnector.openSession() ) {
+            session.execute( "DROP KEYSPACE IF EXISTS cache" );
+            session.execute(
+                    "CREATE KEYSPACE cache WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1" );
+            session.execute( sb.toString() );
+        }
+        return null;
+    }
+
+
 
     //
     // @Override
