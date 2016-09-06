@@ -15,6 +15,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.kryptnostic.conductor.rpc.LookupEntitiesRequest;
 import com.kryptnostic.conductor.rpc.UUIDs.ACLs;
@@ -61,17 +62,26 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
 
     @Test
     public void testStepOutOfTheCapsule() {
-        csi.loadAllEntitiesOfType( ENTITY_TYPE );
-    }
-    
-    @Test
-    public void testGroundControlToMajorTom() {
         UUID userId = UUID.randomUUID();
         CassandraTableManager ctb = ds.getContext().getBean( CassandraTableManager.class );
         String typename = ctb.getTablenameForPropertyIndexOfType( new FullQualifiedName( NAMESPACE, EMPLOYEE_ID ) );
         LookupEntitiesRequest request = new LookupEntitiesRequest(
                 userId,
-                ImmutableMap.of( typename, EMP_ID ) );
+                ImmutableSet.of( ENTITY_TYPE ),
+                ImmutableMap.of( new FullQualifiedName( NAMESPACE, EMPLOYEE_ID ), EMP_ID ) );
+        csi.filterEntities( request );
+
+        csi.loadAllEntitiesOfType( ENTITY_TYPE );
+    }
+
+    @Test
+    public void testGroundControlToMajorTom() {
+        UUID userId = UUID.randomUUID();
+        CassandraTableManager ctb = ds.getContext().getBean( CassandraTableManager.class );
+        LookupEntitiesRequest request = new LookupEntitiesRequest(
+                userId,
+                ImmutableSet.of( ENTITY_TYPE ),
+                ImmutableMap.of( new FullQualifiedName( NAMESPACE, EMPLOYEE_ID ), EMP_ID ) );
         List<UUID> ids = csi.lookupEntities( request );
 
         Assert.assertTrue( ids.contains( OBJECT_ID ) );
