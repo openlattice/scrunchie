@@ -68,7 +68,7 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
     public void testGroundControlToMajorTom() {
         UUID userId = UUID.randomUUID();
         CassandraTableManager ctb = ds.getContext().getBean( CassandraTableManager.class );
-        String typename = ctb.getTablenameForPropertyIndex( new FullQualifiedName( NAMESPACE, EMPLOYEE_ID ) );
+        String typename = ctb.getTablenameForPropertyIndexOfType( new FullQualifiedName( NAMESPACE, EMPLOYEE_ID ) );
         LookupEntitiesRequest request = new LookupEntitiesRequest(
                 userId,
                 ImmutableMap.of( typename, EMP_ID ) );
