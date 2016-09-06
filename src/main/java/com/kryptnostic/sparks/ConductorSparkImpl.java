@@ -1,11 +1,12 @@
 package com.kryptnostic.sparks;
 
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -23,8 +24,6 @@ import org.apache.spark.sql.Column;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.cassandra.CassandraSQLContext;
-import org.apache.spark.sql.catalyst.plans.JoinType;
-import org.apache.spark.sql.catalyst.plans.logical.Join;
 import org.mortbay.log.Log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,7 +34,7 @@ import com.datastax.driver.core.querybuilder.QueryBuilder;
 import com.datastax.spark.connector.cql.CassandraConnector;
 import com.datastax.spark.connector.japi.CassandraJavaUtil;
 import com.datastax.spark.connector.japi.SparkContextJavaFunctions;
-import com.google.common.base.Functions;
+import com.datastax.spark.connector.japi.rdd.CassandraJavaPairRDD;
 import com.google.common.collect.Maps;
 import com.kryptnostic.conductor.codecs.FullQualifiedNameTypeCodec;
 import com.kryptnostic.conductor.rpc.ConductorSparkApi;
@@ -44,18 +43,17 @@ import com.kryptnostic.conductor.rpc.QueryResult;
 import com.kryptnostic.conductor.rpc.odata.EntitySet;
 import com.kryptnostic.conductor.rpc.odata.EntityType;
 import com.kryptnostic.conductor.rpc.odata.PropertyType;
+import com.kryptnostic.conductor.rpc.odata.Tables;
 import com.kryptnostic.datastore.cassandra.CommonColumns;
 import com.kryptnostic.datastore.services.CassandraTableManager;
 import com.kryptnostic.datastore.services.EdmManager;
-import com.kryptnostic.mapstores.v2.Permission;
 
-import breeze.linalg.ptp;
-import jersey.repackaged.com.google.common.collect.Lists;
 import scala.collection.IndexedSeq;
 import scala.collection.Seq;
 
-public class ConductorSparkImpl implements ConductorSparkApi {
-    private static final Logger logger = LoggerFactory.getLogger( ConductorSparkImpl.class );
+public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
+    private static final long               serialVersionUID = 825467486008335571L;
+    private static final Logger             logger           = LoggerFactory.getLogger( ConductorSparkImpl.class );
     private final JavaSparkContext          spark;
     private final CassandraSQLContext       cassandraSqlContext;
     private final SparkContextJavaFunctions cassandraJavaContext;
@@ -85,13 +83,12 @@ public class ConductorSparkImpl implements ConductorSparkApi {
     @Override
     public List<UUID> lookupEntities( LookupEntitiesRequest entityKey ) {
         UUID userId = entityKey.getUserId();
-        return entityKey.getPropertyTableToValueMap().entrySet().stream()
+        return entityKey.getPropertyTypeToValueMap().entrySet().stream()
                 .map( e -> cassandraJavaContext.cassandraTable( keyspace,
-                        e.getKey(),
+                        cassandraTableManager.getTablenameForPropertyIndexOfType( e.getKey() ),
                         CassandraJavaUtil.mapColumnTo( UUID.class ) )
-                        .select( CommonColumns.OBJECTID.cql() ).where( "value = ? and aclId IN ?",
-                                e.getValue(),
-                                authzManager.getAuthorizedAcls( userId, Permission.READ ) )
+                        .select( CommonColumns.ENTITYID.cql() ).where( "value = ?",
+                                e.getValue() )
                         .distinct() )
                 .reduce( ( lhs, rhs ) -> lhs.intersection( rhs ) ).get().collect();
     }
@@ -101,8 +98,8 @@ public class ConductorSparkImpl implements ConductorSparkApi {
         cassandraSqlContext.setKeyspace( keyspace );
         DataFrame df = cassandraSqlContext.cassandraSql( "select * from entity_nbo9mf6nml3p49zq21funofw" )
                 .where( new Column( "clock" ).geq( "2016-09-03 00:51:42" ) );
-        JavaRDD<String> rdd = new JavaRDD<String>( df.toJSON(),
-                scala.reflect.ClassTag$.MODULE$.apply( String.class ) );// CassandraJavaUtil.javaFunctions(
+        JavaRDD<String> rdd = new JavaRDD<String>( df.toJSON(), scala.reflect.ClassTag$.MODULE$.apply( String.class ) );
+        // CassandraJavaUtil.javaFunctions(
         // df.toJSON() )
         rdd.foreach( s -> System.err.println( s ) );
         // JavaRDD<CassandraRow> rdd =cassandraJavaContext.cassandraTable( keyspace, "entitySetMembership" ).select(
@@ -111,6 +108,59 @@ public class ConductorSparkImpl implements ConductorSparkApi {
         // cassandraSqlContext.cass
         // cassandraSqlContext.createDataFrame(rdd,new StructType() );
         return null;
+    }
+
+    public QueryResult filterEntities( LookupEntitiesRequest request ) {
+        // First we need to get object id RDDs from properties tables.
+
+        Set<EntityType> entityTypes = request.getEntityTypes().stream()
+                .map( dataModelService::getEntityType )
+                .collect( Collectors.toSet() );
+        // Tough part is looking up entities that support this type.
+        Set<CassandraJavaPairRDD<UUID, String>> partitionKeys = request.getPropertyTypeToValueMap().entrySet()
+                .parallelStream()
+                .map( ptv -> getEntityIds( request.getUserId(),
+                        cassandraTableManager.getTablenameForPropertyIndexOfType( ptv.getKey() ),
+                        ptv.getValue() ) )
+                .map( rdd -> CassandraJavaUtil.javaFunctions( rdd ).joinWithCassandraTable( keyspace,
+                        Tables.ENTITY_ID_TO_TYPE.getTableName(),
+                        CassandraJavaUtil.someColumns( CommonColumns.TYPENAME.cql() ),
+                        CassandraJavaUtil.someColumns( CommonColumns.ENTITYID.cql() ),
+                        CassandraJavaUtil.mapColumnTo( String.class ),
+                        new RowWriterFactory<UUID>() {
+
+                            @Override
+                            public RowWriter<UUID> rowWriter( TableDef t, IndexedSeq<ColumnRef> colRefs ) {
+                                return new RRU();
+                            }
+                        } ) )
+                .collect( Collectors.toSet() );
+        // keyspace,cassandraTableManager.getTablenameForEntityType( entityType ) , selectedColumns, joinColumns,
+        // rowReaderFactory, rowWriterFactory ) ))
+        // .collect( Collectors.toSet() );
+
+        // String indexTable =
+        // )
+        // .joinWithCassandraTable( keyspace, indexTable, selectedColumns, joinColumns, rowReaderFactory,
+        // rowWriterFactory );
+        partitionKeys.iterator().next().foreach( l -> System.err.println( l.toString() ) );
+        System.err.println( partitionKeys.iterator().next().collectAsMap().toString() );
+        return null;
+    }
+
+    private JavaRDD<UUID> getEntityIds( UUID userId, String table, Object value ) {
+        return cassandraJavaContext.cassandraTable( keyspace, table, CassandraJavaUtil.mapColumnTo( UUID.class ) )
+                .select( CommonColumns.ENTITYID.cql() )
+                .where( "value = ?", value )
+                .distinct();
+    }
+
+    private List<PropertyType> loadPropertiesOfType( String namespace, String entityName ) {
+        List<PropertyType> targetPropertyTypes = dataModelService.getEntityType( namespace, entityName ).getProperties()
+                .stream()
+                .map( e -> dataModelService.getPropertyType( e ) ).collect( Collectors.toList() );
+
+        return targetPropertyTypes;
     }
 
     public QueryResult loadEntitySet( String namespace, String entityName ) {
@@ -125,36 +175,40 @@ public class ConductorSparkImpl implements ConductorSparkApi {
                 fqn -> dataModelService.getPropertyType( fqn ) );
         cassandraSqlContext.setKeyspace( keyspace );
         String query = StringUtils.remove(
-                QueryBuilder.select( CommonColumns.OBJECTID.cql() )
+                QueryBuilder.select( CommonColumns.ENTITYID.cql() )
                         .from( this.cassandraTableManager.getTablenameForEntityType( entityTypeFqn ) ).toString(),
                 ";" );
         logger.error( "Query = {}", query );
 
         //Get DataFrame of ??
         DataFrame df = cassandraSqlContext.cassandraSql( query );
+        // cassandraJavaContext.cassandraTable( keyspace, cassandraTableManager.getTablenameForEntityType( entityTypeFqn
+        // ) ).map( row -> row. )
         Stream<Entry<FullQualifiedName, PropertyType>> entryStream = propertyTypenames.entrySet().stream();
+        CodecRegistry.DEFAULT_INSTANCE.register( new FullQualifiedNameTypeCodec() );
+
         Map<FullQualifiedName, DataFrame> propertyDataframes = entryStream
                 .collect( Collectors.toConcurrentMap(
                         e -> (FullQualifiedName) e.getKey(),
                         e -> {
-                            CodecRegistry.DEFAULT_INSTANCE.register( new FullQualifiedNameTypeCodec() );
                             logger.info( "Property Type: {}", e.getValue() );
                             String pTable = cassandraTableManager
-                                    .getTablenameForPropertyType( e.getValue() );
+                                    .getTablenameForPropertyValuesOfType( e.getValue() );
                             logger.info( "Ptable = {}", pTable );
                             String q = StringUtils.remove(
-                                    QueryBuilder.select( CommonColumns.OBJECTID.cql(), CommonColumns.VALUE.cql() )
+                                    QueryBuilder.select( CommonColumns.ENTITYID.cql(), CommonColumns.VALUE.cql() )
                                             .from( pTable )
                                             .toString(),
                                     ";" );
                             logger.info( "Property Type query = {}", q );
                             return cassandraSqlContext.cassandraSql( q );
                         } ) );
+
         for ( DataFrame rdf : propertyDataframes.values() ) {
             df.show();
             rdf.show();
             df = df.join( rdf,
-                    scala.collection.JavaConversions.asScalaBuffer( Arrays.asList( CommonColumns.OBJECTID.cql() ) )
+                    scala.collection.JavaConversions.asScalaBuffer( Arrays.asList( CommonColumns.ENTITYID.cql() ) )
                             .toList(),
                     "leftouter" );
         }
@@ -225,31 +279,5 @@ public class ConductorSparkImpl implements ConductorSparkApi {
         }
         return null;
     }
-
-
-
-    //
-    // @Override
-    // public List<Employee> processEmployees() {
-    // JavaRDD<Employee> t = spark.textFile( "kryptnostic-conductor/src/main/resources/employees.csv" )
-    // .map( e -> Employee.EmployeeCsvReader.getEmployee( e ) );
-    // SQLContext context = new SQLContext( spark );
-    // logger.info( "Total # of employees: {}", t.count() );
-    // DataFrame df = context.createDataFrame( t, Employee.class );
-    // df.registerTempTable( "employees" );
-    // DataFrame emps = context.sql( "SELECT * from employees WHERE salary > 81500" );
-    // List<String> highlyPaidEmps = emps.javaRDD().map( e -> String.format( "%s,%s,%s,%d",
-    // e.getAs( "name" ),
-    // e.getAs( "dept" ),
-    // e.getAs( "title" ),
-    // e.getAs( "salary" ) ) ).collect();
-    // highlyPaidEmps.forEach( e -> logger.info( e ) );
-    //
-    // return Lists.newArrayList( emps.javaRDD().map( e -> new Employee(
-    // e.getAs( "name" ),
-    // e.getAs( "dept" ),
-    // e.getAs( "title" ),
-    // (int) e.getAs( "salary" ) ) ).collect() );
-    // }
 
 }
