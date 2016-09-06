@@ -25,6 +25,7 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.cassandra.CassandraSQLContext;
 import org.apache.spark.sql.catalyst.plans.JoinType;
 import org.apache.spark.sql.catalyst.plans.logical.Join;
+import org.mortbay.log.Log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -160,30 +161,37 @@ public class ConductorSparkImpl implements ConductorSparkApi {
 
         df.show();
 
-//        CassandraJavaUtil.javaFunctions( df.toJavaRDD() ).writerBuilder( "cache",
-//                "test-table",
-//                new RowWriterFactory<Row>() {
-//                    @Override public RowWriter<Row> rowWriter(
-//                            TableDef table, IndexedSeq<ColumnRef> selectedColumns ) {
-//                        List<String> propertyFqnList = propertyTypenames.keySet().stream().map( e->e.getFullQualifiedNameAsString() ).collect( Collectors.toList() );
-//                        return new RowWriter<Row>() {
-//                            @Override public Seq<String> columnNames() {
-//                                return scala.collection.JavaConversions.asScalaBuffer( propertyFqnList );
-//                            }
-//
-//                            @Override public void readColumnValues( Row data, Object[] buffer ) {
-//                                int i = 0;
-//                                for(String columnName: propertyFqnList) {
-//                                    buffer[i] = data.getAs( columnName );
-//                                }
-//
-//                            }
-//                        };
-//                    }
-//                } )
-////                .withColumnSelector(CassandraJavaUtil.someColumns( propertyDataframes.keySet().toArray( new String[0] ) ))//TODO: add objectid column name
+        initializeTempTable(propertyTypenames);
+        CassandraJavaUtil.javaFunctions( df.toJavaRDD() ).writerBuilder( "cache",
+                "testtable3",
+                new RowWriterFactory<Row>() {
+                    @Override public RowWriter<Row> rowWriter(
+                            TableDef table, IndexedSeq<ColumnRef> selectedColumns ) {
+                        List<String> propertyNameList = propertyTypenames.keySet().stream().map( e->e.getName() ).collect( Collectors.toList() );
+                        Log.info( "property names = {}", propertyNameList.toString() );
+                        return new RowWriter<Row>() {
+                            /**
+                             * 
+                             */
+                            private static final long serialVersionUID = 1L;
+
+                            @Override public Seq<String> columnNames() {
+                                return scala.collection.JavaConversions.asScalaBuffer( propertyNameList );
+                            }
+
+                            @Override public void readColumnValues( Row data, Object[] buffer ) {
+                                int i = 0;
+                                for(String columnName: propertyNameList) {
+                                    buffer[i] = data.getAs( columnName );
+                                }
+
+                            }
+                        };
+                    }
+                } )
+//                .withColumnSelector(CassandraJavaUtil.someColumns( propertyDataframes.keySet().toArray( new String[0] ) ))//TODO: add objectid column name
 //                .withConstantTTL(2 *  60 * 60 * 1000)
-//                .saveToCassandra();
+                .saveToCassandra();
 
 //        JavaRDD<String> rdd = new JavaRDD<String>(
 //                df.toJSON(),
@@ -193,26 +201,26 @@ public class ConductorSparkImpl implements ConductorSparkApi {
         return null;
     }
 
-    private String initializeTempTable( String entityName, List<PropertyType> propertyTypes ) {
-        String tableName = "";
-
+    private String initializeTempTable( Map<FullQualifiedName, PropertyType> propertyTypes ) {
+        String tableName = "testtable3";
         // TODO: construct the CQL for create table
-        StringBuilder sb = new StringBuilder( "CREATE TABLE cache." );
+        StringBuilder sb = new StringBuilder( "CREATE TABLE IF NOT EXISTS cache." );
         sb.append( tableName );
         sb.append( " (" );
-        for ( PropertyType pt : propertyTypes ) {
-            sb.append( pt.getFullQualifiedName() );
+        for ( Entry<FullQualifiedName, PropertyType> pt : propertyTypes.entrySet() ) {
+            sb.append( pt.getKey().getName() );
             sb.append( " " );
-            sb.append( pt.getDatatype().toString() );
+            sb.append( "TEXT" );
             sb.append( ", " );
         }
-        // TODO: formatting CQL and add PRIMARY KEY
+        sb.append( "PRIMARY KEY ( employeeid  ) )" );
+        logger.info( "Create Table Query = {}", sb.toString() );
 
         CassandraConnector cassandraConnector = CassandraConnector.apply( spark.getConf() );
         try ( Session session = cassandraConnector.openSession() ) {
             session.execute( "DROP KEYSPACE IF EXISTS cache" );
             session.execute(
-                    "CREATE KEYSPACE cache WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1" );
+                    "CREATE KEYSPACE cache WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1}" );
             session.execute( sb.toString() );
         }
         return null;
