@@ -124,7 +124,16 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                         cassandraTableManager.getTablenameForPropertyIndexOfType( ptv.getKey() ),
                         ptv.getValue() ) )
                 .collect( Collectors.toSet() );
-        partitionKeys.stream();
+        //Get the RDD of UUIDs matching all the property type values, but before filtering Entity Types
+        //Throws NoSuchElementException if the RDD
+        try{
+            JavaRDD<UUID> resultsBeforeFilteringEntities = partitionKeys.stream()
+                .reduce( (leftRDD, rightRDD) -> leftRDD.intersection( rightRDD ) )
+                .get();
+        } catch (NoSuchElementException e){
+            
+        }
+        
         // keyspace,cassandraTableManager.getTablenameForEntityType( entityType ) , selectedColumns, joinColumns,
         // rowReaderFactory, rowWriterFactory ) ))
         // .collect( Collectors.toSet() );
