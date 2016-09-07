@@ -1,9 +1,9 @@
 package com.kryptnostic.sparks;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 
+import com.google.common.collect.Sets;
 import com.kryptnostic.conductor.rpc.odata.EntityType;
 import com.kryptnostic.conductor.rpc.odata.PropertyType;
 import org.apache.olingo.commons.api.data.Entity;
@@ -160,8 +160,12 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
 
     @Test
     public void testInitializeCacheTable() {
-//        String cacheTableName = csi.initializeTempTable( Lists.newArrayList() );
-//        logger.info( cacheTableName );
-        csi.loadAllEntitiesOfType( ENTITY_TYPE );
+        String cacheTableName = csi.initializeTempTable( Sets.newHashSet(
+                new FullQualifiedName( NAMESPACE, EMPLOYEE_ID ),
+                new FullQualifiedName( NAMESPACE, EMPLOYEE_NAME ),
+                new FullQualifiedName( NAMESPACE, EMPLOYEE_TITLE ),
+                new FullQualifiedName( NAMESPACE, EMPLOYEE_DEPT ),
+                new FullQualifiedName( NAMESPACE, SALARY ) ) );
+        logger.info( cacheTableName );
     }
 }

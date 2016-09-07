@@ -12,6 +12,9 @@ import java.util.stream.Stream;
 
 import javax.inject.Inject;
 
+import com.datastax.driver.core.DataType;
+import com.google.common.collect.ImmutableMap;
+import com.kryptnostic.datastore.cassandra.CassandraEdmMapping;
 import org.apache.commons.lang.StringUtils;
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
 import org.apache.spark.api.java.JavaRDD;
@@ -150,6 +153,13 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         return null;
     }
 
+    private JavaRDD<UUID> getEntityIds( UUID userId, String table, Object value ) {
+        return cassandraJavaContext.cassandraTable( keyspace, table, CassandraJavaUtil.mapColumnTo( UUID.class ) )
+                .select( CommonColumns.ENTITYID.cql() )
+                .where( "value = ?", value )
+                .distinct();
+    }
+
     public QueryResult loadEntitySet( String namespace, String entityName ) {
 
         return null;
@@ -202,9 +212,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 
         df.show();
 
-        initializeTempTable( entityType.getProperties().stream().map( fqn -> dataModelService.getPropertyType( fqn ) )
-                .collect(
-                        Collectors.toList() ) );
+        initializeTempTable( entityType.getProperties() );
         //        CassandraJavaUtil.javaFunctions( df.toJavaRDD() ).writerBuilder( "cache",
         //                "testtable3",
         //                new RowWriterFactory<Row>() {
@@ -244,11 +252,14 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         return null;
     }
 
-    public String initializeTempTable( List<PropertyType> propertyTypes ) {
-        String tableName = "okkkk";
+    public String initializeTempTable( Set<FullQualifiedName> propertyFqns ) {
+        String tableName = "okkkkF";
+        Set<PropertyType> propertyTypes = propertyFqns.stream().map( fqn -> dataModelService.getPropertyType( fqn ) )
+                .collect(
+                        Collectors.toSet() );
+        Map<FullQualifiedName, DataType> columnDefs = Maps.asMap( propertyFqns,
+                fqn -> CassandraEdmMapping.getCassandraType( dataModelService.getPropertyType( fqn ).getDatatype() ) );
 
-        Map<String, DataType> columnDefs = ImmutableMap
-                .of( "objectid", DataType.uuid(), "name", DataType.text(), "salary", DataType.bigint() );
         String query = new CacheTableBuilder( tableName ).columns( columnDefs ).buildQuery();
         logger.info( query );
 

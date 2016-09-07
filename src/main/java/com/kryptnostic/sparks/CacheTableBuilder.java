@@ -4,6 +4,7 @@ import com.datastax.driver.core.DataType;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.olingo.commons.api.edm.FullQualifiedName;
 
 import java.util.Arrays;
 import java.util.Map;
@@ -13,14 +14,14 @@ import java.util.Map;
  */
 public class CacheTableBuilder {
     private final String name;
-    private Map<String, DataType> columns = Maps.newHashMap();
+    private Map<FullQualifiedName, DataType> columns = Maps.newHashMap();
 
     public CacheTableBuilder(String name){
         Preconditions.checkArgument( StringUtils.isNotBlank( name ), "Table name cannot be blank." );
         this.name = name;
     }
 
-    public CacheTableBuilder columns( Map<String, DataType> columnNameToType){
+    public CacheTableBuilder columns( Map<FullQualifiedName, DataType> columnNameToType){
         Preconditions.checkNotNull( columnNameToType );
         Preconditions.checkState( columnNameToType.size() > 0 );
         this.columns = columnNameToType;
@@ -34,13 +35,13 @@ public class CacheTableBuilder {
         if( columns.size() > 0 ){
             appendColumnDefs( query, columns );
         }
-        query.append( "PRIMARY KEY ( objectid ) )" );
+        query.append( "PRIMARY KEY ( employeeid ) )" );
 
         return query.toString();
     }
 
-    private StringBuilder appendColumnDefs( StringBuilder query, Map<String, DataType> columns ) {
-        columns.entrySet().stream().forEach( e -> query.append( e.getKey() ).append( " " ).append( e.getValue().toString() ).append( ", " ) );
+    private StringBuilder appendColumnDefs( StringBuilder query, Map<FullQualifiedName, DataType> columns ) {
+        columns.entrySet().stream().forEach( e -> query.append( e.getKey().getName() ).append( " " ).append( e.getValue().toString() ).append( ", " ) );
         return query;
     }
 
