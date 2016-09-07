@@ -201,8 +201,8 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                         } ) );
 
         for ( DataFrame rdf : propertyDataframes.values() ) {
-            df.show();
-            rdf.show();
+            //df.show();
+            //rdf.show();
             df = df.join( rdf,
                     scala.collection.JavaConversions.asScalaBuffer( Arrays.asList( CommonColumns.ENTITYID.cql() ) )
                             .toList(),
@@ -215,10 +215,14 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 
         //Function<Row, SetMultimap<FullQualifiedName, Object>> function = ResultSetAdapterFactory.toSetMultimap( map );
 
+        for(String column: df.columns()){
+            System.err.println(column);
+        }
+
         //
         String cacheTable = initializeTempTable( entityType.getProperties() );
         //List<String> columnNames;
-        List<String> clumnNames = propertyTypenames.keySet().stream().map( fqn -> fqn.getFullQualifiedNameAsString() ).collect( Collectors.toList() );
+        List<FullQualifiedName> clumnNames = propertyTypenames.keySet().stream().collect( Collectors.toList() );
         CassandraJavaUtil.javaFunctions( df.toJavaRDD() ).writerBuilder( "cache",
                 cacheTable,
                 new RowWriterFactory<Row>() {
@@ -243,7 +247,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     }
 
     public String initializeTempTable( Set<FullQualifiedName> propertyFqns ) {
-        String tableName = "comeon5";
+        String tableName = "comeon6";
         Set<PropertyType> propertyTypes = propertyFqns.stream().map( fqn -> dataModelService.getPropertyType( fqn ) )
                 .collect(
                         Collectors.toSet() );
@@ -255,6 +259,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 
         CassandraConnector cassandraConnector = CassandraConnector.apply( spark.getConf() );
         try ( Session session = cassandraConnector.openSession() ) {
+            session.execute( "DROP TABLE IF EXISTS cache.comeon6" );
             session.execute(
                     "CREATE KEYSPACE IF NOT EXISTS cache WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1}" );
             session.execute( query );

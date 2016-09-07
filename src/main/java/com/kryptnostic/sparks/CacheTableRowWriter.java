@@ -6,15 +6,18 @@ import org.apache.spark.sql.Row;
 import scala.collection.Seq;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Created by yao on 9/7/16.
  */
 public class CacheTableRowWriter implements RowWriter<Row> {
+    private final List<String> fqNames;
     private final List<String> columnNames;
 
-    public CacheTableRowWriter(List<String> columnNames){
-        this.columnNames = columnNames;
+    public CacheTableRowWriter(List<FullQualifiedName> fqnList){
+        this.fqNames = fqnList.stream().map( fqn -> fqn.getFullQualifiedNameAsString() ).collect( Collectors.toList());
+        this.columnNames = fqnList.stream().map( fqn -> fqn.getName() ).collect( Collectors.toList());
     }
 
     @Override public Seq<String> columnNames() {
@@ -23,8 +26,10 @@ public class CacheTableRowWriter implements RowWriter<Row> {
 
     @Override public void readColumnValues( Row data, Object[] buffer ) {
         int i = 0;
-        for (String columnName : columnNames ){
-            buffer[i] = data.getAs( columnName );
-        }
+        buffer[i++] = data.getAs( "value" );
+        buffer[i++] = data.getAs( "entityid" );
+        buffer[i++] = data.getAs( "value" );
+        buffer[i++] = data.getAs( "value" );
+
     }
 }
