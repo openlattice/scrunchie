@@ -1,5 +1,6 @@
 package com.kryptnostic.sparks;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 
@@ -81,7 +82,7 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
                 ImmutableMap.of( new FullQualifiedName( NAMESPACE, EMPLOYEE_ID ), EMP_ID ) );
         csi.filterEntities( request );
 
-        //csi.loadAllEntitiesOfType( ENTITY_TYPE );
+        csi.loadAllEntitiesOfType( ENTITY_TYPE );
     }
 
     @Test
@@ -155,5 +156,11 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
         logger.info( propertyTableName2 );
 
         Assert.assertEquals( propertyTableName, propertyTableName2 );
+    }
+
+    @Test
+    public void testInitializeCacheTable() {
+        String cacheTableName = csi.initializeTempTable( Lists.newArrayList() );
+        logger.info( cacheTableName );
     }
 }
