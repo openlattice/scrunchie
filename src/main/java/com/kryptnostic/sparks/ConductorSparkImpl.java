@@ -143,7 +143,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         // )
         // .joinWithCassandraTable( keyspace, indexTable, selectedColumns, joinColumns, rowReaderFactory,
         // rowWriterFactory );
-        partitionKeys.iterator().next().foreach( l -> System.err.println( l.toString() ) );
+        //partitionKeys.iterator().next().
         System.err.println( partitionKeys.iterator().next().collectAsMap().toString() );
         return null;
     }
