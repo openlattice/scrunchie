@@ -25,7 +25,6 @@ public class CacheTableBuilder {
         Preconditions.checkState( columnNameToType.size() > 0 );
         this.columns = columnNameToType;
         Arrays.asList(columns).forEach( Preconditions::checkNotNull );
-        System.err.println(columns.size());
         return this;
     }
 
@@ -35,7 +34,7 @@ public class CacheTableBuilder {
         if( columns.size() > 0 ){
             appendColumnDefs( query, columns );
         }
-        query.append( " PRIMARY KEY ( objectid ) )" );
+        query.append( "PRIMARY KEY ( objectid ) )" );
 
         return query.toString();
     }

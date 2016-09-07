@@ -220,7 +220,9 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 
         df.show();
 
-        //        initializeTempTable(propertyTypenames);
+        initializeTempTable( entityType.getProperties().stream().map( fqn -> dataModelService.getPropertyType( fqn ) )
+                .collect(
+                        Collectors.toList() ) );
         //        CassandraJavaUtil.javaFunctions( df.toJavaRDD() ).writerBuilder( "cache",
         //                "testtable3",
         //                new RowWriterFactory<Row>() {
@@ -261,9 +263,10 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     }
 
     public String initializeTempTable( List<PropertyType> propertyTypes ) {
-        String tableName = "testtable4";
+        String tableName = "okkkk";
 
-        Map<String, DataType> columnDefs = ImmutableMap.of("objectid", DataType.uuid(), "name", DataType.text(), "salary", DataType.bigint());
+        Map<String, DataType> columnDefs = ImmutableMap
+                .of( "objectid", DataType.uuid(), "name", DataType.text(), "salary", DataType.bigint() );
         String query = new CacheTableBuilder( tableName ).columns( columnDefs ).buildQuery();
         logger.info( query );
 

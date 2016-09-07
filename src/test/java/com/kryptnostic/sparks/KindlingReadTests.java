@@ -160,7 +160,8 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
 
     @Test
     public void testInitializeCacheTable() {
-        String cacheTableName = csi.initializeTempTable( Lists.newArrayList() );
-        logger.info( cacheTableName );
+//        String cacheTableName = csi.initializeTempTable( Lists.newArrayList() );
+//        logger.info( cacheTableName );
+        csi.loadAllEntitiesOfType( ENTITY_TYPE );
     }
 }
