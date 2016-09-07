@@ -168,4 +168,9 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
                 new FullQualifiedName( NAMESPACE, SALARY ) ) );
         logger.info( cacheTableName );
     }
+
+    @Test
+    public void testWrites() {
+        csi.loadAllEntitiesOfType( ENTITY_TYPE );
+    }
 }
