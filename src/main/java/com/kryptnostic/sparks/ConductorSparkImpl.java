@@ -153,21 +153,6 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         return null;
     }
 
-    private JavaRDD<UUID> getEntityIds( UUID userId, String table, Object value ) {
-        return cassandraJavaContext.cassandraTable( keyspace, table, CassandraJavaUtil.mapColumnTo( UUID.class ) )
-                .select( CommonColumns.ENTITYID.cql() )
-                .where( "value = ?", value )
-                .distinct();
-    }
-
-    private List<PropertyType> loadPropertiesOfType( String namespace, String entityName ) {
-        List<PropertyType> targetPropertyTypes = dataModelService.getEntityType( namespace, entityName ).getProperties()
-                .stream()
-                .map( e -> dataModelService.getPropertyType( e ) ).collect( Collectors.toList() );
-
-        return targetPropertyTypes;
-    }
-
     public QueryResult loadEntitySet( String namespace, String entityName ) {
 
         return null;
