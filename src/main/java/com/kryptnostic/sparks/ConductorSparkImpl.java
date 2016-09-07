@@ -12,21 +12,12 @@ import java.util.stream.Stream;
 
 import javax.inject.Inject;
 
-import com.datastax.driver.core.DataType;
-import com.datastax.spark.connector.ColumnRef;
-import com.datastax.spark.connector.cql.TableDef;
-import com.datastax.spark.connector.writer.RowWriter;
-import com.datastax.spark.connector.writer.RowWriterFactory;
-import com.google.common.collect.ImmutableMap;
-import com.kryptnostic.datastore.cassandra.CassandraEdmMapping;
-import com.kryptnostic.datastore.cassandra.CassandraTableBuilder;
 import org.apache.commons.lang.StringUtils;
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.Column;
 import org.apache.spark.sql.DataFrame;
-import org.apache.spark.sql.Row;
 import org.apache.spark.sql.cassandra.CassandraSQLContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,10 +25,14 @@ import org.slf4j.LoggerFactory;
 import com.datastax.driver.core.CodecRegistry;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.querybuilder.QueryBuilder;
+import com.datastax.spark.connector.ColumnRef;
 import com.datastax.spark.connector.cql.CassandraConnector;
+import com.datastax.spark.connector.cql.TableDef;
 import com.datastax.spark.connector.japi.CassandraJavaUtil;
 import com.datastax.spark.connector.japi.SparkContextJavaFunctions;
 import com.datastax.spark.connector.japi.rdd.CassandraJavaPairRDD;
+import com.datastax.spark.connector.writer.RowWriter;
+import com.datastax.spark.connector.writer.RowWriterFactory;
 import com.google.common.collect.Maps;
 import com.kryptnostic.conductor.codecs.FullQualifiedNameTypeCodec;
 import com.kryptnostic.conductor.rpc.ConductorSparkApi;
@@ -50,8 +45,10 @@ import com.kryptnostic.conductor.rpc.odata.Tables;
 import com.kryptnostic.datastore.cassandra.CommonColumns;
 import com.kryptnostic.datastore.services.CassandraTableManager;
 import com.kryptnostic.datastore.services.EdmManager;
+import com.kryptnostic.mapstores.v2.Permission;
 
 import scala.collection.IndexedSeq;
+import scala.collection.JavaConversions;
 import scala.collection.Seq;
 
 public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
@@ -148,7 +145,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         // )
         // .joinWithCassandraTable( keyspace, indexTable, selectedColumns, joinColumns, rowReaderFactory,
         // rowWriterFactory );
-        partitionKeys.iterator().next().foreach( l -> System.err.println( l.toString() ) );
+        //partitionKeys.iterator().next().
         System.err.println( partitionKeys.iterator().next().collectAsMap().toString() );
         return null;
     }
