@@ -21,15 +21,18 @@ public class CacheTableRowWriter implements RowWriter<Row> {
     }
 
     @Override public Seq<String> columnNames() {
+        System.err.println(columnNames.toString());
         return scala.collection.JavaConversions.asScalaBuffer( columnNames );
     }
 
     @Override public void readColumnValues( Row data, Object[] buffer ) {
         int i = 0;
-        buffer[i++] = data.getAs( "value" );
-        buffer[i++] = data.getAs( "entityid" );
-        buffer[i++] = data.getAs( "value" );
-        buffer[i++] = data.getAs( "value" );
-
+        int j = 1;
+        System.err.println(data.toString());
+        buffer[i++] = data.get( j++ );
+        buffer[i++] = data.get( j++ );
+        buffer[i++] = data.get( j++ );
+        buffer[i++] = data.get( j++ );
+        buffer[i] = data.get( j );
     }
 }

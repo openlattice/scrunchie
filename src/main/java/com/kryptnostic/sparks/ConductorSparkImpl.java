@@ -11,6 +11,7 @@ import javax.inject.Inject;
 import com.datastax.driver.core.DataType;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.SetMultimap;
 import com.kryptnostic.datastore.cassandra.CassandraEdmMapping;
 import org.apache.commons.lang.StringUtils;
@@ -215,20 +216,27 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 
         //Function<Row, SetMultimap<FullQualifiedName, Object>> function = ResultSetAdapterFactory.toSetMultimap( map );
 
-        for(String column: df.columns()){
-            System.err.println(column);
+        for ( String column : df.columns() ) {
+            System.err.println( column );
         }
 
         //
         String cacheTable = initializeTempTable( entityType.getProperties() );
         //List<String> columnNames;
-        List<FullQualifiedName> clumnNames = propertyTypenames.keySet().stream().collect( Collectors.toList() );
+        //List<FullQualifiedName> clumnNames = propertyTypenames.keySet().stream().collect( Collectors.toList() );
+        List<FullQualifiedName> columnNames = Lists.newArrayList();
+        columnNames.add( new FullQualifiedName( "test", "salary" ) );
+        columnNames.add( new FullQualifiedName( "test", "employeename" ) );
+        columnNames.add( new FullQualifiedName( "test", "employeeid" ) );
+        columnNames.add( new FullQualifiedName( "test", "employeetitle" ) );
+        columnNames.add( new FullQualifiedName( "test", "employeedept" ) );
+
         CassandraJavaUtil.javaFunctions( df.toJavaRDD() ).writerBuilder( "cache",
                 cacheTable,
                 new RowWriterFactory<Row>() {
                     @Override public RowWriter<Row> rowWriter(
                             TableDef table, IndexedSeq<ColumnRef> selectedColumns ) {
-                        return new CacheTableRowWriter( clumnNames );
+                        return new CacheTableRowWriter( columnNames );
                     }
                 } )
                 .withColumnSelector( CassandraJavaUtil
@@ -238,10 +246,10 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                 //                .withConstantTTL( 2 * 60 * 60 * 1000 )
                 .saveToCassandra();
 
-        JavaRDD<String> rdd = new JavaRDD<String>(
-                df.toJSON(),
-                scala.reflect.ClassTag$.MODULE$.apply( String.class ) );
-        rdd.foreach( s -> System.err.println( s ) );
+        //        JavaRDD<String> rdd = new JavaRDD<String>(
+        //                df.toJSON(),
+        //                scala.reflect.ClassTag$.MODULE$.apply( String.class ) );
+        //        rdd.foreach( s -> System.err.println( s ) );
 
         return null;
     }
