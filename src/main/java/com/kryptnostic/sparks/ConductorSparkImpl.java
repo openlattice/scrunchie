@@ -31,6 +31,7 @@ import com.datastax.spark.connector.cql.TableDef;
 import com.datastax.spark.connector.japi.CassandraJavaUtil;
 import com.datastax.spark.connector.japi.SparkContextJavaFunctions;
 import com.datastax.spark.connector.japi.rdd.CassandraJavaPairRDD;
+import com.datastax.spark.connector.japi.rdd.CassandraJavaRDD;
 import com.datastax.spark.connector.writer.RowWriter;
 import com.datastax.spark.connector.writer.RowWriterFactory;
 import com.google.common.collect.Maps;
@@ -117,24 +118,13 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                 .map( dataModelService::getEntityType )
                 .collect( Collectors.toSet() );
         // Tough part is looking up entities that support this type.
-        Set<CassandraJavaPairRDD<UUID, String>> partitionKeys = request.getPropertyTypeToValueMap().entrySet()
+        Set<JavaRDD<UUID>> partitionKeys = request.getPropertyTypeToValueMap().entrySet()
                 .parallelStream()
                 .map( ptv -> getEntityIds( request.getUserId(),
                         cassandraTableManager.getTablenameForPropertyIndexOfType( ptv.getKey() ),
                         ptv.getValue() ) )
-                .map( rdd -> CassandraJavaUtil.javaFunctions( rdd ).joinWithCassandraTable( keyspace,
-                        Tables.ENTITY_ID_TO_TYPE.getTableName(),
-                        CassandraJavaUtil.someColumns( CommonColumns.TYPENAME.cql() ),
-                        CassandraJavaUtil.someColumns( CommonColumns.ENTITYID.cql() ),
-                        CassandraJavaUtil.mapColumnTo( String.class ),
-                        new RowWriterFactory<UUID>() {
-
-                            @Override
-                            public RowWriter<UUID> rowWriter( TableDef t, IndexedSeq<ColumnRef> colRefs ) {
-                                return new RRU();
-                            }
-                        } ) )
                 .collect( Collectors.toSet() );
+        partitionKeys.stream();
         // keyspace,cassandraTableManager.getTablenameForEntityType( entityType ) , selectedColumns, joinColumns,
         // rowReaderFactory, rowWriterFactory ) ))
         // .collect( Collectors.toSet() );
@@ -144,7 +134,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         // .joinWithCassandraTable( keyspace, indexTable, selectedColumns, joinColumns, rowReaderFactory,
         // rowWriterFactory );
         //partitionKeys.iterator().next().
-        System.err.println( partitionKeys.iterator().next().collectAsMap().toString() );
+        //System.err.println( partitionKeys.iterator().next().collectAsMap().toString() );
         return null;
     }
 
