@@ -7,6 +7,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -14,28 +15,33 @@ import java.util.Map;
  */
 public class CacheTableBuilder {
     private final String name;
-    private Map<FullQualifiedName, DataType> columns = Maps.newHashMap();
+    private List<FullQualifiedName> fullQualifiedNames;
+    private List<DataType> dataTypes;
 
     public CacheTableBuilder(String name){
         Preconditions.checkArgument( StringUtils.isNotBlank( name ), "Table name cannot be blank." );
         this.name = name;
     }
 
-    public CacheTableBuilder columns( Map<FullQualifiedName, DataType> columnNameToType){
-        Preconditions.checkNotNull( columnNameToType );
-        Preconditions.checkState( columnNameToType.size() > 0 );
-        this.columns = columnNameToType;
-        Arrays.asList(columns).forEach( Preconditions::checkNotNull );
+    public CacheTableBuilder columns( List<FullQualifiedName> fullQualifiedNames, List<DataType> dataTypes ){
+//        Preconditions.checkNotNull( columnNameToType );
+//        Preconditions.checkState( columnNameToType.size() > 0 );
+        this.fullQualifiedNames = fullQualifiedNames;
+        this.dataTypes = dataTypes;
+//        Arrays.asList(columns).forEach( Preconditions::checkNotNull );
         return this;
     }
 
     public String buildQuery() {
         StringBuilder query = new StringBuilder( "CREATE TABLE cache." ).append( name );
         query.append( " ( " );
-        if( columns.size() > 0 ){
-            appendColumnDefs( query, columns );
+        for(int i = 0; i < fullQualifiedNames.size(); i++){
+            query.append( fullQualifiedNames.get( i ).getName() )
+                    .append( " " )
+                    .append( dataTypes.get( i ).toString() )
+                    .append( ", " );
         }
-        query.append( "PRIMARY KEY ( employeeid ) )" );
+        query.append( "PRIMARY KEY ( entityid ) )" );
 
         return query.toString();
     }

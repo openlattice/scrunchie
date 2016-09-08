@@ -12,26 +12,22 @@ import java.util.stream.Collectors;
  * Created by yao on 9/7/16.
  */
 public class CacheTableRowWriter implements RowWriter<Row> {
-    private final List<String> fqNames;
     private final List<String> columnNames;
 
-    public CacheTableRowWriter(List<FullQualifiedName> fqnList){
-        this.fqNames = fqnList.stream().map( fqn -> fqn.getFullQualifiedNameAsString() ).collect( Collectors.toList());
-        this.columnNames = fqnList.stream().map( fqn -> fqn.getName() ).collect( Collectors.toList());
+    public CacheTableRowWriter( List<FullQualifiedName> fqnList ) {
+        this.columnNames = fqnList.stream().map( fqn -> fqn.getName() ).collect( Collectors.toList() );
     }
 
-    @Override public Seq<String> columnNames() {
-        System.err.println(columnNames.toString());
+    @Override
+    public Seq<String> columnNames() {
         return scala.collection.JavaConversions.asScalaBuffer( columnNames );
     }
 
-    @Override public void readColumnValues( Row data, Object[] buffer ) {
-        int i = 0;
-        int j = 1;
-        buffer[i++] = data.get( j++ );
-        buffer[i++] = data.get( j++ );
-        buffer[i++] = data.get( j++ );
-        buffer[i++] = data.get( j++ );
-        buffer[i] = data.get( j );
+    @Override
+    public void readColumnValues( Row data, Object[] buffer ) {
+        for ( int i = 0, j = 0; i < columnNames.size(); i++, j++ ) {
+            buffer[ i ] = data.get( j );
+        }
+
     }
 }

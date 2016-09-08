@@ -158,16 +158,16 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
         Assert.assertEquals( propertyTableName, propertyTableName2 );
     }
 
-    @Test
-    public void testInitializeCacheTable() {
-        String cacheTableName = csi.initializeTempTable( Sets.newHashSet(
-                new FullQualifiedName( NAMESPACE, EMPLOYEE_ID ),
-                new FullQualifiedName( NAMESPACE, EMPLOYEE_NAME ),
-                new FullQualifiedName( NAMESPACE, EMPLOYEE_TITLE ),
-                new FullQualifiedName( NAMESPACE, EMPLOYEE_DEPT ),
-                new FullQualifiedName( NAMESPACE, SALARY ) ) );
-        logger.info( cacheTableName );
-    }
+//    @Test
+//    public void testInitializeCacheTable() {
+//        String cacheTableName = csi.initializeTempTable( Sets.newHashSet(
+//                new FullQualifiedName( NAMESPACE, EMPLOYEE_ID ),
+//                new FullQualifiedName( NAMESPACE, EMPLOYEE_NAME ),
+//                new FullQualifiedName( NAMESPACE, EMPLOYEE_TITLE ),
+//                new FullQualifiedName( NAMESPACE, EMPLOYEE_DEPT ),
+//                new FullQualifiedName( NAMESPACE, SALARY ) ) );
+//        logger.info( cacheTableName );
+//    }
 
     @Test
     public void testWrites() {
