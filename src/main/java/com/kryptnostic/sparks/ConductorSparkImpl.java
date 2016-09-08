@@ -14,6 +14,7 @@ import javax.inject.Inject;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
+import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.Column;
@@ -29,6 +30,8 @@ import com.datastax.spark.connector.ColumnRef;
 import com.datastax.spark.connector.cql.CassandraConnector;
 import com.datastax.spark.connector.cql.TableDef;
 import com.datastax.spark.connector.japi.CassandraJavaUtil;
+import com.datastax.spark.connector.japi.PairRDDJavaFunctions;
+import com.datastax.spark.connector.japi.RDDJavaFunctions;
 import com.datastax.spark.connector.japi.SparkContextJavaFunctions;
 import com.datastax.spark.connector.japi.rdd.CassandraJavaPairRDD;
 import com.datastax.spark.connector.japi.rdd.CassandraJavaRDD;
@@ -118,22 +121,28 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                 .map( dataModelService::getEntityType )
                 .collect( Collectors.toSet() );
         // Tough part is looking up entities that support this type.
-        Set<JavaRDD<UUID>> partitionKeys = request.getPropertyTypeToValueMap().entrySet()
+        Set<JavaPairRDD<UUID, UUID>> partitionKeys = request.getPropertyTypeToValueMap().entrySet()
                 .parallelStream()
                 .map( ptv -> getEntityIds( request.getUserId(),
                         cassandraTableManager.getTablenameForPropertyIndexOfType( ptv.getKey() ),
                         ptv.getValue() ) )
+                // ** what happens if you have empty CassandraTable? Does it return an empty JavaRDD?
+                // ** Can I assume that request.getPropertyTypeToValueMap().entrySet() is nonempty?
                 .collect( Collectors.toSet() );
         //Get the RDD of UUIDs matching all the property type values, but before filtering Entity Types
-        //Throws NoSuchElementException if the RDD
-        try{
-            JavaRDD<UUID> resultsBeforeFilteringEntities = partitionKeys.stream()
+            JavaPairRDD<UUID,UUID> resultsBeforeFiltering = partitionKeys.stream()
                 .reduce( (leftRDD, rightRDD) -> leftRDD.intersection( rightRDD ) )
                 .get();
-        } catch (NoSuchElementException e){
-            
-        }
-        
+        //For each EntityType (in the set entityTypes), join the RDD with the Cassandra table of the EntityType         
+            for ( EntityType type : entityTypes ){
+                resultsBeforeFiltering.joinWithCassandraTable( keyspace, 
+                        cassandraTableManager.getTablenameForEntityType( type ), 
+                        CassandraJavaUtil.someColumns( CommonColumns.ENTITYID.cql() ), 
+                        CassandraJavaUtil.someColumns( CommonColumns.ENTITYID.cql() ),   
+                        rowReaderFactory, 
+                        rowWriterFactory 
+                        );
+            }
         // keyspace,cassandraTableManager.getTablenameForEntityType( entityType ) , selectedColumns, joinColumns,
         // rowReaderFactory, rowWriterFactory ) ))
         // .collect( Collectors.toSet() );
@@ -147,10 +156,11 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         return null;
     }
 
-    private JavaRDD<UUID> getEntityIds( UUID userId, String table, Object value ) {
+    private JavaPairRDD<UUID, UUID> getEntityIds( UUID userId, String table, Object value ) {
         return cassandraJavaContext.cassandraTable( keyspace, table, CassandraJavaUtil.mapColumnTo( UUID.class ) )
                 .select( CommonColumns.ENTITYID.cql() )
                 .where( "value = ?", value )
+                .keyBy( uuid -> uuid )
                 .distinct();
     }
 
