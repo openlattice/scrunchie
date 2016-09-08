@@ -171,6 +171,6 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
 
     @Test
     public void testWrites() {
-        csi.loadAllEntitiesOfType( ENTITY_TYPE );
+        System.out.println( csi.loadAllEntitiesOfType( ENTITY_TYPE ).toString() );
     }
 }

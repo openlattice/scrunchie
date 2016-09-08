@@ -1,21 +1,20 @@
 package com.kryptnostic.sparks;
 
 import com.datastax.spark.connector.writer.RowWriter;
-import org.apache.olingo.commons.api.edm.FullQualifiedName;
 import org.apache.spark.sql.Row;
 import scala.collection.Seq;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Created by yao on 9/7/16.
  */
 public class CacheTableRowWriter implements RowWriter<Row> {
+    private static final long serialVersionUID = -937664101639772865L;
     private final List<String> columnNames;
 
-    public CacheTableRowWriter( List<FullQualifiedName> fqnList ) {
-        this.columnNames = fqnList.stream().map( fqn -> fqn.getName() ).collect( Collectors.toList() );
+    public CacheTableRowWriter( List<String> columnNames ) {
+        this.columnNames = columnNames;
     }
 
     @Override
