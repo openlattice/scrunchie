@@ -104,9 +104,6 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         DataFrame df = cassandraSqlContext.cassandraSql( "select * from entity_nbo9mf6nml3p49zq21funofw" )
                 .where( new Column( "clock" ).geq( "2016-09-03 00:51:42" ) );
         JavaRDD<String> rdd = new JavaRDD<String>( df.toJSON(), scala.reflect.ClassTag$.MODULE$.apply( String.class ) );
-        // CassandraJavaUtil.javaFunctions(
-        // df.toJSON() )
-        rdd.foreach( s -> System.err.println( s ) );
         // JavaRDD<CassandraRow> rdd =cassandraJavaContext.cassandraTable( keyspace, "entitySetMembership" ).select(
         // "entityIds" )
         // .where( "name = ? AND type = ?", setType.getName(), setType.getType().getFullQualifiedNameAsString() );
@@ -160,11 +157,6 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                 .distinct();
     }
 
-    public QueryResult loadEntitySet( String namespace, String entityName ) {
-
-        return null;
-    }
-
     @Override
     public QueryResult loadAllEntitiesOfType( FullQualifiedName entityTypeFqn ) {
         EntityType entityType = dataModelService.getEntityType( entityTypeFqn.getNamespace(), entityTypeFqn.getName() );
@@ -202,8 +194,6 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                         } ) );
 
         for ( DataFrame rdf : propertyDataframes.values() ) {
-            //df.show();
-            //rdf.show();
             df = df.join( rdf,
                     scala.collection.JavaConversions.asScalaBuffer( Arrays.asList( CommonColumns.ENTITYID.cql() ) )
                             .toList(),
@@ -212,18 +202,12 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 
         df.show();
 
-        //Map<String, FullQualifiedName> map = Maps.newHashMap();
-
-        //Function<Row, SetMultimap<FullQualifiedName, Object>> function = ResultSetAdapterFactory.toSetMultimap( map );
-
         for ( String column : df.columns() ) {
             System.err.println( column );
         }
 
-        //
         String cacheTable = initializeTempTable( entityType.getProperties() );
-        //List<String> columnNames;
-        //List<FullQualifiedName> clumnNames = propertyTypenames.keySet().stream().collect( Collectors.toList() );
+
         List<FullQualifiedName> columnNames = Lists.newArrayList();
         columnNames.add( new FullQualifiedName( "test", "salary" ) );
         columnNames.add( new FullQualifiedName( "test", "employeename" ) );
@@ -239,17 +223,12 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                         return new CacheTableRowWriter( columnNames );
                     }
                 } )
-                .withColumnSelector( CassandraJavaUtil
-                        .someColumns( propertyDataframes.keySet().stream().map( fqn -> fqn.getName() )
-                                .collect( Collectors.toList() )
-                                .toArray( new String[ 0 ] ) ) )//TODO: add objectid column name
+//                .withColumnSelector( CassandraJavaUtil
+//                        .someColumns( propertyDataframes.keySet().stream().map( fqn -> fqn.getName() )
+//                                .collect( Collectors.toList() )
+//                                .toArray( new String[ 0 ] ) ) )//TODO: add entityid column name
                 //                .withConstantTTL( 2 * 60 * 60 * 1000 )
                 .saveToCassandra();
-
-        //        JavaRDD<String> rdd = new JavaRDD<String>(
-        //                df.toJSON(),
-        //                scala.reflect.ClassTag$.MODULE$.apply( String.class ) );
-        //        rdd.foreach( s -> System.err.println( s ) );
 
         return null;
     }

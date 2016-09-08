@@ -28,7 +28,6 @@ public class CacheTableRowWriter implements RowWriter<Row> {
     @Override public void readColumnValues( Row data, Object[] buffer ) {
         int i = 0;
         int j = 1;
-        System.err.println(data.toString());
         buffer[i++] = data.get( j++ );
         buffer[i++] = data.get( j++ );
         buffer[i++] = data.get( j++ );
