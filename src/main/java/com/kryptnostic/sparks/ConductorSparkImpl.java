@@ -12,7 +12,6 @@ import java.util.stream.Collectors;
 import javax.inject.Inject;
 
 import com.datastax.driver.core.DataType;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.kryptnostic.datastore.cassandra.CassandraEdmMapping;
 import org.apache.commons.lang.StringUtils;
@@ -48,9 +47,6 @@ import com.kryptnostic.datastore.services.CassandraTableManager;
 import com.kryptnostic.datastore.services.EdmManager;
 
 import scala.collection.IndexedSeq;
-
-import static com.datastax.spark.connector.japi.CassandraJavaUtil.mapColumnTo;
-import static com.datastax.spark.connector.japi.CassandraJavaUtil.mapToRow;
 
 public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     private static final long         serialVersionUID = 825467486008335571L;
@@ -196,8 +192,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                 CACHE_KEYSPACE,
                 tableName,
                 null,
-                null,
-                dataModelService.getEntitySet( entityTypeFqn, "Employees" ) );
+                null );
     }
 
     private String cacheToCassandra( DataFrame df, List<PropertyType> propertyTypes ) {
