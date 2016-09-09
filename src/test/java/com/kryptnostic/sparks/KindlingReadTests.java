@@ -173,4 +173,14 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
     public void testWrites() {
         System.out.println( csi.loadAllEntitiesOfType( ENTITY_TYPE ).toString() );
     }
+
+    @Test
+    public void testCacheToCassandra(){
+        csi.cacheToCassandra( "" );
+    }
+    
+    @Test
+    public void testGetValidCacheTableName(){
+        System.out.println( csi.getValidCacheTableName() );
+    }
 }

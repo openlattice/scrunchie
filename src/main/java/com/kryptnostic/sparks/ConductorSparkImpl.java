@@ -1,6 +1,8 @@
 package com.kryptnostic.sparks;
 
 import java.io.Serializable;
+import java.math.BigInteger;
+import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -10,7 +12,6 @@ import java.util.stream.Collectors;
 import javax.inject.Inject;
 
 import com.datastax.driver.core.DataType;
-import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.kryptnostic.datastore.cassandra.CassandraEdmMapping;
 import org.apache.commons.lang.StringUtils;
@@ -47,10 +48,14 @@ import com.kryptnostic.datastore.services.EdmManager;
 
 import scala.collection.IndexedSeq;
 
+import static com.datastax.spark.connector.japi.CassandraJavaUtil.mapColumnTo;
+import static com.datastax.spark.connector.japi.CassandraJavaUtil.mapToRow;
+
 public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
-    private static final long   serialVersionUID = 825467486008335571L;
-    private static final Logger logger           = LoggerFactory.getLogger( ConductorSparkImpl.class );
-    private static final String CACHE_KEYSPACE   = "cache";
+    private static final long         serialVersionUID = 825467486008335571L;
+    private static final Logger       logger           = LoggerFactory.getLogger( ConductorSparkImpl.class );
+    private final        SecureRandom random           = new SecureRandom();
+    private static final String       CACHE_KEYSPACE   = "cache";
 
     private final JavaSparkContext          spark;
     private final CassandraSQLContext       cassandraSqlContext;
@@ -130,7 +135,8 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                             }
                         } ) )
                 .collect( Collectors.toSet() );
-        // keyspace,cassandraTableManager.getTablenameForEntityType( entityType ) , selectedColumns, joinColumns,
+        // keyspace,cassandraTableManager.getTablenameForEntityType( entityType ) , selectedColumns,
+        // joinColumns,
         // rowReaderFactory, rowWriterFactory ) ))
         // .collect( Collectors.toSet() );
 
@@ -138,7 +144,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         // )
         // .joinWithCassandraTable( keyspace, indexTable, selectedColumns, joinColumns, rowReaderFactory,
         // rowWriterFactory );
-        //partitionKeys.iterator().next().
+        // partitionKeys.iterator().next().
         System.err.println( partitionKeys.iterator().next().collectAsMap().toString() );
         return null;
     }
@@ -187,38 +193,40 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                     "leftouter" );
         }
 
-        List<String> columnNames = propertyFqns.stream().map( fqn -> fqn.getName() ).collect( Collectors.toList() );
+        List<String> columnNames = propertyTypes.stream().map( pt -> "value_" + pt.getTypename() ).collect( Collectors.toList() );
         columnNames.add( 0, "entityid" );
         propertyDataTypes.add( 0, DataType.uuid() );
         String cacheTable = initializeTempTable(
-                getValidTableName( null ),
+                getValidCacheTableName(),
                 columnNames,
                 propertyDataTypes );
-        
+
         /*
-         * 1. columns order doesn't matter for Cassandra table, as long as DataType is matched
-         * 2. column names order for DataFrame matters. we can give the columns any names we want.
-         * 3. rowWriter will base on the names of its columns to lookup the cassandra column defs to get the DataType.
-         * 4. .withColumnSelector(...) using the name we assigned to rowWriter.
+         * 1. columns order doesn't matter for Cassandra table, as long as DataType is matched 2. column names order for
+         * DataFrame matters. we can give the columns any names we want. 3. rowWriter will base on the names of its
+         * columns to lookup the cassandra column defs to get the DataType. 4. .withColumnSelector(...) using the name
+         * we assigned to rowWriter.
          */
         CassandraJavaUtil.javaFunctions( df.toJavaRDD() )
                 .writerBuilder( "cache",
                         cacheTable,
                         new RowWriterFactory<Row>() {
-                            @Override public RowWriter<Row> rowWriter(
-                                    TableDef table, IndexedSeq<ColumnRef> selectedColumns ) {
+                            @Override
+                            public RowWriter<Row> rowWriter(
+                                    TableDef table,
+                                    IndexedSeq<ColumnRef> selectedColumns ) {
                                 return new CacheTableRowWriter( columnNames );
                             }
                         } )
-                //                .withConstantTTL( 2 * 60 * 60 * 1000 )
+                // .withConstantTTL( 2 * 60 * 60 * 1000 )
                 .saveToCassandra();
 
-        return new QueryResult( "cache",
+        return new QueryResult(
+                "cache",
                 cacheTable,
                 null,
                 null,
-                dataModelService.getEntitySet( entityTypeFqn, entityType.getTypename() ),
-                Optional.absent() );
+                dataModelService.getEntitySet( entityTypeFqn, entityType.getTypename() ) );
     }
 
     public String initializeTempTable( String tableName, List<String> columnNames, List<DataType> dataTypes ) {
@@ -233,8 +241,14 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     }
 
     // TODO: move to Util and redesign
-    private String getValidTableName( UUID queryId ) {
-        return "exclusive_pigg";
+    public String getValidCacheTableName() {
+        String rdm = new BigInteger( 130, random ).toString(32);
+        return "cache_" + rdm;
+    }
+
+    public boolean cacheToCassandra( String df ) {
+        System.err.println( "hello world." );
+        return true;
     }
 
 }
