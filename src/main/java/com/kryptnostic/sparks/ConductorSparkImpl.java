@@ -197,26 +197,27 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                 tableName,
                 null,
                 null,
-                dataModelService.getEntitySet( entityTypeFqn, entityType.getTypename() ) );
+                dataModelService.getEntitySet( entityTypeFqn, "Employees" ) );
     }
 
-    private String cacheToCassandra(DataFrame df, List<PropertyType> propertyTypes){
-        List<String> columnNames = propertyTypes.stream().map( pt -> "value_" + pt.getTypename() ).collect( Collectors.toList() );
+    private String cacheToCassandra( DataFrame df, List<PropertyType> propertyTypes ) {
+        List<String> columnNames = propertyTypes.stream()
+                .map( pt -> "value_" + pt.getTypename() )
+                .collect( Collectors.toList() );
         List<DataType> propertyDataTypes = propertyTypes.stream()
                 .map( pt -> CassandraEdmMapping.getCassandraType( pt.getDatatype() ) )
-                .collect(
-                        Collectors.toList() );
+                .collect( Collectors.toList() );
+
         columnNames.add( 0, "entityid" );
         propertyDataTypes.add( 0, DataType.uuid() );
-        String tableName = getValidCacheTableName();
-        String cacheTable = initializeTempTable(
-                tableName,
+
+        String tableName = initializeTempTable(
                 columnNames,
                 propertyDataTypes );
 
         CassandraJavaUtil.javaFunctions( df.toJavaRDD() )
                 .writerBuilder( "cache",
-                        cacheTable,
+                        tableName,
                         new RowWriterFactory<Row>() {
                             @Override
                             public RowWriter<Row> rowWriter(
@@ -229,7 +230,8 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         return tableName;
     }
 
-    private String initializeTempTable( String tableName, List<String> columnNames, List<DataType> dataTypes ) {
+    private String initializeTempTable( List<String> columnNames, List<DataType> dataTypes ) {
+        String tableName = getValidCacheTableName();
         String query = new CacheTableBuilder( tableName ).columns( columnNames, dataTypes ).buildQuery();
         CassandraConnector cassandraConnector = CassandraConnector.apply( spark.getConf() );
         try ( Session session = cassandraConnector.openSession() ) {
@@ -242,7 +244,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 
     // TODO: move to Util and redesign
     String getValidCacheTableName() {
-        String rdm = new BigInteger( 130, random ).toString(32);
+        String rdm = new BigInteger( 130, random ).toString( 32 );
         return "cache_" + rdm;
     }
 
