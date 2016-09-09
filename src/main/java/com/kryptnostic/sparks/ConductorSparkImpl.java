@@ -165,6 +165,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         return cassandraJavaContext.cassandraTable( keyspace, table, CassandraJavaUtil.mapColumnTo( UUID.class ) )
                 .select( CommonColumns.ENTITYID.cql() )
                 .where( "value = ?", value )
+                .r
 //Repartitioning is extremely important here to make sure that entityID is used as the partition key
 //                .repartitionbyCassandraReplica()
                 .distinct();
