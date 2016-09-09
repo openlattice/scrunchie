@@ -111,4 +111,16 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
                 (int) e.getAs( "salary" ) ) ).collect() ) );
 
     }
+    
+    @Test
+    public void testFilterEntities(){
+        UUID userId = UUID.randomUUID();
+        CassandraTableManager ctb = ds.getContext().getBean( CassandraTableManager.class );
+        String typename = ctb.getTablenameForPropertyIndexOfType( new FullQualifiedName( NAMESPACE, EMPLOYEE_ID ) );
+        LookupEntitiesRequest request = new LookupEntitiesRequest(
+                userId,
+                ImmutableSet.of( ENTITY_TYPE ),
+                ImmutableMap.of( new FullQualifiedName( NAMESPACE, EMPLOYEE_ID ), EMP_ID ) );
+        csi.filterEntities( request );        
+    }
 }
