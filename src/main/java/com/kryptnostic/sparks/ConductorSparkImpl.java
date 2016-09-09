@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 import javax.inject.Inject;
 
 import com.datastax.driver.core.DataType;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.kryptnostic.datastore.cassandra.CassandraEdmMapping;
 import org.apache.commons.lang.StringUtils;
@@ -165,10 +166,6 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         List<PropertyType> propertyTypes = propertyFqns.stream().map( fqn -> dataModelService.getPropertyType( fqn ) )
                 .collect(
                         Collectors.toList() );
-        List<DataType> propertyDataTypes = propertyTypes.stream()
-                .map( pt -> CassandraEdmMapping.getCassandraType( pt.getDatatype() ) )
-                .collect(
-                        Collectors.toList() );
 
         cassandraSqlContext.setKeyspace( keyspace );
 
@@ -193,20 +190,30 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                     "leftouter" );
         }
 
+        String tableName = cacheToCassandra( df, propertyTypes );
+
+        return new QueryResult(
+                CACHE_KEYSPACE,
+                tableName,
+                null,
+                null,
+                dataModelService.getEntitySet( entityTypeFqn, entityType.getTypename() ) );
+    }
+
+    private String cacheToCassandra(DataFrame df, List<PropertyType> propertyTypes){
         List<String> columnNames = propertyTypes.stream().map( pt -> "value_" + pt.getTypename() ).collect( Collectors.toList() );
+        List<DataType> propertyDataTypes = propertyTypes.stream()
+                .map( pt -> CassandraEdmMapping.getCassandraType( pt.getDatatype() ) )
+                .collect(
+                        Collectors.toList() );
         columnNames.add( 0, "entityid" );
         propertyDataTypes.add( 0, DataType.uuid() );
+        String tableName = getValidCacheTableName();
         String cacheTable = initializeTempTable(
-                getValidCacheTableName(),
+                tableName,
                 columnNames,
                 propertyDataTypes );
 
-        /*
-         * 1. columns order doesn't matter for Cassandra table, as long as DataType is matched 2. column names order for
-         * DataFrame matters. we can give the columns any names we want. 3. rowWriter will base on the names of its
-         * columns to lookup the cassandra column defs to get the DataType. 4. .withColumnSelector(...) using the name
-         * we assigned to rowWriter.
-         */
         CassandraJavaUtil.javaFunctions( df.toJavaRDD() )
                 .writerBuilder( "cache",
                         cacheTable,
@@ -218,18 +225,11 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                                 return new CacheTableRowWriter( columnNames );
                             }
                         } )
-                // .withConstantTTL( 2 * 60 * 60 * 1000 )
                 .saveToCassandra();
-
-        return new QueryResult(
-                "cache",
-                cacheTable,
-                null,
-                null,
-                dataModelService.getEntitySet( entityTypeFqn, entityType.getTypename() ) );
+        return tableName;
     }
 
-    public String initializeTempTable( String tableName, List<String> columnNames, List<DataType> dataTypes ) {
+    private String initializeTempTable( String tableName, List<String> columnNames, List<DataType> dataTypes ) {
         String query = new CacheTableBuilder( tableName ).columns( columnNames, dataTypes ).buildQuery();
         CassandraConnector cassandraConnector = CassandraConnector.apply( spark.getConf() );
         try ( Session session = cassandraConnector.openSession() ) {
@@ -241,14 +241,9 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     }
 
     // TODO: move to Util and redesign
-    public String getValidCacheTableName() {
+    String getValidCacheTableName() {
         String rdm = new BigInteger( 130, random ).toString(32);
         return "cache_" + rdm;
-    }
-
-    public boolean cacheToCassandra( String df ) {
-        System.err.println( "hello world." );
-        return true;
     }
 
 }
