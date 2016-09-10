@@ -3,9 +3,13 @@ package com.kryptnostic.sparks;
 import java.util.List;
 import java.util.UUID;
 
+import com.google.common.collect.Sets;
+import com.kryptnostic.conductor.rpc.odata.EntityType;
+import com.kryptnostic.conductor.rpc.odata.PropertyType;
 import org.apache.olingo.commons.api.data.Entity;
 import org.apache.olingo.commons.api.data.Property;
 import org.apache.olingo.commons.api.data.ValueType;
+import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind;
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.sql.DataFrame;
@@ -34,6 +38,8 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
         Property empName = new Property();
         Property empTitle = new Property();
         Property empSalary = new Property();
+        Property empDept = new Property();
+
         empId.setName( EMPLOYEE_ID );
         empId.setType( new FullQualifiedName( NAMESPACE, EMPLOYEE_ID ).getFullQualifiedNameAsString() );
         empId.setValue( ValueType.PRIMITIVE, EMP_ID );
@@ -46,13 +52,18 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
         empTitle.setType( new FullQualifiedName( NAMESPACE, EMPLOYEE_TITLE ).getFullQualifiedNameAsString() );
         empTitle.setValue( ValueType.PRIMITIVE, "Major" );
 
+        empDept.setName( EMPLOYEE_DEPT );
+        empDept.setType( new FullQualifiedName( NAMESPACE, EMPLOYEE_TITLE ).getFullQualifiedNameAsString() );
+        empDept.setValue( ValueType.PRIMITIVE, "Police" );
+
         empSalary.setName( SALARY );
         empSalary.setType( new FullQualifiedName( NAMESPACE, SALARY ).getFullQualifiedNameAsString() );
         empSalary.setValue( ValueType.PRIMITIVE, Long.MAX_VALUE );
 
         Entity e = new Entity();
         e.setType( ENTITY_TYPE.getFullQualifiedNameAsString() );
-        e.addProperty( empId ).addProperty( empName ).addProperty( empTitle ).addProperty( empSalary );
+        e.addProperty( empId ).addProperty( empName ).addProperty( empTitle ).addProperty( empDept )
+                .addProperty( empSalary );
         OBJECT_ID = esc.createEntityData( ACLs.EVERYONE_ACL,
                 Syncs.BASE.getSyncId(),
                 ENTITY_SET_NAME,
@@ -109,7 +120,58 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
                 e.getAs( "dept" ),
                 e.getAs( "title" ),
                 (int) e.getAs( "salary" ) ) ).collect() ) );
+    }
 
+    @Test
+    public void testGetTableName() {
+        CassandraTableManager cassandraTableManager = ds.getContext().getBean( CassandraTableManager.class );
+
+        // Get table name for entity type
+        // 1. Get table name for entity type by using Fqn
+        String entityTableName = cassandraTableManager.getTablenameForEntityType( ENTITY_TYPE );
+        logger.info( entityTableName );
+        // 2. Get table name for entity type by using EntityType
+        EntityType entityType = new EntityType().setNamespace( NAMESPACE ).setName( ENTITY_TYPE.getName() )
+                .setKey( ImmutableSet.of( new FullQualifiedName( NAMESPACE, EMPLOYEE_ID ) ) )
+                .setProperties( ImmutableSet.of( new FullQualifiedName( NAMESPACE, EMPLOYEE_ID ),
+                        new FullQualifiedName( NAMESPACE, EMPLOYEE_TITLE ),
+                        new FullQualifiedName( NAMESPACE, EMPLOYEE_NAME ),
+                        new FullQualifiedName( NAMESPACE, EMPLOYEE_DEPT ),
+                        new FullQualifiedName( NAMESPACE, SALARY ) ) );
+        String entityTableName2 = cassandraTableManager.getTablenameForEntityType( entityType );
+        logger.info( entityTableName2 );
+
+        Assert.assertEquals( entityTableName, entityTableName2 );
+
+        // Get table name for property values
+        // 1. using Fqn
+        String propertyTableName = cassandraTableManager
+                .getTablenameForPropertyValuesOfType( new FullQualifiedName( NAMESPACE, EMPLOYEE_NAME ) );
+        logger.info( propertyTableName );
+        // 2. using PropertyType
+        String propertyTableName2 = cassandraTableManager
+                .getTablenameForPropertyValuesOfType( new PropertyType().setNamespace( NAMESPACE )
+                        .setName( EMPLOYEE_NAME )
+                        .setDatatype( EdmPrimitiveTypeKind.String ).setMultiplicity( 0 ) );
+        logger.info( propertyTableName2 );
+
+        Assert.assertEquals( propertyTableName, propertyTableName2 );
+    }
+
+//    @Test
+//    public void testInitializeCacheTable() {
+//        String cacheTableName = csi.initializeTempTable( Sets.newHashSet(
+//                new FullQualifiedName( NAMESPACE, EMPLOYEE_ID ),
+//                new FullQualifiedName( NAMESPACE, EMPLOYEE_NAME ),
+//                new FullQualifiedName( NAMESPACE, EMPLOYEE_TITLE ),
+//                new FullQualifiedName( NAMESPACE, EMPLOYEE_DEPT ),
+//                new FullQualifiedName( NAMESPACE, SALARY ) ) );
+//        logger.info( cacheTableName );
+//    }
+
+    @Test
+    public void testWrites() {
+        System.out.println( csi.loadAllEntitiesOfType( ENTITY_TYPE ).toString() );
     }
     
     @Test
