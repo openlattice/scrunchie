@@ -113,14 +113,18 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
     }
     
     @Test
+    //Hard Coded test for Employees
     public void testFilterEntities(){
         UUID userId = UUID.randomUUID();
         CassandraTableManager ctb = ds.getContext().getBean( CassandraTableManager.class );
-        String typename = ctb.getTablenameForPropertyIndexOfType( new FullQualifiedName( NAMESPACE, EMPLOYEE_ID ) );
+        //Look up everything from Set<EntityType> = {"Employees"} and Employee_DEPT = "FIRE"
         LookupEntitiesRequest request = new LookupEntitiesRequest(
                 userId,
                 ImmutableSet.of( ENTITY_TYPE ),
-                ImmutableMap.of( new FullQualifiedName( NAMESPACE, EMPLOYEE_ID ), EMP_ID ) );
+                ImmutableMap.<FullQualifiedName, Object>builder()
+                    .put(new FullQualifiedName( NAMESPACE, EMPLOYEE_DEPT ), "FIRE" )
+                    .build()
+           );
         csi.filterEntities( request );        
     }
 }
