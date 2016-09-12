@@ -49,8 +49,9 @@ import com.kryptnostic.datastore.services.EdmManager;
 import scala.collection.IndexedSeq;
 
 public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
-    private static final long         serialVersionUID = 825467486008335571L;
+    private static final long serialVersionUID = 825467486008335571L;
     private static final Logger       logger           = LoggerFactory.getLogger( ConductorSparkImpl.class );
+    public static final String LEFTOUTER = "leftouter";
     private final        SecureRandom random           = new SecureRandom();
     private static final String       CACHE_KEYSPACE   = "cache";
 
@@ -183,7 +184,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
             df = df.join( rdf,
                     scala.collection.JavaConversions.asScalaBuffer( Arrays.asList( CommonColumns.ENTITYID.cql() ) )
                             .toList(),
-                    "leftouter" );
+                    LEFTOUTER );
         }
 
         String tableName = cacheToCassandra( df, propertyTypes );
