@@ -2,6 +2,7 @@ package com.kryptnostic.sparks;
 
 import java.io.Serializable;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -111,25 +112,21 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 
     public QueryResult filterEntities( LookupEntitiesRequest request ) {
         Set<JavaRDD<UUID>> partitionKeys = request.getPropertyTypeToValueMap().entrySet()
-                //for debugging, to change back to parallelstream later
-                .stream()
+                .parallelStream()
                 .map( ptv -> getEntityIds( request.getUserId(),
                         cassandraTableManager.getTablenameForPropertyValuesOfType( ptv.getKey() ),
                         ptv.getValue() ) )
-                // ** what happens if you have empty CassandraTable? Does it return an empty JavaRDD?
-                // ** Can I assume that request.getPropertyTypeToValueMap().entrySet() is nonempty?
                 .collect( Collectors.toSet() );
         //Get the RDD of UUIDs matching all the property type values, but before filtering Entity Types
             JavaRDD<UUID> resultsBeforeFiltering = partitionKeys.stream()
                 .reduce( (leftRDD, rightRDD) -> leftRDD.intersection( rightRDD ) )
                 .get();
+
+        //Get the RDD of UUIDs matching all the property type values, after filtering Entity Types
+        // TO CHANGE: once Hristo's entity type to entity id table is done, maybe faster to use that rather than do multiple joinWithCassandraTable
             JavaRDD<UUID> resultsAfterFiltering = spark.emptyRDD();
         
             if( !resultsBeforeFiltering.isEmpty() ){
-        //Get the RDD of UUIDs matching all the property type values, after filtering Entity Types
-        //For each EntityType (in the set entityTypes), join the RDD with the Cassandra table of the EntityType                     
-        // TO CHANGE: once Hristo's entity type to entity id table is done, maybe faster to use that rather than do multiple joinWithCassandraTable
-        // First we need to get object id RDDs from properties tables.            
                 resultsAfterFiltering = request.getEntityTypes().stream()
                     .map( typeFQN -> cassandraTableManager.getTablenameForEntityType( typeFQN ) )
                     .map( typeTablename -> CassandraJavaUtil.javaFunctions( resultsBeforeFiltering )
@@ -152,7 +149,34 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                     .get();
             }
         
-        // 
+        // Write to QueryResult
+            //Hard coding columnName of Cache table to write to, the "cache" keyspace
+            String cacheTable = initializeTempTable(
+                    getValidTableName( null ),
+                    Collections.singletonList( "entityid" ),
+                    Collections.singletonList( DataType.uuid() ) 
+                    );
+            
+            CassandraJavaUtil.javaFunctions( resultsAfterFiltering )
+                    .writerBuilder( "cache",
+                            cacheTable,
+                            //toModify
+                            new RowWriterFactory<UUID>() {
+                                @Override
+                                public RowWriter<UUID> rowWriter( TableDef t, IndexedSeq<ColumnRef> colRefs ) {
+                                    return new RRU();
+                                }
+                            })
+                    .saveToCassandra();
+            
+            //Fix this after Yao's pull request got merged
+            return new QueryResult( "cache",
+                    cacheTable,
+                    null,
+                    null,
+                    null,
+                    Optional.absent() );
+
         // keyspace,cassandraTableManager.getTablenameForEntityType( entityType ) , selectedColumns, joinColumns,
         // rowReaderFactory, rowWriterFactory ) ))
         // .collect( Collectors.toSet() );
@@ -163,7 +187,6 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         // rowWriterFactory );
         //partitionKeys.iterator().next().
         //System.err.println( partitionKeys.iterator().next().collectAsMap().toString() );
-        return null;
     }
 
     private JavaRDD<UUID> getEntityIds( UUID userId, String table, Object value ) {

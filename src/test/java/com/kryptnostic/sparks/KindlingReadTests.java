@@ -185,6 +185,7 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
                 ImmutableSet.of( ENTITY_TYPE ),
                 ImmutableMap.<FullQualifiedName, Object>builder()
                     .put(new FullQualifiedName( NAMESPACE, EMPLOYEE_DEPT ), "FIRE" )
+                    .put(new FullQualifiedName( NAMESPACE, EMPLOYEE_TITLE ), "FIREFIGHTER" )
                     .build()
            );
         csi.filterEntities( request );        
