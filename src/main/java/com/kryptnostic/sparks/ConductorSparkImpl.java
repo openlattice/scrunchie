@@ -110,26 +110,32 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         return null;
     }
 
+    /**
+     * 
+     * @param request a LookupEntitiesRequest from front end
+     * @return QueryResult pointing to a Cassandra table of entityIDs of results
+     */
+
     public QueryResult filterEntities( LookupEntitiesRequest request ) {
-        Set<JavaRDD<UUID>> partitionKeys = request.getPropertyTypeToValueMap().entrySet()
+        Set<JavaRDD<UUID>> resultsMatchingPropertyValues = request.getPropertyTypeToValueMap().entrySet()
                 .parallelStream()
                 .map( ptv -> getEntityIds( request.getUserId(),
                         cassandraTableManager.getTablenameForPropertyValuesOfType( ptv.getKey() ),
                         ptv.getValue() ) )
                 .collect( Collectors.toSet() );
         //Get the RDD of UUIDs matching all the property type values, but before filtering Entity Types
-            JavaRDD<UUID> resultsBeforeFiltering = partitionKeys.stream()
+            JavaRDD<UUID> resultsBeforeFilteringEntityTypes = resultsMatchingPropertyValues.stream()
                 .reduce( (leftRDD, rightRDD) -> leftRDD.intersection( rightRDD ) )
                 .get();
 
         //Get the RDD of UUIDs matching all the property type values, after filtering Entity Types
-        // TO CHANGE: once Hristo's entity type to entity id table is done, maybe faster to use that rather than do multiple joinWithCassandraTable
-            JavaRDD<UUID> resultsAfterFiltering = spark.emptyRDD();
+        //TO CHANGE: once Hristo's entity type to entity id table is done, maybe faster to use that rather than do multiple joinWithCassandraTable
+            JavaRDD<UUID> resultsAfterFilteringEntityTypes = spark.emptyRDD();
         
-            if( !resultsBeforeFiltering.isEmpty() ){
-                resultsAfterFiltering = request.getEntityTypes().stream()
+            if( !resultsBeforeFilteringEntityTypes.isEmpty() ){
+                resultsAfterFilteringEntityTypes = request.getEntityTypes().stream()
                     .map( typeFQN -> cassandraTableManager.getTablenameForEntityType( typeFQN ) )
-                    .map( typeTablename -> CassandraJavaUtil.javaFunctions( resultsBeforeFiltering )
+                    .map( typeTablename -> CassandraJavaUtil.javaFunctions( resultsBeforeFilteringEntityTypes )
                             .joinWithCassandraTable( keyspace, 
                                 typeTablename, 
                                 CassandraJavaUtil.someColumns( CommonColumns.ENTITYID.cql() ), 
@@ -150,14 +156,14 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
             }
         
         // Write to QueryResult
-            //Hard coding columnName of Cache table to write to, the "cache" keyspace
+        // Build Temp Table, using Yao's initializeTempTable function
             String cacheTable = initializeTempTable(
                     getValidTableName( null ),
-                    Collections.singletonList( "entityid" ),
+                    Collections.singletonList( CommonColumns.ENTITYID.cql() ),
                     Collections.singletonList( DataType.uuid() ) 
                     );
-            
-            CassandraJavaUtil.javaFunctions( resultsAfterFiltering )
+        // Save RDD of entityID's to Cassandra.    
+            CassandraJavaUtil.javaFunctions( resultsAfterFilteringEntityTypes )
                     .writerBuilder( "cache",
                             cacheTable,
                             //toModify
@@ -168,25 +174,15 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                                 }
                             })
                     .saveToCassandra();
-            
-            //Fix this after Yao's pull request got merged
-            return new QueryResult( "cache",
+        
+        // Return Query Result pointing to the temp table.
+        // The param entitySet should be gone, after Yao's pull request got merged
+        return new QueryResult( "cache",
                     cacheTable,
-                    null,
-                    null,
-                    null,
+                    null, //query id
+                    null, //session id
+                    null, //entity Set
                     Optional.absent() );
-
-        // keyspace,cassandraTableManager.getTablenameForEntityType( entityType ) , selectedColumns, joinColumns,
-        // rowReaderFactory, rowWriterFactory ) ))
-        // .collect( Collectors.toSet() );
-
-        // String indexTable =
-        // )
-        // .joinWithCassandraTable( keyspace, indexTable, selectedColumns, joinColumns, rowReaderFactory,
-        // rowWriterFactory );
-        //partitionKeys.iterator().next().
-        //System.err.println( partitionKeys.iterator().next().collectAsMap().toString() );
     }
 
     private JavaRDD<UUID> getEntityIds( UUID userId, String table, Object value ) {

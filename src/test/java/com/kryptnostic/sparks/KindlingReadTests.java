@@ -1,5 +1,7 @@
 package com.kryptnostic.sparks;
 
+import static org.junit.Assert.assertEquals;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -18,14 +20,19 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.datastax.spark.connector.cql.CassandraConnector;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.kryptnostic.conductor.rpc.LookupEntitiesRequest;
+import com.kryptnostic.conductor.rpc.QueryResult;
 import com.kryptnostic.conductor.rpc.UUIDs.ACLs;
 import com.kryptnostic.conductor.rpc.UUIDs.Syncs;
 import com.kryptnostic.datastore.services.CassandraTableManager;
 import com.kryptnostic.datastore.services.EntityStorageClient;
+
+import jersey.repackaged.com.google.common.collect.Iterators;
 
 public class KindlingReadTests extends BaseKindlingSparkTest {
     private static UUID OBJECT_ID;
@@ -188,6 +195,8 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
                     .put(new FullQualifiedName( NAMESPACE, EMPLOYEE_TITLE ), "FIREFIGHTER" )
                     .build()
            );
-        csi.filterEntities( request );        
+        //Should have 671 results, according to Querious
+        QueryResult result = csi.filterEntities( request );
+        assertEquals(671L, cassandraJavaContext.cassandraTable( result.getKeyspace(), result.getTableName() ).count() );        
     }
 }
