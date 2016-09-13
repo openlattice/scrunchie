@@ -185,6 +185,7 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
     
     @Test
     //Hard Coded test for Employees
+    //NOTE: To run this test, drop the existing sparks keyspace, and rerun DataStoreTests again.
     public void testFilterEntities(){
         UUID userId = UUID.randomUUID();
         CassandraTableManager ctb = ds.getContext().getBean( CassandraTableManager.class );
@@ -214,5 +215,33 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
         QueryResult resultTwo = csi.filterEntities( requestTwo );
         assertEquals(2026L, cassandraJavaContext.cassandraTable( resultTwo.getKeyspace(), resultTwo.getTableName() ).cassandraCount() );        
         //TO ADD: test for multiple entityTypes
+        
+        //Look up everything from Set<EntityType> = {"employee", "employeeMars"} and Employee_DEPT = "FIRE"
+        LookupEntitiesRequest requestMars = new LookupEntitiesRequest(
+                userId,
+                ImmutableSet.of( ENTITY_TYPE, ENTITY_TYPE_MARS ),
+                ImmutableMap.<FullQualifiedName, Object>builder()
+                    .put(new FullQualifiedName( NAMESPACE, EMPLOYEE_DEPT ), "FIRE" )
+                    .put(new FullQualifiedName( NAMESPACE, EMPLOYEE_TITLE ), "FIREFIGHTER" )
+                    .build()
+           );
+        //Should have 671*2 = 1342 results
+        QueryResult resultMars = csi.filterEntities( requestMars );
+        assertEquals(1342L, cassandraJavaContext.cassandraTable( resultMars.getKeyspace(), resultMars.getTableName() ).cassandraCount() );        
+
+        //Look up everything from Set<EntityType> = {"employee", "EmployeesMars", "EmployeesSaturn"} and Employee_DEPT = "FIRE"
+        LookupEntitiesRequest requestAll = new LookupEntitiesRequest(
+                userId,
+                ImmutableSet.of( ENTITY_TYPE, ENTITY_TYPE_MARS, ENTITY_TYPE_SATURN ),
+                ImmutableMap.<FullQualifiedName, Object>builder()
+                .put(new FullQualifiedName( NAMESPACE, EMPLOYEE_DEPT ), "POLICE" )
+                .put(new FullQualifiedName( NAMESPACE, EMPLOYEE_TITLE ), "POLICE OFFICER" )
+                .put(new FullQualifiedName( NAMESPACE, SALARY ), 84450 )
+                .build()
+           );
+        //Should have 2026*3 = 6078 results
+        QueryResult resultAll = csi.filterEntities( requestAll );
+        assertEquals(6078L, cassandraJavaContext.cassandraTable( resultAll.getKeyspace(), resultAll.getTableName() ).cassandraCount() );        
+
     }
 }
