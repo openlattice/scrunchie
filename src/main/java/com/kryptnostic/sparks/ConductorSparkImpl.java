@@ -164,7 +164,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                     );
         // Save RDD of entityID's to Cassandra.    
             CassandraJavaUtil.javaFunctions( resultsAfterFilteringEntityTypes )
-                    .writerBuilder( "cache",
+                    .writerBuilder( CACHE_KEYSPACE,
                             cacheTable,
                             //toModify
                             new RowWriterFactory<UUID>() {
@@ -177,7 +177,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         
         // Return Query Result pointing to the temp table.
         // The param entitySet should be gone, after Yao's pull request got merged
-        return new QueryResult( "cache",
+        return new QueryResult( CACHE_KEYSPACE,
                     cacheTable,
                     null, //query id
                     null, //session id
