@@ -3,16 +3,14 @@ package com.kryptnostic.sparks;
 import java.util.List;
 import java.util.UUID;
 
-import com.google.common.collect.Sets;
-import com.kryptnostic.conductor.rpc.odata.EntityType;
-import com.kryptnostic.conductor.rpc.odata.PropertyType;
 import org.apache.olingo.commons.api.data.Entity;
 import org.apache.olingo.commons.api.data.Property;
 import org.apache.olingo.commons.api.data.ValueType;
 import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind;
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.sql.DataFrame;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SQLContext;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -24,6 +22,8 @@ import com.google.common.collect.Lists;
 import com.kryptnostic.conductor.rpc.LookupEntitiesRequest;
 import com.kryptnostic.conductor.rpc.UUIDs.ACLs;
 import com.kryptnostic.conductor.rpc.UUIDs.Syncs;
+import com.kryptnostic.conductor.rpc.odata.EntityType;
+import com.kryptnostic.conductor.rpc.odata.PropertyType;
 import com.kryptnostic.datastore.services.CassandraTableManager;
 import com.kryptnostic.datastore.services.EntityStorageClient;
 
@@ -105,9 +105,9 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
         JavaRDD<Employee> t = s.map( e -> Employee.EmployeeCsvReader.getEmployee( e ) );
         SQLContext context = new SQLContext( spark );
         logger.info( "Total # of employees: {}", t.count() );
-        DataFrame df = context.createDataFrame( t, Employee.class );
+        Dataset<Row> df = context.createDataFrame( t, Employee.class );
         df.registerTempTable( "employees" );
-        DataFrame emps = context.sql( "SELECT * from employees WHERE salary > 81500" );
+        Dataset<Row> emps = context.sql( "SELECT * from employees WHERE salary > 81500" );
         List<String> highlyPaidEmps = emps.javaRDD().map( e -> String.format( "%s,%s,%s,%d",
                 e.getAs( "name" ),
                 e.getAs( "dept" ),
