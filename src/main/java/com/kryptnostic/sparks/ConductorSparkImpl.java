@@ -19,9 +19,9 @@ import org.apache.olingo.commons.api.edm.FullQualifiedName;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.Column;
-import org.apache.spark.sql.DataFrame;
+import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
-import org.apache.spark.sql.cassandra.CassandraSQLContext;
+import org.apache.spark.sql.SQLContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,14 +49,14 @@ import com.kryptnostic.datastore.services.EdmManager;
 import scala.collection.IndexedSeq;
 
 public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
-    private static final long serialVersionUID = 825467486008335571L;
-    private static final Logger       logger           = LoggerFactory.getLogger( ConductorSparkImpl.class );
-    public static final String LEFTOUTER = "leftouter";
-    private final        SecureRandom random           = new SecureRandom();
-    private static final String       CACHE_KEYSPACE   = "cache";
+    private static final long               serialVersionUID = 825467486008335571L;
+    private static final Logger             logger           = LoggerFactory.getLogger( ConductorSparkImpl.class );
+    public static final String              LEFTOUTER        = "leftouter";
+    private final SecureRandom              random           = new SecureRandom();
+    private static final String             CACHE_KEYSPACE   = "cache";
 
     private final JavaSparkContext          spark;
-    private final CassandraSQLContext       cassandraSqlContext;
+    private final SQLContext                cassandraSqlContext;
     private final SparkContextJavaFunctions cassandraJavaContext;
     private final SparkAuthorizationManager authzManager;
     private final String                    keyspace;
@@ -67,7 +67,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     public ConductorSparkImpl(
             String keyspace,
             JavaSparkContext spark,
-            CassandraSQLContext cassandraSqlContext,
+            SQLContext cassandraSqlContext,
             SparkContextJavaFunctions cassandraJavaContext,
             CassandraTableManager cassandraTableManager,
             EdmManager dataModelService,
@@ -96,10 +96,9 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 
     @Override
     public QueryResult loadEntitySet( EntitySet setType ) {
-        cassandraSqlContext.setKeyspace( keyspace );
-        DataFrame df = cassandraSqlContext.cassandraSql( "select * from entity_nbo9mf6nml3p49zq21funofw" )
+        Dataset<Row> df = cassandraSqlContext.sql( "select * from " + keyspace + ".entity_nbo9mf6nml3p49zq21funofw" )
                 .where( new Column( "clock" ).geq( "2016-09-03 00:51:42" ) );
-        JavaRDD<String> rdd = new JavaRDD<String>( df.toJSON(), scala.reflect.ClassTag$.MODULE$.apply( String.class ) );
+        JavaRDD<String> rdd = df.toJSON().toJavaRDD();
         // JavaRDD<CassandraRow> rdd =cassandraJavaContext.cassandraTable( keyspace, "entitySetMembership" ).select(
         // "entityIds" )
         // .where( "name = ? AND type = ?", setType.getName(), setType.getType().getFullQualifiedNameAsString() );
@@ -164,23 +163,21 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                 .collect(
                         Collectors.toList() );
 
-        cassandraSqlContext.setKeyspace( keyspace );
-
         String query = StringUtils.remove(
                 QueryBuilder.select( CommonColumns.ENTITYID.cql() )
-                        .from( this.cassandraTableManager.getTablenameForEntityType( entityTypeFqn ) ).toString(),
+                        .from( keyspace, this.cassandraTableManager.getTablenameForEntityType( entityTypeFqn ) ).toString(),
                 ";" );
-        DataFrame df = cassandraSqlContext.cassandraSql( query );
+        Dataset<Row> df = cassandraSqlContext.sql( query );
 
-        List<DataFrame> propertyDataFrames = propertyTypes.stream().map( pt -> {
+        List<Dataset<Row>> propertyDataFrames = propertyTypes.stream().map( pt -> {
             String pTableName = cassandraTableManager.getTablenameForPropertyValuesOfType( pt );
             String q = StringUtils
                     .remove( QueryBuilder.select( CommonColumns.ENTITYID.cql(), CommonColumns.VALUE.cql() )
                             .from( pTableName ).toString(), ";" );
-            return cassandraSqlContext.cassandraSql( q );
+            return cassandraSqlContext.sql( q );
         } ).collect( Collectors.toList() );
 
-        for ( DataFrame rdf : propertyDataFrames ) {
+        for ( Dataset<Row> rdf : propertyDataFrames ) {
             df = df.join( rdf,
                     scala.collection.JavaConversions.asScalaBuffer( Arrays.asList( CommonColumns.ENTITYID.cql() ) )
                             .toList(),
@@ -196,7 +193,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                 null );
     }
 
-    private String cacheToCassandra( DataFrame df, List<PropertyType> propertyTypes ) {
+    private String cacheToCassandra( Dataset<Row> df, List<PropertyType> propertyTypes ) {
         List<String> columnNames = propertyTypes.stream()
                 .map( pt -> "value_" + pt.getTypename() )
                 .collect( Collectors.toList() );

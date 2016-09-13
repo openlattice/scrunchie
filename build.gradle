@@ -34,14 +34,15 @@ sourceSets {
 
 configurations.all {
   resolutionStrategy {
-    force 'com.fasterxml.jackson.core:jackson-core:2.4.4','com.fasterxml.jackson.core:jackson-databind:2.4.4','com.fasterxml.jackson.module:jackson-module-afterburner:2.4.4','com.fasterxml.jackson.datatype:jackson-datatype-guava:2.4.4','com.fasterxml.jackson.dataformat:jackson-dataformat-smile:2.4.4','com.fasterxml.jackson.module:jackson-module-jaxb-annotations:2.4.4','com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.4.4','com.fasterxml.jackson.jaxrs:jackson-jaxrs-json-provider:2.4.4'
+    force 'com.fasterxml.jackson.core:jackson-core:2.6.5','com.fasterxml.jackson.core:jackson-databind:2.6.5','com.fasterxml.jackson.module:jackson-module-afterburner:2.6.5','com.fasterxml.jackson.datatype:jackson-datatype-guava:2.6.5','com.fasterxml.jackson.dataformat:jackson-dataformat-smile:2.6.5','com.fasterxml.jackson.module:jackson-module-jaxb-annotations:2.6.5','com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.6.5','com.fasterxml.jackson.jaxrs:jackson-jaxrs-json-provider:2.6.5'
   }
 }
 
 dependencies {
     compile "com.fasterxml.jackson.dataformat:jackson-dataformat-csv:${jackson_version}"
-    compile "com.datastax.spark:spark-cassandra-connector-java_2.10:${spark_cassandra_connector_version}"
-    compile 'com.datastax.spark:spark-cassandra-connector_2.10:1.6.0'
+    //compile "com.datastax.spark:spark-cassandra-connector-java_2.10:${spark_cassandra_connector_version}"
+    //compile 'com.datastax.spark:spark-cassandra-connector_2.10:1.6.0'
+    compile  "com.datastax.spark:spark-cassandra-connector_2.11:${spark_cassandra_connector_version}"
     provided "org.apache.spark:spark-core_2.10:${spark_version}"
     provided "org.apache.spark:spark-sql_2.10:${spark_version}"
     provided "org.apache.spark:spark-mllib_2.10:${spark_version}"
