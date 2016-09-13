@@ -156,9 +156,9 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
             }
         
         // Write to QueryResult
-        // Build Temp Table, using Yao's initializeTempTable function
+        // Build Temp Table, using Yao's initializeTempTable function; randomUUID to generate unique temp table name for now
             String cacheTable = initializeTempTable(
-                    getValidTableName( null ),
+                    getValidTableName( UUID.randomUUID() ),
                     Collections.singletonList( CommonColumns.ENTITYID.cql() ),
                     Collections.singletonList( DataType.uuid() ) 
                     );
@@ -277,8 +277,9 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     }
 
     // TODO: move to Util and redesign
+    // modified by Ho Chung to create hopefully distinct table name for now
     private String getValidTableName( UUID queryId ) {
-        return "exclusive_pigg";
+        return "exclusive_pigg" + (queryId.hashCode() & 0xfffffff);
     }
 
 }

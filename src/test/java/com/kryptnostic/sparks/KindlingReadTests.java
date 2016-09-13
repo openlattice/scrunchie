@@ -21,6 +21,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.datastax.spark.connector.cql.CassandraConnector;
+import com.datastax.spark.connector.japi.CassandraRow;
+import com.datastax.spark.connector.japi.rdd.CassandraTableScanJavaRDD;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
@@ -197,6 +199,20 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
            );
         //Should have 671 results, according to Querious
         QueryResult result = csi.filterEntities( request );
-        assertEquals(671L, cassandraJavaContext.cassandraTable( result.getKeyspace(), result.getTableName() ).count() );        
+        assertEquals(671L, cassandraJavaContext.cassandraTable( result.getKeyspace(), result.getTableName() ).cassandraCount() );        
+        
+        LookupEntitiesRequest requestTwo = new LookupEntitiesRequest(
+                userId,
+                ImmutableSet.of( ENTITY_TYPE ),
+                ImmutableMap.<FullQualifiedName, Object>builder()
+                    .put(new FullQualifiedName( NAMESPACE, EMPLOYEE_DEPT ), "POLICE" )
+                    .put(new FullQualifiedName( NAMESPACE, EMPLOYEE_TITLE ), "POLICE OFFICER" )
+                    .put(new FullQualifiedName( NAMESPACE, SALARY ), 84450 )
+                    .build()
+           );
+        //Should have 2026 results, according to Querious
+        QueryResult resultTwo = csi.filterEntities( requestTwo );
+        assertEquals(2026L, cassandraJavaContext.cassandraTable( resultTwo.getKeyspace(), resultTwo.getTableName() ).cassandraCount() );        
+        //TO ADD: test for multiple entityTypes
     }
 }
