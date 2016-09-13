@@ -37,17 +37,17 @@ configurations.all {
     force 'com.fasterxml.jackson.core:jackson-core:2.6.5','com.fasterxml.jackson.core:jackson-databind:2.6.5','com.fasterxml.jackson.module:jackson-module-afterburner:2.6.5','com.fasterxml.jackson.datatype:jackson-datatype-guava:2.6.5','com.fasterxml.jackson.dataformat:jackson-dataformat-smile:2.6.5','com.fasterxml.jackson.module:jackson-module-jaxb-annotations:2.6.5','com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.6.5','com.fasterxml.jackson.jaxrs:jackson-jaxrs-json-provider:2.6.5'
   }
 }
-
+ext.spark_cassandra_connector_version="2.0.0-M2"
 dependencies {
     compile "com.fasterxml.jackson.dataformat:jackson-dataformat-csv:${jackson_version}"
     //compile "com.datastax.spark:spark-cassandra-connector-java_2.10:${spark_cassandra_connector_version}"
     //compile 'com.datastax.spark:spark-cassandra-connector_2.10:1.6.0'
     compile  "com.datastax.spark:spark-cassandra-connector_2.11:${spark_cassandra_connector_version}"
-    provided "org.apache.spark:spark-core_2.11:${spark_version}"
-    provided "org.apache.spark:spark-sql_2.11:${spark_version}"
-    provided "org.apache.spark:spark-mllib_2.11:${spark_version}"
-    provided "org.apache.spark:spark-graphx_2.11:${spark_version}"
-    provided "org.apache.spark:spark-streaming_2.11:${spark_version}"
+    compile "org.apache.spark:spark-core_2.11:${spark_version}"
+    compile "org.apache.spark:spark-sql_2.11:${spark_version}"
+    compile "org.apache.spark:spark-mllib_2.11:${spark_version}"
+    compile "org.apache.spark:spark-graphx_2.11:${spark_version}"
+    compile "org.apache.spark:spark-streaming_2.11:${spark_version}"
     
 
 	/*
@@ -55,28 +55,66 @@ dependencies {
 	 */
 	if (project.hasProperty("developmentMode") && project.developmentMode) {
         logger.quiet(project.name + " using project dependencies.")
-        compile project(":kryptnostic-conductor-client")
-        testCompile( project(path: ":datastore", configuration: "tests"))
-        testCompile( project(path: ":rhizome", configuration: "tests"))
-        testCompile project(":datastore")
+        compile( project(":kryptnostic-conductor-client") ) {
+            exclude module: 'cassandra-driver-core'
+            exclude module: 'cassandra-driver-mapping'
+            exclude module: 'cassandra-driver-extras'
+        }
+        testCompile( project(path: ":datastore", configuration: "tests")) {
+            exclude module: 'cassandra-driver-core'
+            exclude module: 'cassandra-driver-mapping'
+            exclude module: 'cassandra-driver-extras'
+        }
+
+        testCompile( project(path: ":rhizome", configuration: "tests")) {
+            exclude module: 'cassandra-driver-core'
+            exclude module: 'cassandra-driver-mapping'
+            exclude module: 'cassandra-driver-extras'
+        }
+
+        testCompile project(":datastore") {
+            exclude module: 'cassandra-driver-core'
+            exclude module: 'cassandra-driver-mapping'
+            exclude module: 'cassandra-driver-extras'
+        }
     }
     else {
         logger.quiet(project.name + " using jar dependencies.")
-        compile "com.kryptnostic:kryptnostic-conductor-client:${conductor_client_version}"
-        testCompile "com.kryptnostic:datastore:${datastore_version}:tests"
-        testCompile "com.kryptnostic:rhizome:${rhizome_version}:tests"
-        testCompile "com.kryptnostic:datastore:${datastore_version}"
+        compile ("com.kryptnostic:kryptnostic-conductor-client:${conductor_client_version}"){
+            exclude module: 'cassandra-driver-core'
+            exclude module: 'cassandra-driver-mapping'
+            exclude module: 'cassandra-driver-extras'
+        }
+        testCompile ("com.kryptnostic:datastore:${datastore_version}:tests"){
+            exclude module: 'cassandra-driver-core'
+            exclude module: 'cassandra-driver-mapping'
+            exclude module: 'cassandra-driver-extras'
+        }
+        testCompile ("com.kryptnostic:rhizome:${rhizome_version}:tests"){
+            exclude module: 'cassandra-driver-core'
+            exclude module: 'cassandra-driver-mapping'
+            exclude module: 'cassandra-driver-extras'
+        }
+        testCompile ("com.kryptnostic:datastore:${datastore_version}"){
+            exclude module: 'cassandra-driver-core'
+            exclude module: 'cassandra-driver-mapping'
+            exclude module: 'cassandra-driver-extras'
+        }
     } 
 
      /**
       * Cassandra
       */
+    compile group: 'com.datastax.cassandra', name: 'cassandra-driver-mapping', version: "${cassandra_driver_version}"
+    compile group: 'com.datastax.cassandra', name: 'cassandra-driver-extras', version: "${cassandra_driver_version}"
+    /*
     compile group: 'com.datastax.cassandra', name: 'cassandra-driver-core', version: "${cassandra_driver_version}"
     compile group: 'com.datastax.cassandra', name: 'cassandra-driver-extras', version: "${cassandra_driver_version}"
-    compile group: 'com.datastax.cassandra', name: 'cassandra-driver-mapping', version: "${cassandra_driver_version}"
+
     compile "org.xerial.snappy:snappy-java:${snappy_version}"
     compile "net.jpountz.lz4:lz4:${lz4_version}"
-    compile "io.netty:netty-transport-native-epoll:${netty_epoll_version}:${netty_os_arch}"
+    */
+    
  }
 
 eclipse {
