@@ -116,7 +116,7 @@ public class PushdownFilterTest extends BaseKindlingSparkTest{
         System.err.println( "** End of Test 3.1 **" );        
         
         dfJoined.createOrReplaceTempView("joinedTableView");
-        String queryMultipleTwo = "SELECT * from joinedTableView WHERE salary = 80000 AND dept = 'FIRE'";
+        String queryMultipleTwo = "SELECT * from joinedTableView WHERE salary < 150000 AND dept = 'FIRE'";
         Dataset<Row> dfJoinedFilteredSQLTwo = sparkSession.sql( queryMultipleTwo );
         //Test 3.1: Did pushdown happen for running a multiple SQL query on a joined Cassandra Table
         System.out.println( "** Test 3.2: Did pushdown happen for running a multiple SQL query on a DataframeJoin of Cassandra Table **" );
