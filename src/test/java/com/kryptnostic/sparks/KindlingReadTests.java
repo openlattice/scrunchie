@@ -53,7 +53,7 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
         empTitle.setValue( ValueType.PRIMITIVE, "Major" );
 
         empDept.setName( EMPLOYEE_DEPT );
-        empDept.setType( new FullQualifiedName( NAMESPACE, EMPLOYEE_TITLE ).getFullQualifiedNameAsString() );
+        empDept.setType( new FullQualifiedName( NAMESPACE, EMPLOYEE_DEPT ).getFullQualifiedNameAsString() );
         empDept.setValue( ValueType.PRIMITIVE, "Police" );
 
         empSalary.setName( SALARY );

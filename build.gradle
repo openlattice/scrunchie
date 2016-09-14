@@ -72,7 +72,7 @@ dependencies {
             exclude module: 'cassandra-driver-extras'
         }
 
-        testCompile project(":datastore") {
+        testCompile( project(":datastore")) {
             exclude module: 'cassandra-driver-core'
             exclude module: 'cassandra-driver-mapping'
             exclude module: 'cassandra-driver-extras'

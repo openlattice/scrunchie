@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 import javax.inject.Inject;
 
 import com.datastax.driver.core.DataType;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.kryptnostic.datastore.cassandra.CassandraEdmMapping;
 import org.apache.commons.lang.StringUtils;
@@ -49,11 +50,11 @@ import com.kryptnostic.datastore.services.EdmManager;
 import scala.collection.IndexedSeq;
 
 public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
-    private static final long               serialVersionUID = 825467486008335571L;
-    private static final Logger             logger           = LoggerFactory.getLogger( ConductorSparkImpl.class );
-    public static final String              LEFTOUTER        = "leftouter";
-    private final SecureRandom              random           = new SecureRandom();
-    private static final String             CACHE_KEYSPACE   = "cache";
+    private static final long         serialVersionUID = 825467486008335571L;
+    private static final Logger       logger           = LoggerFactory.getLogger( ConductorSparkImpl.class );
+    public static final  String       LEFTOUTER        = "leftouter";
+    private final        SecureRandom random           = new SecureRandom();
+    private static final String       CACHE_KEYSPACE   = "cache";
 
     private final JavaSparkContext          spark;
     private final SQLContext                cassandraSqlContext;
@@ -165,16 +166,31 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 
         String query = StringUtils.remove(
                 QueryBuilder.select( CommonColumns.ENTITYID.cql() )
-                        .from( keyspace, this.cassandraTableManager.getTablenameForEntityType( entityTypeFqn ) ).toString(),
+                        .from( keyspace, this.cassandraTableManager.getTablenameForEntityType( entityTypeFqn ) )
+                        .toString(),
                 ";" );
-        Dataset<Row> df = cassandraSqlContext.sql( query );
+
+        //Dataset<Row> df = cassandraSqlContext.sql( query );
+        Dataset<Row> df = cassandraSqlContext
+                .read()
+                .format( "org.apache.spark.sql.cassandra" )
+                .option( "table", this.cassandraTableManager.getTablenameForEntityType( entityTypeFqn ) )
+                .option( "keyspace", keyspace )
+                .load();
+        df.registerTempTable( "entityIds" );
+        df =  df.select( CommonColumns.ENTITYID.cql() );
 
         List<Dataset<Row>> propertyDataFrames = propertyTypes.stream().map( pt -> {
             String pTableName = cassandraTableManager.getTablenameForPropertyValuesOfType( pt );
             String q = StringUtils
                     .remove( QueryBuilder.select( CommonColumns.ENTITYID.cql(), CommonColumns.VALUE.cql() )
                             .from( pTableName ).toString(), ";" );
-            return cassandraSqlContext.sql( q );
+            //return cassandraSqlContext.sql( q );
+            return cassandraSqlContext.read()
+                    .format( "org.apache.spark.sql.cassandra" )
+                    .option( "table", pTableName )
+                    .option( "keyspace", keyspace )
+                    .load().select( CommonColumns.ENTITYID.cql(), CommonColumns.VALUE.cql() );
         } ).collect( Collectors.toList() );
 
         for ( Dataset<Row> rdf : propertyDataFrames ) {
