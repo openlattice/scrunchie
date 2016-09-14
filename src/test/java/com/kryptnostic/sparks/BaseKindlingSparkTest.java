@@ -7,7 +7,7 @@ import java.util.stream.Collectors;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.sql.cassandra.CassandraSQLContext;
+import org.apache.spark.sql.SQLContext;
 import org.junit.BeforeClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,7 +24,7 @@ public class BaseKindlingSparkTest extends BootstrapDatastoreWithCassandra {
     protected static SparkConf                 conf;
     protected static SparkContext              spark;
     protected static JavaSparkContext          javaContext;
-    protected static CassandraSQLContext       cassandraContext;
+    protected static SQLContext                cassandraContext;
     protected static SparkContextJavaFunctions cassandraJavaContext;
     protected static SparkAuthorizationManager authzManager;
     protected static ConductorSparkImpl        csi;
@@ -50,7 +50,7 @@ public class BaseKindlingSparkTest extends BootstrapDatastoreWithCassandra {
         // .setJars( new String[] { "./kindling/build/libs/kindling-0.0.0-SNAPSHOT-all.jar" });
         spark = new SparkContext( conf );
         javaContext = new JavaSparkContext( spark );
-        cassandraContext = new CassandraSQLContext( spark );
+        cassandraContext = new SQLContext( spark );
         cassandraJavaContext = javaFunctions( spark );
         authzManager = new SparkAuthorizationManager();
         csi = new ConductorSparkImpl(

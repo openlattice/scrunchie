@@ -19,6 +19,7 @@ public class CacheTableRowWriter implements RowWriter<Row> {
 
     @Override
     public Seq<String> columnNames() {
+
         return scala.collection.JavaConversions.asScalaBuffer( columnNames );
     }
 
