@@ -15,10 +15,6 @@ public class PushdownFilterTest extends BaseKindlingSparkTest{
     // TEST: testing pushdown for spark join
     @Test
     public void TestPushDown(){
-        SparkSession sparkSession = SparkSession.builder()
-                .sparkContext( spark )
-                .getOrCreate();
-        
         CassandraTableManager ctb = ds.getContext().getBean( CassandraTableManager.class );
         
         //Load DataSet from "Employees" Table
