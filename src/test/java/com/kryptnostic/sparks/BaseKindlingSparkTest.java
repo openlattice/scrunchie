@@ -8,6 +8,7 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.SQLContext;
+import org.apache.spark.sql.SparkSession;
 import org.junit.BeforeClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,7 +23,7 @@ import com.kryptnostic.rhizome.configuration.cassandra.CassandraConfiguration;
 public class BaseKindlingSparkTest extends BootstrapDatastoreWithCassandra {
     // Need to start Cassandra/Spark/Datastore
     protected static SparkConf                 conf;
-    protected static SparkContext              spark;
+    protected static SparkSession              sparkSession;
     protected static JavaSparkContext          javaContext;
     protected static SQLContext                cassandraContext;
     protected static SparkContextJavaFunctions cassandraJavaContext;
@@ -48,15 +49,14 @@ public class BaseKindlingSparkTest extends BootstrapDatastoreWithCassandra {
                 .set( "spark.cassandra.connection.port",
                         Integer.toString( 9042 ) );
         // .setJars( new String[] { "./kindling/build/libs/kindling-0.0.0-SNAPSHOT-all.jar" });
-        spark = new SparkContext( conf );
-        javaContext = new JavaSparkContext( spark );
-        cassandraContext = new SQLContext( spark );
-        cassandraJavaContext = javaFunctions( spark );
+        sparkSession = SparkSession.builder().config( conf ).getOrCreate();
+        javaContext = new JavaSparkContext( sparkSession.sparkContext() );
+        cassandraContext = new SQLContext( sparkSession.sparkContext() );
+        cassandraJavaContext = javaFunctions( sparkSession.sparkContext() );
         authzManager = new SparkAuthorizationManager();
         csi = new ConductorSparkImpl(
                 DatastoreConstants.KEYSPACE,
-                javaContext,
-                cassandraContext,
+                sparkSession,
                 cassandraJavaContext,
                 ctb,
                 edm,

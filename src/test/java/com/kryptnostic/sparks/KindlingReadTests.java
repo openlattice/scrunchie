@@ -103,7 +103,7 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
         JavaRDD<String> s = javaContext.textFile( "src/test/resources/employees.csv" );
         s.foreach( l -> System.out.println( l ) );
         JavaRDD<Employee> t = s.map( e -> Employee.EmployeeCsvReader.getEmployee( e ) );
-        SQLContext context = new SQLContext( spark );
+        SQLContext context = new SQLContext( sparkSession );
         logger.info( "Total # of employees: {}", t.count() );
         Dataset<Row> df = context.createDataFrame( t, Employee.class );
         df.registerTempTable( "employees" );
@@ -162,9 +162,5 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
     public void testWrites() {
         System.out.println( csi.loadAllEntitiesOfType( ENTITY_TYPE ).toString() );
     }
-    
-    @Test
-    public void testGetValidCacheTableName(){
-        System.out.println( csi.getValidCacheTableName() );
-    }
+
 }
