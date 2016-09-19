@@ -2,6 +2,7 @@ package com.kryptnostic.sparks;
 
 import com.datastax.spark.connector.writer.RowWriter;
 import org.apache.spark.sql.Row;
+import scala.collection.JavaConversions;
 import scala.collection.Seq;
 
 import java.util.List;
@@ -19,8 +20,7 @@ public class CacheTableRowWriter implements RowWriter<Row> {
 
     @Override
     public Seq<String> columnNames() {
-
-        return scala.collection.JavaConversions.asScalaBuffer( columnNames );
+        return JavaConversions.asScalaBuffer( columnNames );
     }
 
     @Override
