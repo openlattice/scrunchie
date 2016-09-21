@@ -18,12 +18,8 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.datastax.spark.connector.cql.CassandraConnector;
-import com.datastax.spark.connector.japi.CassandraRow;
-import com.datastax.spark.connector.japi.rdd.CassandraTableScanJavaRDD;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.kryptnostic.conductor.rpc.LookupEntitiesRequest;
 import com.kryptnostic.conductor.rpc.QueryResult;
@@ -32,9 +28,7 @@ import com.kryptnostic.conductor.rpc.UUIDs.Syncs;
 import com.kryptnostic.conductor.rpc.odata.EntityType;
 import com.kryptnostic.conductor.rpc.odata.PropertyType;
 import com.kryptnostic.datastore.services.CassandraTableManager;
-import com.kryptnostic.datastore.services.EntityStorageClient;
-
-import jersey.repackaged.com.google.common.collect.Iterators;
+import com.kryptnostic.datastore.services.ODataStorageService;
 
 public class KindlingReadTests extends BaseKindlingSparkTest {
     private static UUID OBJECT_ID;
@@ -42,7 +36,7 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
 
     @BeforeClass
     public static void initData() {
-        EntityStorageClient esc = ds.getContext().getBean( EntityStorageClient.class );
+    	ODataStorageService esc = ds.getContext().getBean( ODataStorageService.class );
         Property empId = new Property();
         Property empName = new Property();
         Property empTitle = new Property();
