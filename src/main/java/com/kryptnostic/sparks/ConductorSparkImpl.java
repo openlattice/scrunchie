@@ -26,6 +26,7 @@ import com.kryptnostic.datastore.services.CassandraTableManager;
 import com.kryptnostic.datastore.services.EdmManager;
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
 import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.Column;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -39,6 +40,7 @@ import java.io.Serializable;
 import java.math.BigInteger;
 import java.security.SecureRandom;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -134,44 +136,80 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         // cassandraSqlContext.createDataFrame(rdd,new StructType() );
         return null;
     }
-
+    
+    /**
+     * Return QueryResult of UUID's ONLY of all entities matching a Look Up Entities Request.
+     * @param request A LookupEntitiesRequest object
+     * @return QueryResult of UUID's matching the lookup request
+     */
     public QueryResult filterEntities( LookupEntitiesRequest request ) {
-        // First we need to get object id RDDs from properties tables.
-        Set<EntityType> entityTypes = request.getEntityTypes().stream()
-                .map( dataModelService::getEntityType )
-                .collect( Collectors.toSet() );
-        // Tough part is looking up entities that support this type.
-        Set<CassandraJavaPairRDD<UUID, String>> partitionKeys = request.getPropertyTypeToValueMap().entrySet()
+    	//Get set of JavaRDD of UUIDs matching the property value for each property type
+        Set<JavaRDD<UUID>> resultsMatchingPropertyValues = request.getPropertyTypeToValueMap().entrySet()
                 .parallelStream()
                 .map( ptv -> getEntityIds( request.getUserId(),
-                        cassandraTableManager.getTablenameForPropertyIndexOfType( ptv.getKey() ),
+                        cassandraTableManager.getTablenameForPropertyValuesOfType( ptv.getKey() ),
                         ptv.getValue() ) )
-                .map( rdd -> CassandraJavaUtil.javaFunctions( rdd ).joinWithCassandraTable( keyspace,
-                        Tables.ENTITY_ID_TO_TYPE.getTableName(),
-                        CassandraJavaUtil.someColumns( CommonColumns.TYPENAME.cql() ),
-                        CassandraJavaUtil.someColumns( CommonColumns.ENTITYID.cql() ),
-                        CassandraJavaUtil.mapColumnTo( String.class ),
-                        new RowWriterFactory<UUID>() {
-                            @Override
-                            public RowWriter<UUID> rowWriter( TableDef t, IndexedSeq<ColumnRef> colRefs ) {
-                                return new RRU();
-                            }
-                        } ) )
                 .collect( Collectors.toSet() );
-        // keyspace,cassandraTableManager.getTablenameForEntityType( entityType ) , selectedColumns,
-        // joinColumns,
-        // rowReaderFactory, rowWriterFactory ) ))
-        // .collect( Collectors.toSet() );
+        //Take intersection to get the JavaRDD of UUIDs matching all the property type values, but before filtering Entity Types
+    	//TODO: repartitionbyCassandraReplica is not done, which means that intersection is potentially extremely slow.
+            JavaRDD<UUID> resultsBeforeFilteringEntityTypes = resultsMatchingPropertyValues.stream()
+                .reduce( (leftRDD, rightRDD) -> leftRDD.intersection( rightRDD ) )
+                .get();
 
-        // String indexTable =
-        // )
-        // .joinWithCassandraTable( keyspace, indexTable, selectedColumns, joinColumns, rowReaderFactory,
-        // rowWriterFactory );
-        // partitionKeys.iterator().next().
-
-        System.err.println( partitionKeys.iterator().next().collectAsMap().toString() );
-        return null;
+        //Get the RDD of UUIDs matching all the property type values, after filtering Entity Types
+        //TODO: once Hristo's entity type to entity id table is done, maybe faster to use that rather than do multiple joinWithCassandraTable
+        //Looks like JavaSparkContext is not injected anymore.    
+            JavaRDD<UUID> resultsAfterFilteringEntityTypes = ( new JavaSparkContext(sparkSession.sparkContext()) ).emptyRDD();
+        
+            if( !resultsBeforeFilteringEntityTypes.isEmpty() ){
+                resultsAfterFilteringEntityTypes = request.getEntityTypes()
+                	.stream()
+                    .map( typeFQN -> cassandraTableManager.getTablenameForEntityType( typeFQN ) )
+                    .map( typeTablename -> CassandraJavaUtil.javaFunctions( resultsBeforeFilteringEntityTypes )
+                            .joinWithCassandraTable( keyspace, 
+                                typeTablename, 
+                                CassandraJavaUtil.someColumns( CommonColumns.ENTITYID.cql() ), 
+                                CassandraJavaUtil.someColumns( CommonColumns.ENTITYID.cql() ),
+                                CassandraJavaUtil.mapColumnTo( UUID.class ), 
+                                //RowWriter not really necessary - should not be invoked during lazy evaluation.
+                                new RowWriterFactory<UUID>() {
+    
+                                    @Override
+                                    public RowWriter<UUID> rowWriter( TableDef t, IndexedSeq<ColumnRef> colRefs ) {
+                                        return new RowWriterForUUID();
+                                    }
+                                }
+                            ).keys()
+                        )
+                    .reduce( (leftRDD, rightRDD) -> leftRDD.union( rightRDD ) )
+                    .get();
+            }
+        
+        // Write to QueryResult
+        // Build Temp Table, using Yao's initializeTempTable function
+        // Initialize Temp Table
+            String cacheTable = initializeTempTable(
+                    Collections.singletonList( CommonColumns.ENTITYID.cql() ),
+                    Collections.singletonList( DataType.uuid() ) 
+                    );
+        // Save RDD of entityID's to Cassandra.    
+            CassandraJavaUtil.javaFunctions( resultsAfterFilteringEntityTypes )
+                    .writerBuilder( CACHE_KEYSPACE,
+                            cacheTable,
+                            //toModify
+                            new RowWriterFactory<UUID>() {
+                                @Override
+                                public RowWriter<UUID> rowWriter( TableDef t, IndexedSeq<ColumnRef> colRefs ) {
+                                    return new RowWriterForUUID();
+                                }
+                            })
+                    .saveToCassandra();
+        
+        // Return Query Result pointing to the temp table.
+        // The param entitySet should be gone, after Yao's pull request got merged
+        return new QueryResult( CACHE_KEYSPACE, cacheTable, null, null);
     }
+
 
     private JavaRDD<UUID> getEntityIds( UUID userId, String table, Object value ) {
         return cassandraJavaContext.cassandraTable( keyspace, table, CassandraJavaUtil.mapColumnTo( UUID.class ) )
