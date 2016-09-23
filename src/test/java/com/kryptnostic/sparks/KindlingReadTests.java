@@ -25,7 +25,7 @@ import com.kryptnostic.conductor.rpc.UUIDs.Syncs;
 import com.kryptnostic.conductor.rpc.odata.EntityType;
 import com.kryptnostic.conductor.rpc.odata.PropertyType;
 import com.kryptnostic.datastore.services.CassandraTableManager;
-import com.kryptnostic.datastore.services.EntityStorageClient;
+import com.kryptnostic.datastore.services.ODataStorageService;
 
 public class KindlingReadTests extends BaseKindlingSparkTest {
     private static UUID OBJECT_ID;
@@ -33,7 +33,7 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
 
     @BeforeClass
     public static void initData() {
-        EntityStorageClient esc = ds.getContext().getBean( EntityStorageClient.class );
+        ODataStorageService esc = ds.getContext().getBean( ODataStorageService.class );
         Property empId = new Property();
         Property empName = new Property();
         Property empTitle = new Property();

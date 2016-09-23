@@ -10,6 +10,7 @@ import com.datastax.spark.connector.japi.SparkContextJavaFunctions;
 import com.datastax.spark.connector.japi.rdd.CassandraJavaPairRDD;
 import com.datastax.spark.connector.writer.RowWriter;
 import com.datastax.spark.connector.writer.RowWriterFactory;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -26,10 +27,8 @@ import com.kryptnostic.datastore.services.CassandraTableManager;
 import com.kryptnostic.datastore.services.EdmManager;
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.sql.Column;
-import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.*;
+import org.apache.spark.sql.execution.vectorized.ColumnarBatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.collection.IndexedSeq;
@@ -203,7 +202,6 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                             .toList(),
                     LEFTOUTER );
         }
-
         String tableName = cacheToCassandra( entityDf, propertyTypes );
 
         return new QueryResult( CACHE_KEYSPACE, tableName, null, null );
