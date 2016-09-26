@@ -131,4 +131,7 @@ idea {
     ext.targetCompatibility = JavaVersion.VERSION_1_8
 }
 
+shadowJar{
+    zip64 true
+}
 eclipse.classpath.plusConfigurations += [configurations.provided] 

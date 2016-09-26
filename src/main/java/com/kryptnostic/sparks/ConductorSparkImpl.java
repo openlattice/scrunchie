@@ -207,7 +207,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         
         // Return Query Result pointing to the temp table.
         // The param entitySet should be gone, after Yao's pull request got merged
-        return new QueryResult( CACHE_KEYSPACE, cacheTable, null, null);
+        return new QueryResult( CACHE_KEYSPACE, cacheTable, UUID.randomUUID(), null);
     }
 
 
@@ -244,7 +244,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 
         String tableName = cacheToCassandra( entityDf, propertyTypes );
 
-        return new QueryResult( CACHE_KEYSPACE, tableName, null, null );
+        return new QueryResult( CACHE_KEYSPACE, tableName, UUID.randomUUID(), null);
     }
 
     private String cacheToCassandra( Dataset<Row> df, List<PropertyType> propertyTypes ) {
