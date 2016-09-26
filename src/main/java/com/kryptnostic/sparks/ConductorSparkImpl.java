@@ -27,10 +27,7 @@ import com.kryptnostic.datastore.services.EdmManager;
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.sql.Column;
-import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.collection.IndexedSeq;
@@ -241,10 +238,9 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                             .toList(),
                     LEFTOUTER );
         }
-
         String tableName = cacheToCassandra( entityDf, propertyTypes );
 
-        return new QueryResult( CACHE_KEYSPACE, tableName, null, null );
+        return new QueryResult( CACHE_KEYSPACE, tableName, UUID.randomUUID(), UUID.randomUUID().toString() );
     }
 
     private String cacheToCassandra( Dataset<Row> df, List<PropertyType> propertyTypes ) {

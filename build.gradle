@@ -43,11 +43,11 @@ dependencies {
     //compile "com.datastax.spark:spark-cassandra-connector-java_2.10:${spark_cassandra_connector_version}"
     //compile 'com.datastax.spark:spark-cassandra-connector_2.10:1.6.0'
     compile  "com.datastax.spark:spark-cassandra-connector_2.11:${spark_cassandra_connector_version}"
-    compile "org.apache.spark:spark-core_2.11:${spark_version}"
-    compile "org.apache.spark:spark-sql_2.11:${spark_version}"
-    compile "org.apache.spark:spark-mllib_2.11:${spark_version}"
-    compile "org.apache.spark:spark-graphx_2.11:${spark_version}"
-    compile "org.apache.spark:spark-streaming_2.11:${spark_version}"
+    provided "org.apache.spark:spark-core_2.11:${spark_version}"
+    provided "org.apache.spark:spark-sql_2.11:${spark_version}"
+    provided "org.apache.spark:spark-mllib_2.11:${spark_version}"
+    provided "org.apache.spark:spark-graphx_2.11:${spark_version}"
+    provided "org.apache.spark:spark-streaming_2.11:${spark_version}"
     
 
 	/*
@@ -131,4 +131,7 @@ idea {
     ext.targetCompatibility = JavaVersion.VERSION_1_8
 }
 
+shadowJar{
+    zip64 true
+}
 eclipse.classpath.plusConfigurations += [configurations.provided] 
