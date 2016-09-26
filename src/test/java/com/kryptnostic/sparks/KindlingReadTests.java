@@ -16,7 +16,6 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SQLContext;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.google.common.collect.ImmutableMap;
@@ -167,7 +166,6 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
         System.out.println( csi.loadAllEntitiesOfType( ENTITY_TYPE ).toString() );
     }
     
-    @Ignore
     @Test
     //Hard Coded test for Employees
     //NOTE: To run this test, drop the existing sparks keyspace, and rerun DataStoreTests again.
