@@ -119,17 +119,14 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     }
 
     @Override
-    public QueryResult loadEntitySet( EntitySet setType ) {
-        Dataset<Row> df = sparkSession.sql( "select * from " + keyspace + ".entity_nbo9mf6nml3p49zq21funofw" )
-                .where( new Column( "clock" ).geq( "2016-09-03 00:51:42" ) );
-        JavaRDD<String> rdd = df.toJSON().toJavaRDD();
-
-        // JavaRDD<CassandraRow> rdd =cassandraJavaContext.cassandraTable( keyspace, "entitySetMembership" ).select(
-        // "entityIds" )
-        // .where( "name = ? AND type = ?", setType.getName(), setType.getType().getFullQualifiedNameAsString() );
-        // cassandraSqlContext.cass
-        // cassandraSqlContext.createDataFrame(rdd,new StructType() );
-        return null;
+    public List<UUID> loadEntitySet( FullQualifiedName fqn ) {
+        return cassandraJavaContext.cassandraTable(
+                keyspace,
+                cassandraTableManager.getTablenameForEntityType( fqn ),
+                CassandraJavaUtil.mapColumnTo( UUID.class ) )
+                .select( CommonColumns.ENTITYID.cql() )
+                .distinct()
+                .collect();
     }
 
     public QueryResult filterEntities( LookupEntitiesRequest request ) {
