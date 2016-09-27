@@ -16,7 +16,6 @@ import com.google.common.collect.Sets;
 import com.kryptnostic.conductor.rpc.ConductorSparkApi;
 import com.kryptnostic.conductor.rpc.LookupEntitiesRequest;
 import com.kryptnostic.conductor.rpc.QueryResult;
-import com.kryptnostic.conductor.rpc.odata.EntitySet;
 import com.kryptnostic.conductor.rpc.odata.EntityType;
 import com.kryptnostic.conductor.rpc.odata.PropertyType;
 import com.kryptnostic.conductor.rpc.odata.Tables;
@@ -27,6 +26,7 @@ import com.kryptnostic.datastore.services.EdmManager;
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.sql.*;
+import org.apache.spark.sql.catalyst.expressions.ArrayContains;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.collection.IndexedSeq;
@@ -127,6 +127,34 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                 .select( CommonColumns.ENTITYID.cql() )
                 .distinct()
                 .collect();
+    }
+
+    @Override public QueryResult getAllEntitiesOfEntitySet( FullQualifiedName entityFqn, String entitySetName ) {
+        EntityType entityType = dataModelService.getEntityType( entityFqn );
+        List<FullQualifiedName> propertyFqns = Lists.newLinkedList(entityType.getProperties());
+        List<PropertyType> propertyTypes = propertyFqns.stream()
+                .map( fqn -> dataModelService.getPropertyType( fqn ) )
+                .collect( Collectors.toList() );
+
+        Dataset<Row> entityDf = entityDataframeMap.get( entityFqn );
+        entityDf.createOrReplaceTempView( "entityDf" );
+        entityDf = sparkSession.sql( "select entityid from entityDf where array_contains( entitysets, '" + entitySetName + "')" );
+
+        List<Dataset<Row>> propertyDataFrames = propertyFqns.stream()
+                .map( fqn -> propertyDataframeMap
+                        .get( fqn )
+                        .select( CommonColumns.ENTITYID.cql(), CommonColumns.VALUE.cql() )
+                ).collect( Collectors.toList() );
+
+        for ( Dataset<Row> rdf : propertyDataFrames ) {
+            entityDf = entityDf.join( rdf,
+                    scala.collection.JavaConversions.asScalaBuffer( Arrays.asList( CommonColumns.ENTITYID.cql() ) )
+                            .toList(),
+                    LEFTOUTER );
+        }
+        String tableName = cacheToCassandra( entityDf, propertyTypes );
+
+        return new QueryResult( CACHE_KEYSPACE, tableName, UUID.randomUUID(), UUID.randomUUID().toString() );
     }
 
     public QueryResult filterEntities( LookupEntitiesRequest request ) {
