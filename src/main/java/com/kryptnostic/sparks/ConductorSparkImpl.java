@@ -119,7 +119,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                         .distinct() )
                 .reduce( ( lhs, rhs ) -> lhs.intersection( rhs ) ).get().collect();
     }
-
+    
     @Override
     public QueryResult loadEntitySet( EntitySet setType ) {
         Dataset<Row> df = sparkSession.sql( "select * from " + keyspace + ".entity_nbo9mf6nml3p49zq21funofw" )
@@ -203,8 +203,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                     .saveToCassandra();
         
         // Return Query Result pointing to the temp table.
-        // The param entitySet should be gone, after Yao's pull request got merged
-        return new QueryResult( CACHE_KEYSPACE, cacheTable, null, null);
+        return new QueryResult( CACHE_KEYSPACE, cacheTable, UUID.randomUUID(), UUID.randomUUID().toString());
     }
 
 
