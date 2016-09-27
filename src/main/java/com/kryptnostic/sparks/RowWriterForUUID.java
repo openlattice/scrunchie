@@ -9,7 +9,7 @@ import com.kryptnostic.datastore.cassandra.CommonColumns;
 import scala.collection.JavaConversions;
 import scala.collection.Seq;
 
-public class RRU implements RowWriter<UUID> {
+public class RowWriterForUUID implements RowWriter<UUID> {
     private static final long serialVersionUID = -8740718057877877922L;
 
     @Override

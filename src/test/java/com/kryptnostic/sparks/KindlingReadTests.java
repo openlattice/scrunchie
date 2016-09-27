@@ -1,5 +1,7 @@
 package com.kryptnostic.sparks;
 
+import static org.junit.Assert.assertEquals;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -20,6 +22,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.kryptnostic.conductor.rpc.LookupEntitiesRequest;
+import com.kryptnostic.conductor.rpc.QueryResult;
 import com.kryptnostic.conductor.rpc.UUIDs.ACLs;
 import com.kryptnostic.conductor.rpc.UUIDs.Syncs;
 import com.kryptnostic.conductor.rpc.odata.EntityType;
@@ -33,7 +36,7 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
 
     @BeforeClass
     public static void initData() {
-        ODataStorageService esc = ds.getContext().getBean( ODataStorageService.class );
+    	ODataStorageService esc = ds.getContext().getBean( ODataStorageService.class );
         Property empId = new Property();
         Property empName = new Property();
         Property empTitle = new Property();
@@ -162,5 +165,66 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
     public void testWrites() {
         System.out.println( csi.loadAllEntitiesOfType( ENTITY_TYPE ).toString() );
     }
+    
+    //@Test
+    //Hard Coded test for Employees
+    //NOTE: To run this test, drop the existing sparks keyspace, and rerun DataStoreTests again.
+    public void testFilterEntities(){
+        UUID userId = UUID.randomUUID();
+        CassandraTableManager ctb = ds.getContext().getBean( CassandraTableManager.class );
+        //Look up everything from Set<EntityType> = {"Employees"} and Employee_DEPT = "FIRE"
+        LookupEntitiesRequest request = new LookupEntitiesRequest(
+                userId,
+                ImmutableSet.of( ENTITY_TYPE ),
+                ImmutableMap.<FullQualifiedName, Object>builder()
+                    .put(new FullQualifiedName( NAMESPACE, EMPLOYEE_DEPT ), "FIRE" )
+                    .put(new FullQualifiedName( NAMESPACE, EMPLOYEE_TITLE ), "FIREFIGHTER" )
+                    .build()
+           );
+        //Should have 671 results, according to Querious
+        QueryResult result = csi.filterEntities( request );
+        assertEquals(671L, cassandraJavaContext.cassandraTable( result.getKeyspace(), result.getTableName() ).cassandraCount() );        
+        
+        LookupEntitiesRequest requestTwo = new LookupEntitiesRequest(
+                userId,
+                ImmutableSet.of( ENTITY_TYPE ),
+                ImmutableMap.<FullQualifiedName, Object>builder()
+                    .put(new FullQualifiedName( NAMESPACE, EMPLOYEE_DEPT ), "POLICE" )
+                    .put(new FullQualifiedName( NAMESPACE, EMPLOYEE_TITLE ), "POLICE OFFICER" )
+                    .put(new FullQualifiedName( NAMESPACE, SALARY ), 84450 )
+                    .build()
+           );
+        //Should have 2026 results, according to Querious
+        QueryResult resultTwo = csi.filterEntities( requestTwo );
+        assertEquals(2026L, cassandraJavaContext.cassandraTable( resultTwo.getKeyspace(), resultTwo.getTableName() ).cassandraCount() );        
+        //TO ADD: test for multiple entityTypes
+        
+        //Look up everything from Set<EntityType> = {"employee", "employeeMars"} and Employee_DEPT = "FIRE"
+        LookupEntitiesRequest requestMars = new LookupEntitiesRequest(
+                userId,
+                ImmutableSet.of( ENTITY_TYPE, ENTITY_TYPE_MARS ),
+                ImmutableMap.<FullQualifiedName, Object>builder()
+                    .put(new FullQualifiedName( NAMESPACE, EMPLOYEE_DEPT ), "FIRE" )
+                    .put(new FullQualifiedName( NAMESPACE, EMPLOYEE_TITLE ), "FIREFIGHTER" )
+                    .build()
+           );
+        //Should have 671*2 = 1342 results
+        QueryResult resultMars = csi.filterEntities( requestMars );
+        assertEquals(1342L, cassandraJavaContext.cassandraTable( resultMars.getKeyspace(), resultMars.getTableName() ).cassandraCount() );        
 
+        //Look up everything from Set<EntityType> = {"employee", "EmployeesMars", "EmployeesSaturn"} and Employee_DEPT = "FIRE"
+        LookupEntitiesRequest requestAll = new LookupEntitiesRequest(
+                userId,
+                ImmutableSet.of( ENTITY_TYPE, ENTITY_TYPE_MARS, ENTITY_TYPE_SATURN ),
+                ImmutableMap.<FullQualifiedName, Object>builder()
+                .put(new FullQualifiedName( NAMESPACE, EMPLOYEE_DEPT ), "POLICE" )
+                .put(new FullQualifiedName( NAMESPACE, EMPLOYEE_TITLE ), "POLICE OFFICER" )
+                .put(new FullQualifiedName( NAMESPACE, SALARY ), 84450 )
+                .build()
+           );
+        //Should have 2026*3 = 6078 results
+        QueryResult resultAll = csi.filterEntities( requestAll );
+        assertEquals(6078L, cassandraJavaContext.cassandraTable( resultAll.getKeyspace(), resultAll.getTableName() ).cassandraCount() );        
+
+    }
 }
