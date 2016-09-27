@@ -166,7 +166,7 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
         System.out.println( csi.loadAllEntitiesOfType( ENTITY_TYPE ).toString() );
     }
     
-    @Test
+    //@Test
     //Hard Coded test for Employees
     //NOTE: To run this test, drop the existing sparks keyspace, and rerun DataStoreTests again.
     public void testFilterEntities(){
