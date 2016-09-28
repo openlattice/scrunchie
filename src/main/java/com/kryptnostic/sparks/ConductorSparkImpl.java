@@ -132,11 +132,35 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     @Override public QueryResult getAllEntitiesOfEntitySet( FullQualifiedName entityFqn, String entitySetName ) {
         EntityType entityType = dataModelService.getEntityType( entityFqn );
         List<FullQualifiedName> propertyFqns = Lists.newLinkedList( entityType.getProperties() );
+
+        propertyFqns.forEach( fqn -> {
+            if ( propertyDataframeMap.get( fqn ) == null ) {
+                Dataset<Row> propertyDf = sparkSession
+                        .read()
+                        .format( "org.apache.spark.sql.cassandra" )
+                        .option( "table", cassandraTableManager.getTablenameForPropertyValuesOfType( fqn ) )
+                        .option( "keyspace", keyspace )
+                        .load();
+                propertyDataframeMap.put( fqn, propertyDf );
+            }
+        } );
+
         List<PropertyType> propertyTypes = propertyFqns.stream()
                 .map( fqn -> dataModelService.getPropertyType( fqn ) )
                 .collect( Collectors.toList() );
 
         Dataset<Row> entityDf = entityDataframeMap.get( entityFqn );
+
+        if ( entityDf == null ) {
+            entityDf = sparkSession
+                    .read()
+                    .format( "org.apache.spark.sql.cassandra" )
+                    .option( "table", cassandraTableManager.getTablenameForEntityType( entityType ) )
+                    .option( "keyspace", keyspace )
+                    .load();
+            entityDataframeMap.put( entityFqn, entityDf );
+        }
+
         entityDf.createOrReplaceTempView( "entityDf" );
         entityDf = sparkSession
                 .sql( "select entityid from entityDf where array_contains( entitysets, '" + entitySetName + "')" );
