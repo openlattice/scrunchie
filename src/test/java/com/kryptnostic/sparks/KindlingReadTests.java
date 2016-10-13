@@ -83,11 +83,11 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
                 userId,
                 ImmutableSet.of( ENTITY_TYPE ),
                 ImmutableMap.of( new FullQualifiedName( NAMESPACE, EMPLOYEE_ID ), EMP_ID ) );
-        csi.filterEntities( request );
+        csi.getFilterEntities( request );
 
-        csi.loadAllEntitiesOfType( ENTITY_TYPE );
+        csi.getAllEntitiesOfType( ENTITY_TYPE );
     }
-
+/**
     @Test
     public void testGroundControlToMajorTom() {
         UUID userId = UUID.randomUUID();
@@ -100,7 +100,7 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
 
         Assert.assertTrue( ids.contains( OBJECT_ID ) );
     }
-
+*/
     @Test
     public void takeYourProteinPillsMajorTom() {
         JavaRDD<String> s = javaContext.textFile( "src/test/resources/employees.csv" );
@@ -163,7 +163,7 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
 
     @Test
     public void testWrites() {
-        System.out.println( csi.loadAllEntitiesOfType( ENTITY_TYPE ).toString() );
+        System.out.println( csi.getAllEntitiesOfType( ENTITY_TYPE ).toString() );
     }
     
     //@Test
@@ -182,7 +182,7 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
                     .build()
            );
         //Should have 671 results, according to Querious
-        QueryResult result = csi.filterEntities( request );
+        QueryResult result = csi.getFilterEntities( request );
         assertEquals(671L, cassandraJavaContext.cassandraTable( result.getKeyspace(), result.getTableName() ).cassandraCount() );        
         
         LookupEntitiesRequest requestTwo = new LookupEntitiesRequest(
@@ -195,7 +195,7 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
                     .build()
            );
         //Should have 2026 results, according to Querious
-        QueryResult resultTwo = csi.filterEntities( requestTwo );
+        QueryResult resultTwo = csi.getFilterEntities( requestTwo );
         assertEquals(2026L, cassandraJavaContext.cassandraTable( resultTwo.getKeyspace(), resultTwo.getTableName() ).cassandraCount() );        
         //TO ADD: test for multiple entityTypes
         
@@ -209,7 +209,7 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
                     .build()
            );
         //Should have 671*2 = 1342 results
-        QueryResult resultMars = csi.filterEntities( requestMars );
+        QueryResult resultMars = csi.getFilterEntities( requestMars );
         assertEquals(1342L, cassandraJavaContext.cassandraTable( resultMars.getKeyspace(), resultMars.getTableName() ).cassandraCount() );        
 
         //Look up everything from Set<EntityType> = {"employee", "EmployeesMars", "EmployeesSaturn"} and Employee_DEPT = "FIRE"
@@ -223,7 +223,7 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
                 .build()
            );
         //Should have 2026*3 = 6078 results
-        QueryResult resultAll = csi.filterEntities( requestAll );
+        QueryResult resultAll = csi.getFilterEntities( requestAll );
         assertEquals(6078L, cassandraJavaContext.cassandraTable( resultAll.getKeyspace(), resultAll.getTableName() ).cassandraCount() );        
 
     }
