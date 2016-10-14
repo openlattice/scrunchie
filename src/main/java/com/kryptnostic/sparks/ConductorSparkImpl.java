@@ -106,28 +106,6 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 
     }
 
-    @Override
-    public List<UUID> lookupEntities( LookupEntitiesRequest entityKey ) {
-        return entityKey.getPropertyTypeToValueMap().entrySet().stream()
-                .map( e -> cassandraJavaContext.cassandraTable( keyspace,
-                        cassandraTableManager.getTablenameForPropertyIndexOfType( e.getKey() ),
-                        CassandraJavaUtil.mapColumnTo( UUID.class ) )
-                        .select( CommonColumns.ENTITYID.cql() ).where( "value = ?",
-                                e.getValue() )
-                        .distinct() )
-                .reduce( ( lhs, rhs ) -> lhs.intersection( rhs ) ).get().collect();
-    }
-
-    @Override
-    public List<UUID> loadEntitySet( FullQualifiedName fqn ) {
-        return cassandraJavaContext.cassandraTable(
-                keyspace,
-                cassandraTableManager.getTablenameForEntityType( fqn ),
-                CassandraJavaUtil.mapColumnTo( UUID.class ) )
-                .select( CommonColumns.ENTITYID.cql() )
-                .distinct()
-                .collect();
-    }
 
     @Override public QueryResult getAllEntitiesOfEntitySet( FullQualifiedName entityFqn, String entitySetName ) {
         EntityType entityType = dataModelService.getEntityType( entityFqn );
@@ -188,7 +166,8 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
      * @param request A LookupEntitiesRequest object
      * @return QueryResult of UUID's matching the lookup request
      */
-    public QueryResult filterEntities( LookupEntitiesRequest request ) {
+    @Override
+    public QueryResult getFilterEntities( LookupEntitiesRequest request ) {
         //Get set of JavaRDD of UUIDs matching the property value for each property type
         Set<JavaRDD<UUID>> resultsMatchingPropertyValues = request.getPropertyTypeToValueMap().entrySet()
                 .parallelStream()
@@ -264,7 +243,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     }
 
     @Override
-    public QueryResult loadAllEntitiesOfType( FullQualifiedName entityTypeFqn ) {
+    public QueryResult getAllEntitiesOfType( FullQualifiedName entityTypeFqn ) {
         EntityType entityType = dataModelService.getEntityType( entityTypeFqn );
         List<FullQualifiedName> propertyFqns = Lists.newLinkedList( entityType.getProperties() );
 
