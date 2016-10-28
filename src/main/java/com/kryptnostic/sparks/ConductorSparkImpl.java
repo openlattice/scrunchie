@@ -21,7 +21,9 @@ import com.kryptnostic.conductor.rpc.odata.PropertyType;
 import com.kryptnostic.conductor.rpc.odata.Tables;
 import com.kryptnostic.datastore.cassandra.CassandraEdmMapping;
 import com.kryptnostic.datastore.cassandra.CommonColumns;
+import com.kryptnostic.datastore.services.ActionAuthorizationService;
 import com.kryptnostic.datastore.services.CassandraTableManager;
+import com.kryptnostic.datastore.services.EdmDetailsAdapter;
 import com.kryptnostic.datastore.services.EdmManager;
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
 import org.apache.spark.api.java.JavaRDD;
@@ -57,6 +59,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     private final String                    keyspace;
     private final CassandraTableManager     cassandraTableManager;
     private final EdmManager                dataModelService;
+    private final ActionAuthorizationService                authzService;
 
     private final ConcurrentMap<FullQualifiedName, Dataset<Row>> entityDataframeMap;
     private final ConcurrentMap<FullQualifiedName, Dataset<Row>> propertyDataframeMap;
@@ -68,7 +71,8 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
             SparkContextJavaFunctions cassandraJavaContext,
             CassandraTableManager cassandraTableManager,
             EdmManager dataModelService,
-            SparkAuthorizationManager authzManager ) {
+            SparkAuthorizationManager authzManager,
+            ActionAuthorizationService authzService) {
         this.sparkSession = sparkSession;
         this.cassandraJavaContext = cassandraJavaContext;
         this.authzManager = authzManager;
@@ -78,6 +82,8 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         this.entityDataframeMap = Maps.newConcurrentMap();
         this.propertyDataframeMap = Maps.newConcurrentMap();
         prepareDataframe();
+        //Debug for Ho Chung
+        this.authzService = authzService;
     }
 
     private void prepareDataframe() {
@@ -107,9 +113,14 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     }
 
 
-    @Override public QueryResult getAllEntitiesOfEntitySet( FullQualifiedName entityFqn, String entitySetName ) {
+    @Override 
+    public QueryResult getAllEntitiesOfEntitySet( FullQualifiedName entityFqn, String entitySetName ) {
         EntityType entityType = dataModelService.getEntityType( entityFqn );
         List<FullQualifiedName> propertyFqns = Lists.newLinkedList( entityType.getProperties() );
+        //Debug for Ho Chung
+        System.err.println( "Kindling got here" );
+        System.err.println( entityType );
+        System.err.println( propertyFqns );
 
         propertyFqns.forEach( fqn -> {
             if ( propertyDataframeMap.get( fqn ) == null ) {
@@ -343,4 +354,12 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         return "cache_" + rdm;
     }
 
+    // Debug for Ho Chung
+    public Boolean setUser( String username, Set<String> currentRoles ){
+        if ( username != null ){
+            authzService.setCurrentUserForDebug( username, currentRoles );
+            return true;
+        }
+        return false;
+    }
 }
