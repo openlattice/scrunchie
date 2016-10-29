@@ -5,7 +5,6 @@ import static com.datastax.spark.connector.japi.CassandraJavaUtil.javaFunctions;
 import java.util.stream.Collectors;
 
 import org.apache.spark.SparkConf;
-import org.apache.spark.SparkContext;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.SparkSession;
@@ -16,20 +15,22 @@ import org.slf4j.LoggerFactory;
 import com.datastax.spark.connector.japi.SparkContextJavaFunctions;
 import com.kryptnostic.conductor.rpc.odata.DatastoreConstants;
 import com.kryptnostic.datastore.edm.BootstrapDatastoreWithCassandra;
+import com.kryptnostic.datastore.services.ActionAuthorizationService;
 import com.kryptnostic.datastore.services.CassandraTableManager;
 import com.kryptnostic.datastore.services.EdmManager;
 import com.kryptnostic.rhizome.configuration.cassandra.CassandraConfiguration;
 
 public class BaseKindlingSparkTest extends BootstrapDatastoreWithCassandra {
     // Need to start Cassandra/Spark/Datastore
-    protected static SparkConf                 conf;
-    protected static SparkSession              sparkSession;
-    protected static JavaSparkContext          javaContext;
-    protected static SQLContext                cassandraContext;
-    protected static SparkContextJavaFunctions cassandraJavaContext;
-    protected static SparkAuthorizationManager authzManager;
-    protected static ConductorSparkImpl        csi;
-    protected final Logger                     logger = LoggerFactory.getLogger( getClass() );
+    protected static SparkConf                  conf;
+    protected static SparkSession               sparkSession;
+    protected static JavaSparkContext           javaContext;
+    protected static SQLContext                 cassandraContext;
+    protected static SparkContextJavaFunctions  cassandraJavaContext;
+    protected static SparkAuthorizationManager  authzManager;
+    protected static ActionAuthorizationService authzService;
+    protected static ConductorSparkImpl         csi;
+    protected final Logger                      logger = LoggerFactory.getLogger( getClass() );
 
     @BeforeClass
     public static void initSpark() {
@@ -54,13 +55,15 @@ public class BaseKindlingSparkTest extends BootstrapDatastoreWithCassandra {
         cassandraContext = new SQLContext( sparkSession.sparkContext() );
         cassandraJavaContext = javaFunctions( sparkSession.sparkContext() );
         authzManager = new SparkAuthorizationManager();
+        authzService = ds.getContext().getBean( ActionAuthorizationService.class );
         csi = new ConductorSparkImpl(
                 DatastoreConstants.KEYSPACE,
                 sparkSession,
                 cassandraJavaContext,
                 ctb,
                 edm,
-                authzManager );
+                authzManager,
+                authzService );
     }
 
 }
