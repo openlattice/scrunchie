@@ -60,7 +60,6 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     private final String                                         keyspace;
     private final CassandraTableManager                          cassandraTableManager;
     private final EdmManager                                     dataModelService;
-    private final ActionAuthorizationService                     authzService;
 
     private final ConcurrentMap<FullQualifiedName, Dataset<Row>> entityDataframeMap;
     private final ConcurrentMap<FullQualifiedName, Dataset<Row>> propertyDataframeMap;
@@ -72,8 +71,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
             SparkContextJavaFunctions cassandraJavaContext,
             CassandraTableManager cassandraTableManager,
             EdmManager dataModelService,
-            SparkAuthorizationManager authzManager,
-            ActionAuthorizationService authzService ) {
+            SparkAuthorizationManager authzManager ) {
         this.sparkSession = sparkSession;
         this.cassandraJavaContext = cassandraJavaContext;
         this.authzManager = authzManager;
@@ -83,8 +81,6 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         this.entityDataframeMap = Maps.newConcurrentMap();
         this.propertyDataframeMap = Maps.newConcurrentMap();
         prepareDataframe();
-        // Debug for Ho Chung
-        this.authzService = authzService;
     }
 
     private void prepareDataframe() {
@@ -354,12 +350,4 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         return "cache_" + rdm;
     }
 
-    // Debug for Ho Chung
-    public Boolean setUser( String username, List<String> currentRoles ) {
-        if ( username != null ) {
-            authzService.setCurrentUserForDebug( username, currentRoles );
-            return true;
-        }
-        return false;
-    }
 }

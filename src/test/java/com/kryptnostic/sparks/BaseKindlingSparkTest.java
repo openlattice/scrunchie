@@ -55,15 +55,13 @@ public class BaseKindlingSparkTest extends BootstrapDatastoreWithCassandra {
         cassandraContext = new SQLContext( sparkSession.sparkContext() );
         cassandraJavaContext = javaFunctions( sparkSession.sparkContext() );
         authzManager = new SparkAuthorizationManager();
-        authzService = ds.getContext().getBean( ActionAuthorizationService.class );
         csi = new ConductorSparkImpl(
                 DatastoreConstants.KEYSPACE,
                 sparkSession,
                 cassandraJavaContext,
                 ctb,
                 edm,
-                authzManager,
-                authzService );
+                authzManager);
     }
 
 }
