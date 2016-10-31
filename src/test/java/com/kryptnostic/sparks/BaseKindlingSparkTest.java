@@ -62,8 +62,7 @@ public class BaseKindlingSparkTest extends BootstrapDatastoreWithCassandra {
                 cassandraJavaContext,
                 ctb,
                 edm,
-                authzManager,
-                authzService );
+                authzManager );
     }
 
 }
