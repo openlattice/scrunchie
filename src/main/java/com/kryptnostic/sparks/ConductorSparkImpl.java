@@ -113,10 +113,6 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     public QueryResult getAllEntitiesOfEntitySet( FullQualifiedName entityFqn, String entitySetName ) {
         EntityType entityType = dataModelService.getEntityType( entityFqn );
         List<FullQualifiedName> propertyFqns = Lists.newLinkedList( entityType.getProperties() );
-        // Debug for Ho Chung
-        System.err.println( "Kindling got here" );
-        System.err.println( entityType );
-        System.err.println( propertyFqns );
 
         propertyFqns.forEach( fqn -> {
             if ( propertyDataframeMap.get( fqn ) == null ) {
