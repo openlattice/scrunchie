@@ -144,7 +144,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 
         entityDf.createOrReplaceTempView( "entityDf" );
         entityDf = sparkSession
-                .sql( "select entityid from entityDf where array_contains( entitysets, '" + entitySetName + "')" );
+                .sql( "select entityid from entityDf where array_contains( " + CommonColumns.ENTITY_SETS + ", '" + entitySetName + "')" );
 
         List<Dataset<Row>> propertyDataFrames = propertyFqns.stream()
                 .map( fqn -> propertyDataframeMap
