@@ -43,8 +43,8 @@ import com.kryptnostic.datastore.cassandra.CommonColumns;
 import com.kryptnostic.datastore.services.ActionAuthorizationService;
 import com.kryptnostic.datastore.services.CassandraTableManager;
 import com.kryptnostic.datastore.services.EdmManager;
-
 import scala.collection.IndexedSeq;
+
 
 public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     private static final long                                    serialVersionUID = 825467486008335571L;
@@ -110,11 +110,11 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     }
 
     @Override
-    public QueryResult getAllEntitiesOfEntitySet( FullQualifiedName entityFqn, String entitySetName ) {
-        EntityType entityType = dataModelService.getEntityType( entityFqn );
-        List<FullQualifiedName> propertyFqns = Lists.newLinkedList( entityType.getProperties() );
+    public QueryResult getAllEntitiesOfEntitySet( FullQualifiedName entityFqn, String entitySetName, Set<FullQualifiedName> authorizedProperteis ) {
 
-        propertyFqns.forEach( fqn -> {
+        EntityType entityType = dataModelService.getEntityType( entityFqn );
+        List<FullQualifiedName> authorizedPropertyFqns = Lists.newLinkedList( authorizedProperteis );
+        authorizedPropertyFqns.forEach( fqn -> {
             if ( propertyDataframeMap.get( fqn ) == null ) {
                 Dataset<Row> propertyDf = sparkSession
                         .read()
@@ -126,7 +126,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
             }
         } );
 
-        List<PropertyType> propertyTypes = propertyFqns.stream()
+        List<PropertyType> propertyTypes = authorizedPropertyFqns.stream()
                 .map( fqn -> dataModelService.getPropertyType( fqn ) )
                 .collect( Collectors.toList() );
 
@@ -146,7 +146,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         entityDf = sparkSession
                 .sql( "select entityid from entityDf where array_contains( " + CommonColumns.ENTITY_SETS + ", '" + entitySetName + "')" );
 
-        List<Dataset<Row>> propertyDataFrames = propertyFqns.stream()
+        List<Dataset<Row>> propertyDataFrames = authorizedPropertyFqns.stream()
                 .map( fqn -> propertyDataframeMap
                         .get( fqn )
                         .select( CommonColumns.ENTITYID.cql(), CommonColumns.VALUE.cql() ) )
@@ -246,9 +246,9 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     }
 
     @Override
-    public QueryResult getAllEntitiesOfType( FullQualifiedName entityTypeFqn ) {
+    public QueryResult getAllEntitiesOfType( FullQualifiedName entityTypeFqn, Set<FullQualifiedName> authorizedProperties ) {
         EntityType entityType = dataModelService.getEntityType( entityTypeFqn );
-        List<FullQualifiedName> propertyFqns = Lists.newLinkedList( entityType.getProperties() );
+        List<FullQualifiedName> propertyFqns = Lists.newLinkedList( authorizedProperties );
 
         propertyFqns.forEach( fqn -> {
             if ( propertyDataframeMap.get( fqn ) == null ) {
