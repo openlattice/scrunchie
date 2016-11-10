@@ -6,10 +6,6 @@
 enable-persistence:  false
 session-clustering-enabled: false
 
-rethinkdb:
-    hostname: "localhost"
-    port: 28015
-    
 cassandra:
     replication-factor: 1
     seed-nodes:
@@ -21,3 +17,9 @@ hazelcast:
     password: "kryptodoge4life"
     seed-nodes: 
         - "127.0.0.1"
+
+spark:
+    appname: "Kryptnostic Spark Conductor"
+    port: 7077
+    master:
+        - "local[2]"
