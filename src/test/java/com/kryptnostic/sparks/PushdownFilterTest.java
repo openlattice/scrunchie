@@ -1,19 +1,18 @@
 package com.kryptnostic.sparks;
 
+import static org.apache.spark.sql.functions.col;
+
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
-import org.apache.spark.sql.SparkSession;
-import static org.apache.spark.sql.functions.col;
-
 import org.junit.Test;
 
 import com.kryptnostic.conductor.rpc.odata.DatastoreConstants;
 import com.kryptnostic.datastore.services.CassandraTableManager;
 
-public class PushdownFilterTest extends BaseKindlingSparkTest{
+public class PushdownFilterTest extends BaseKindlingSparkTest {
     // TEST: testing pushdown for spark join
-    //@Test
+    @Test
     public void TestPushDown(){
         CassandraTableManager ctb = ds.getContext().getBean( CassandraTableManager.class );
         

@@ -1,38 +1,5 @@
 package com.kryptnostic.sparks;
 
-import com.datastax.driver.core.DataType;
-import com.datastax.driver.core.Session;
-import com.datastax.spark.connector.ColumnRef;
-import com.datastax.spark.connector.cql.CassandraConnector;
-import com.datastax.spark.connector.cql.TableDef;
-import com.datastax.spark.connector.japi.CassandraJavaUtil;
-import com.datastax.spark.connector.japi.SparkContextJavaFunctions;
-import com.datastax.spark.connector.japi.rdd.CassandraJavaPairRDD;
-import com.datastax.spark.connector.writer.RowWriter;
-import com.datastax.spark.connector.writer.RowWriterFactory;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-import com.kryptnostic.conductor.rpc.ConductorSparkApi;
-import com.kryptnostic.conductor.rpc.LookupEntitiesRequest;
-import com.kryptnostic.conductor.rpc.QueryResult;
-import com.kryptnostic.conductor.rpc.odata.EntityType;
-import com.kryptnostic.conductor.rpc.odata.PropertyType;
-import com.kryptnostic.conductor.rpc.odata.Tables;
-import com.kryptnostic.datastore.cassandra.CassandraEdmMapping;
-import com.kryptnostic.datastore.cassandra.CommonColumns;
-import com.kryptnostic.datastore.services.CassandraTableManager;
-import com.kryptnostic.datastore.services.EdmManager;
-import org.apache.olingo.commons.api.edm.FullQualifiedName;
-import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.sql.*;
-import org.apache.spark.sql.catalyst.expressions.ArrayContains;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import scala.collection.IndexedSeq;
-
-import javax.inject.Inject;
 import java.io.Serializable;
 import java.math.BigInteger;
 import java.security.SecureRandom;
@@ -44,22 +11,60 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
 
-public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
-    private static final long         serialVersionUID = 825467486008335571L;
-    private static final Logger       logger           = LoggerFactory.getLogger( ConductorSparkImpl.class );
-    private static final String       LEFTOUTER        = "leftouter";
-    private final        SecureRandom random           = new SecureRandom();
-    private static final String       CACHE_KEYSPACE   = "cache";
+import javax.inject.Inject;
 
-    private final SparkSession              sparkSession;
-    private final SparkContextJavaFunctions cassandraJavaContext;
-    private final SparkAuthorizationManager authzManager;
-    private final String                    keyspace;
-    private final CassandraTableManager     cassandraTableManager;
-    private final EdmManager                dataModelService;
+import org.apache.olingo.commons.api.edm.FullQualifiedName;
+import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SparkSession;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.datastax.driver.core.DataType;
+import com.datastax.driver.core.Session;
+import com.datastax.spark.connector.ColumnRef;
+import com.datastax.spark.connector.cql.CassandraConnector;
+import com.datastax.spark.connector.cql.TableDef;
+import com.datastax.spark.connector.japi.CassandraJavaUtil;
+import com.datastax.spark.connector.japi.SparkContextJavaFunctions;
+import com.datastax.spark.connector.writer.RowWriter;
+import com.datastax.spark.connector.writer.RowWriterFactory;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.hazelcast.core.HazelcastInstance;
+import com.kryptnostic.conductor.rpc.ConductorSparkApi;
+import com.kryptnostic.conductor.rpc.LookupEntitiesRequest;
+import com.kryptnostic.conductor.rpc.QueryResult;
+import com.kryptnostic.conductor.rpc.odata.EntityType;
+import com.kryptnostic.conductor.rpc.odata.PropertyType;
+import com.kryptnostic.datastore.cassandra.CassandraEdmMapping;
+import com.kryptnostic.datastore.cassandra.CommonColumns;
+import com.kryptnostic.datastore.services.CassandraTableManager;
+import com.kryptnostic.datastore.services.EdmManager;
+import com.kryptnostic.mapstores.v2.constants.HazelcastNames;
+
+import scala.collection.IndexedSeq;
+
+public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
+    private static final long                                    serialVersionUID = 825467486008335571L;
+    private static final Logger                                  logger           = LoggerFactory
+            .getLogger( ConductorSparkImpl.class );
+    private static final String                                  LEFTOUTER        = "leftouter";
+    private final SecureRandom                                   random           = new SecureRandom();
+    private static final String                                  CACHE_KEYSPACE   = "cache";
+
+    private final SparkSession                                   sparkSession;
+    private final SparkContextJavaFunctions                      cassandraJavaContext;
+    private final SparkAuthorizationManager                      authzManager;
+    private final String                                         keyspace;
+    private final CassandraTableManager                          cassandraTableManager;
+    private final EdmManager                                     dataModelService;
 
     private final ConcurrentMap<FullQualifiedName, Dataset<Row>> entityDataframeMap;
     private final ConcurrentMap<FullQualifiedName, Dataset<Row>> propertyDataframeMap;
+    private final ConcurrentMap<String, Dataset<Row>>                     entitySetDataframes;
 
     @Inject
     public ConductorSparkImpl(
@@ -68,15 +73,17 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
             SparkContextJavaFunctions cassandraJavaContext,
             CassandraTableManager cassandraTableManager,
             EdmManager dataModelService,
-            SparkAuthorizationManager authzManager ) {
+            SparkAuthorizationManager authzManager,
+            HazelcastInstance hazelcastInstance ) {
         this.sparkSession = sparkSession;
         this.cassandraJavaContext = cassandraJavaContext;
         this.authzManager = authzManager;
         this.keyspace = keyspace;
         this.cassandraTableManager = cassandraTableManager;
         this.dataModelService = dataModelService;
-        this.entityDataframeMap = Maps.newConcurrentMap();
-        this.propertyDataframeMap = Maps.newConcurrentMap();
+        this.entityDataframeMap = Maps.newConcurrentMap();//hazelcastInstance.getMap( HazelcastNames.Maps.ENTITY_DATAFRAMES );
+        this.propertyDataframeMap = Maps.newConcurrentMap(); //hazelcastInstance.getMap( HazelcastNames.Maps.PROPERTY_DATAFRAMES );
+        this.entitySetDataframes = Maps.newConcurrentMap();//hazelcastInstance.getMap( HazelcastNames.Maps.ENTITY_SET_DATAFRAMES );
         prepareDataframe();
     }
 
@@ -106,8 +113,8 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 
     }
 
-
-    @Override public QueryResult getAllEntitiesOfEntitySet( FullQualifiedName entityFqn, String entitySetName ) {
+    @Override
+    public QueryResult getAllEntitiesOfEntitySet( FullQualifiedName entityFqn, String entitySetName ) {
         EntityType entityType = dataModelService.getEntityType( entityFqn );
         List<FullQualifiedName> propertyFqns = Lists.newLinkedList( entityType.getProperties() );
 
@@ -138,7 +145,8 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                     .load();
             entityDataframeMap.put( entityFqn, entityDf );
         }
-
+        
+        
         entityDf.createOrReplaceTempView( "entityDf" );
         entityDf = sparkSession
                 .sql( "select entityid from entityDf where array_contains( entitysets, '" + entitySetName + "')" );
@@ -146,8 +154,8 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         List<Dataset<Row>> propertyDataFrames = propertyFqns.stream()
                 .map( fqn -> propertyDataframeMap
                         .get( fqn )
-                        .select( CommonColumns.ENTITYID.cql(), CommonColumns.VALUE.cql() )
-                ).collect( Collectors.toList() );
+                        .select( CommonColumns.ENTITYID.cql(), CommonColumns.VALUE.cql() ) )
+                .collect( Collectors.toList() );
 
         for ( Dataset<Row> rdf : propertyDataFrames ) {
             entityDf = entityDf.join( rdf,
@@ -168,22 +176,24 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
      */
     @Override
     public QueryResult getFilterEntities( LookupEntitiesRequest request ) {
-        //Get set of JavaRDD of UUIDs matching the property value for each property type
+        // Get set of JavaRDD of UUIDs matching the property value for each property type
         Set<JavaRDD<UUID>> resultsMatchingPropertyValues = request.getPropertyTypeToValueMap().entrySet()
                 .parallelStream()
                 .map( ptv -> getEntityIds( request.getUserId(),
                         cassandraTableManager.getTablenameForPropertyValuesOfType( ptv.getKey() ),
                         ptv.getValue() ) )
                 .collect( Collectors.toSet() );
-        //Take intersection to get the JavaRDD of UUIDs matching all the property type values, but before filtering Entity Types
-        //TODO: repartitionbyCassandraReplica is not done, which means that intersection is potentially extremely slow.
+        // Take intersection to get the JavaRDD of UUIDs matching all the property type values, but before filtering
+        // Entity Types
+        // TODO: repartitionbyCassandraReplica is not done, which means that intersection is potentially extremely slow.
         JavaRDD<UUID> resultsBeforeFilteringEntityTypes = resultsMatchingPropertyValues.stream()
                 .reduce( ( leftRDD, rightRDD ) -> leftRDD.intersection( rightRDD ) )
                 .get();
 
-        //Get the RDD of UUIDs matching all the property type values, after filtering Entity Types
-        //TODO: once Hristo's entity type to entity id table is done, maybe faster to use that rather than do multiple joinWithCassandraTable
-        //Looks like JavaSparkContext is not injected anymore.    
+        // Get the RDD of UUIDs matching all the property type values, after filtering Entity Types
+        // TODO: once Hristo's entity type to entity id table is done, maybe faster to use that rather than do multiple
+        // joinWithCassandraTable
+        // Looks like JavaSparkContext is not injected anymore.
         JavaRDD<UUID> resultsAfterFilteringEntityTypes = ( new JavaSparkContext( sparkSession.sparkContext() ) )
                 .emptyRDD();
 
@@ -197,16 +207,15 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                                     CassandraJavaUtil.someColumns( CommonColumns.ENTITYID.cql() ),
                                     CassandraJavaUtil.someColumns( CommonColumns.ENTITYID.cql() ),
                                     CassandraJavaUtil.mapColumnTo( UUID.class ),
-                                    //RowWriter not really necessary - should not be invoked during lazy evaluation.
+                                    // RowWriter not really necessary - should not be invoked during lazy evaluation.
                                     new RowWriterFactory<UUID>() {
 
                                         @Override
                                         public RowWriter<UUID> rowWriter( TableDef t, IndexedSeq<ColumnRef> colRefs ) {
                                             return new RowWriterForUUID();
                                         }
-                                    }
-                            ).keys()
-                    )
+                                    } )
+                            .keys() )
                     .reduce( ( leftRDD, rightRDD ) -> leftRDD.union( rightRDD ) )
                     .get();
         }
@@ -216,13 +225,12 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         // Initialize Temp Table
         String cacheTable = initializeTempTable(
                 Collections.singletonList( CommonColumns.ENTITYID.cql() ),
-                Collections.singletonList( DataType.uuid() )
-        );
-        // Save RDD of entityID's to Cassandra.    
+                Collections.singletonList( DataType.uuid() ) );
+        // Save RDD of entityID's to Cassandra.
         CassandraJavaUtil.javaFunctions( resultsAfterFilteringEntityTypes )
                 .writerBuilder( CACHE_KEYSPACE,
                         cacheTable,
-                        //toModify
+                        // toModify
                         new RowWriterFactory<UUID>() {
                             @Override
                             public RowWriter<UUID> rowWriter( TableDef t, IndexedSeq<ColumnRef> colRefs ) {
@@ -280,8 +288,8 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         List<Dataset<Row>> propertyDataFrames = propertyFqns.stream()
                 .map( fqn -> propertyDataframeMap
                         .get( fqn )
-                        .select( CommonColumns.ENTITYID.cql(), CommonColumns.VALUE.cql() )
-                ).collect( Collectors.toList() );
+                        .select( CommonColumns.ENTITYID.cql(), CommonColumns.VALUE.cql() ) )
+                .collect( Collectors.toList() );
 
         for ( Dataset<Row> rdf : propertyDataFrames ) {
             entityDf = entityDf.join( rdf,
