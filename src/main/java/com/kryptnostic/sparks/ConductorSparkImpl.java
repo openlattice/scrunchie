@@ -22,6 +22,7 @@ import org.apache.spark.sql.SparkSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.clearspring.analytics.util.Preconditions;
 import com.datastax.driver.core.DataType;
 import com.datastax.driver.core.Session;
 import com.datastax.spark.connector.ColumnRef;
@@ -29,9 +30,9 @@ import com.datastax.spark.connector.cql.CassandraConnector;
 import com.datastax.spark.connector.cql.TableDef;
 import com.datastax.spark.connector.japi.CassandraJavaUtil;
 import com.datastax.spark.connector.japi.SparkContextJavaFunctions;
+import com.datastax.spark.connector.types.TypeConverter.JavaListConverter;
 import com.datastax.spark.connector.writer.RowWriter;
 import com.datastax.spark.connector.writer.RowWriterFactory;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.hazelcast.core.HazelcastInstance;
 import com.kryptnostic.conductor.rpc.ConductorSparkApi;
@@ -43,9 +44,10 @@ import com.kryptnostic.datastore.cassandra.CassandraEdmMapping;
 import com.kryptnostic.datastore.cassandra.CommonColumns;
 import com.kryptnostic.datastore.services.CassandraTableManager;
 import com.kryptnostic.datastore.services.EdmManager;
-import com.kryptnostic.mapstores.v2.constants.HazelcastNames;
 
 import scala.collection.IndexedSeq;
+import scala.collection.JavaConverters;
+import scala.concurrent.JavaConversions;
 
 public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     private static final long                                    serialVersionUID = 825467486008335571L;
@@ -64,7 +66,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 
     private final ConcurrentMap<FullQualifiedName, Dataset<Row>> entityDataframeMap;
     private final ConcurrentMap<FullQualifiedName, Dataset<Row>> propertyDataframeMap;
-    private final ConcurrentMap<String, Dataset<Row>>                     entitySetDataframes;
+    private final ConcurrentMap<String, Dataset<Row>>            entitySetDataframes;
 
     @Inject
     public ConductorSparkImpl(
@@ -81,9 +83,12 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         this.keyspace = keyspace;
         this.cassandraTableManager = cassandraTableManager;
         this.dataModelService = dataModelService;
-        this.entityDataframeMap = Maps.newConcurrentMap();//hazelcastInstance.getMap( HazelcastNames.Maps.ENTITY_DATAFRAMES );
-        this.propertyDataframeMap = Maps.newConcurrentMap(); //hazelcastInstance.getMap( HazelcastNames.Maps.PROPERTY_DATAFRAMES );
-        this.entitySetDataframes = Maps.newConcurrentMap();//hazelcastInstance.getMap( HazelcastNames.Maps.ENTITY_SET_DATAFRAMES );
+        this.entityDataframeMap = Maps.newConcurrentMap();// hazelcastInstance.getMap(
+                                                          // HazelcastNames.Maps.ENTITY_DATAFRAMES );
+        this.propertyDataframeMap = Maps.newConcurrentMap(); // hazelcastInstance.getMap(
+                                                             // HazelcastNames.Maps.PROPERTY_DATAFRAMES );
+        this.entitySetDataframes = Maps.newConcurrentMap();// hazelcastInstance.getMap(
+                                                           // HazelcastNames.Maps.ENTITY_SET_DATAFRAMES );
         prepareDataframe();
     }
 
@@ -94,7 +99,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                     Dataset<Row> entityDf = sparkSession
                             .read()
                             .format( "org.apache.spark.sql.cassandra" )
-                            .option( "table", entityTableName )
+                            .option( "table", entityTableName.toLowerCase() )
                             .option( "keyspace", keyspace )
                             .load();
                     entityDataframeMap.put( entityType.getFullQualifiedName(), entityDf );
@@ -116,23 +121,27 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     @Override
     public QueryResult getAllEntitiesOfEntitySet( FullQualifiedName entityFqn, String entitySetName ) {
         EntityType entityType = dataModelService.getEntityType( entityFqn );
-        List<FullQualifiedName> propertyFqns = Lists.newLinkedList( entityType.getProperties() );
-
-        propertyFqns.forEach( fqn -> {
-            if ( propertyDataframeMap.get( fqn ) == null ) {
-                Dataset<Row> propertyDf = sparkSession
-                        .read()
-                        .format( "org.apache.spark.sql.cassandra" )
-                        .option( "table", cassandraTableManager.getTablenameForPropertyValuesOfType( fqn ) )
-                        .option( "keyspace", keyspace )
-                        .load();
-                propertyDataframeMap.put( fqn, propertyDf );
-            }
-        } );
-
-        List<PropertyType> propertyTypes = propertyFqns.stream()
+        List<PropertyType> propertyTypes = entityType.getProperties().stream()
                 .map( fqn -> dataModelService.getPropertyType( fqn ) )
                 .collect( Collectors.toList() );
+
+        return getAllEntitiesOfEntitySet( entityFqn, entitySetName, propertyTypes );
+    }
+
+    @Override
+    public QueryResult getAllEntitiesOfEntitySet(
+            FullQualifiedName entityFqn,
+            String entitySetName,
+            List<PropertyType> authorizedProperties ) {
+
+        EntityType entityType = dataModelService.getEntityType( entityFqn );
+        /*
+         * authorizedProperties.forEach( property -> { FullQualifiedName fqn = property.getFullQualifiedName(); if (
+         * propertyDataframeMap.get( fqn ) == null ) { Dataset<Row> propertyDf = sparkSession .read() .format(
+         * "org.apache.spark.sql.cassandra" ) .option( "table",
+         * cassandraTableManager.getTablenameForPropertyValuesOfType( fqn ) ) .option( "keyspace", keyspace ) .load();
+         * propertyDataframeMap.put( fqn, propertyDf ); } } );
+         */
 
         Dataset<Row> entityDf = entityDataframeMap.get( entityFqn );
 
@@ -145,25 +154,21 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                     .load();
             entityDataframeMap.put( entityFqn, entityDf );
         }
-        
-        
-        entityDf.createOrReplaceTempView( "entityDf" );
-        entityDf = sparkSession
-                .sql( "select entityid from entityDf where array_contains( entitysets, '" + entitySetName + "')" );
-
-        List<Dataset<Row>> propertyDataFrames = propertyFqns.stream()
-                .map( fqn -> propertyDataframeMap
-                        .get( fqn )
-                        .select( CommonColumns.ENTITYID.cql(), CommonColumns.VALUE.cql() ) )
+        List<String> columns = authorizedProperties.stream().map( pt -> pt.getTypename() )
                 .collect( Collectors.toList() );
-
-        for ( Dataset<Row> rdf : propertyDataFrames ) {
-            entityDf = entityDf.join( rdf,
-                    scala.collection.JavaConversions.asScalaBuffer( Arrays.asList( CommonColumns.ENTITYID.cql() ) )
-                            .toList(),
-                    LEFTOUTER );
-        }
-        String tableName = cacheToCassandra( entityDf, propertyTypes );
+        Preconditions.checkState( columns.size() > 0, "Must have access to at least one column." );
+        entityDf = entityDf.select( columns.get( 0 ), columns.subList( 1, columns.size() ).toArray( new String[] {} ) );
+        entityDf.createOrReplaceTempView( "entityDf" );
+        /*
+         * entityDf = sparkSession .sql( "select " + CommonColumns.ENTITYID.cql() +
+         * " from entityDf where array_contains( " + CommonColumns.ENTITY_SETS.cql() + ", '" + entitySetName + "')" );
+         * List<Dataset<Row>> propertyDataFrames = authorizedProperties.stream() .map( property -> propertyDataframeMap
+         * .get( property.getFullQualifiedName() ) .select( CommonColumns.ENTITYID.cql(), CommonColumns.VALUE.cql() ) )
+         * .collect( Collectors.toList() ); for ( Dataset<Row> rdf : propertyDataFrames ) { entityDf = entityDf.join(
+         * rdf, scala.collection.JavaConversions.asScalaBuffer( Arrays.asList( CommonColumns.ENTITYID.cql() ) )
+         * .toList(), LEFTOUTER ); }
+         */
+        String tableName = cacheToCassandra( entityDf, authorizedProperties );
 
         return new QueryResult( CACHE_KEYSPACE, tableName, UUID.randomUUID(), UUID.randomUUID().toString() );
     }
@@ -232,10 +237,12 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                         cacheTable,
                         // toModify
                         new RowWriterFactory<UUID>() {
+
                             @Override
                             public RowWriter<UUID> rowWriter( TableDef t, IndexedSeq<ColumnRef> colRefs ) {
                                 return new RowWriterForUUID();
                             }
+
                         } )
                 .saveToCassandra();
 
@@ -253,23 +260,26 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     @Override
     public QueryResult getAllEntitiesOfType( FullQualifiedName entityTypeFqn ) {
         EntityType entityType = dataModelService.getEntityType( entityTypeFqn );
-        List<FullQualifiedName> propertyFqns = Lists.newLinkedList( entityType.getProperties() );
-
-        propertyFqns.forEach( fqn -> {
-            if ( propertyDataframeMap.get( fqn ) == null ) {
-                Dataset<Row> propertyDf = sparkSession
-                        .read()
-                        .format( "org.apache.spark.sql.cassandra" )
-                        .option( "table", cassandraTableManager.getTablenameForPropertyValuesOfType( fqn ) )
-                        .option( "keyspace", keyspace )
-                        .load();
-                propertyDataframeMap.put( fqn, propertyDf );
-            }
-        } );
-
-        List<PropertyType> propertyTypes = propertyFqns.stream()
+        List<PropertyType> propertyTypes = entityType.getProperties().stream()
                 .map( fqn -> dataModelService.getPropertyType( fqn ) )
                 .collect( Collectors.toList() );
+
+        return getAllEntitiesOfType( entityTypeFqn, propertyTypes );
+    }
+
+    @Override
+    public QueryResult getAllEntitiesOfType(
+            FullQualifiedName entityTypeFqn,
+            List<PropertyType> authorizedProperties ) {
+        EntityType entityType = dataModelService.getEntityType( entityTypeFqn );
+
+        /*
+         * authorizedProperties.forEach( property -> { FullQualifiedName fqn = property.getFullQualifiedName(); if (
+         * propertyDataframeMap.get( fqn ) == null ) { Dataset<Row> propertyDf = sparkSession .read() .format(
+         * "org.apache.spark.sql.cassandra" ) .option( "table",
+         * cassandraTableManager.getTablenameForPropertyValuesOfType( fqn ) ) .option( "keyspace", keyspace ) .load();
+         * propertyDataframeMap.put( fqn, propertyDf ); } } );
+         */
 
         Dataset<Row> entityDf = entityDataframeMap.get( entityTypeFqn );
 
@@ -283,21 +293,21 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
             entityDataframeMap.put( entityTypeFqn, entityDf );
         }
 
-        entityDf = entityDf.select( CommonColumns.ENTITYID.cql() );
-
-        List<Dataset<Row>> propertyDataFrames = propertyFqns.stream()
-                .map( fqn -> propertyDataframeMap
-                        .get( fqn )
-                        .select( CommonColumns.ENTITYID.cql(), CommonColumns.VALUE.cql() ) )
+        List<String> columns = authorizedProperties.stream().map( pt -> pt.getTypename() )
                 .collect( Collectors.toList() );
+        Preconditions.checkState( columns.size() > 0, "Must have access to at least one column." );
+        entityDf = entityDf.select( columns.get( 0 ), columns.subList( 1, columns.size() ).toArray( new String[] {} ) );
+        entityDf.createOrReplaceTempView( "entityDf" );
 
-        for ( Dataset<Row> rdf : propertyDataFrames ) {
-            entityDf = entityDf.join( rdf,
-                    scala.collection.JavaConversions.asScalaBuffer( Arrays.asList( CommonColumns.ENTITYID.cql() ) )
-                            .toList(),
-                    LEFTOUTER );
-        }
-        String tableName = cacheToCassandra( entityDf, propertyTypes );
+        /*
+         * entityDf = entityDf.select( CommonColumns.ENTITYID.cql() ); List<Dataset<Row>> propertyDataFrames =
+         * authorizedProperties.stream() .map( property -> propertyDataframeMap .get( property.getFullQualifiedName() )
+         * .select( CommonColumns.ENTITYID.cql(), CommonColumns.VALUE.cql() ) ) .collect( Collectors.toList() ); for (
+         * Dataset<Row> rdf : propertyDataFrames ) { entityDf = entityDf.join( rdf,
+         * scala.collection.JavaConversions.asScalaBuffer( Arrays.asList( CommonColumns.ENTITYID.cql() ) ) .toList(),
+         * LEFTOUTER ); }
+         */
+        String tableName = cacheToCassandra( entityDf, authorizedProperties );
 
         return new QueryResult( CACHE_KEYSPACE, tableName, UUID.randomUUID(), UUID.randomUUID().toString() );
     }
