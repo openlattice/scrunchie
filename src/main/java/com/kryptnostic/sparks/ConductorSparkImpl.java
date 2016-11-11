@@ -3,9 +3,10 @@ package com.kryptnostic.sparks;
 import java.io.Serializable;
 import java.math.BigInteger;
 import java.security.SecureRandom;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentMap;
@@ -30,9 +31,9 @@ import com.datastax.spark.connector.cql.CassandraConnector;
 import com.datastax.spark.connector.cql.TableDef;
 import com.datastax.spark.connector.japi.CassandraJavaUtil;
 import com.datastax.spark.connector.japi.SparkContextJavaFunctions;
-import com.datastax.spark.connector.types.TypeConverter.JavaListConverter;
 import com.datastax.spark.connector.writer.RowWriter;
 import com.datastax.spark.connector.writer.RowWriterFactory;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.hazelcast.core.HazelcastInstance;
 import com.kryptnostic.conductor.rpc.ConductorSparkApi;
@@ -47,8 +48,6 @@ import com.kryptnostic.datastore.services.CassandraTableManager;
 import com.kryptnostic.datastore.services.EdmManager;
 
 import scala.collection.IndexedSeq;
-import scala.collection.JavaConverters;
-import scala.concurrent.JavaConversions;
 
 public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     private static final long                                    serialVersionUID = 825467486008335571L;
@@ -105,16 +104,16 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                             .load();
                     entityDataframeMap.put( entityType.getFullQualifiedName(), entityDf );
 
-                    entityType.getProperties().forEach( fqn -> {
-                        String propertyTableName = cassandraTableManager.getTablenameForPropertyValuesOfType( fqn );
-                        Dataset<Row> propertyDf = sparkSession
-                                .read()
-                                .format( "org.apache.spark.sql.cassandra" )
-                                .option( "table", propertyTableName )
-                                .option( "keyspace", keyspace )
-                                .load();
-                        propertyDataframeMap.put( fqn, propertyDf );
-                    } );
+                    // entityType.getProperties().forEach( fqn -> {
+                    // String propertyTableName = cassandraTableManager.getTablenameForPropertyValuesOfType( fqn );
+                    // Dataset<Row> propertyDf = sparkSession
+                    // .read()
+                    // .format( "org.apache.spark.sql.cassandra" )
+                    // .option( "table", propertyTableName )
+                    // .option( "keyspace", keyspace )
+                    // .load();
+                    // propertyDataframeMap.put( fqn, propertyDf );
+                    // } );
                 } );
 
     }
@@ -155,8 +154,9 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                     .load();
             entityDataframeMap.put( entityFqn, entityDf );
         }
-        List<String> columns = authorizedProperties.stream().map( pt -> Queries.fqnToColumnName( pt.getFullQualifiedName() ) )
-//        List<String> columns = authorizedProperties.stream().map( pt -> pt.getTypename() )
+        List<String> columns = authorizedProperties.stream()
+                .map( pt -> Queries.fqnToColumnName( pt.getFullQualifiedName() ) )
+                // List<String> columns = authorizedProperties.stream().map( pt -> pt.getTypename() )
                 .collect( Collectors.toList() );
         Preconditions.checkState( columns.size() > 0, "Must have access to at least one column." );
         entityDf = entityDf.select( CommonColumns.ENTITYID.cql(), columns.toArray( new String[] {} ) );
@@ -184,72 +184,104 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     @Override
     public QueryResult getFilterEntities( LookupEntitiesRequest request ) {
         // Get set of JavaRDD of UUIDs matching the property value for each property type
-        Set<JavaRDD<UUID>> resultsMatchingPropertyValues = request.getPropertyTypeToValueMap().entrySet()
-                .parallelStream()
-                .map( ptv -> getEntityIds( request.getUserId(),
-                        cassandraTableManager.getTablenameForPropertyValuesOfType( ptv.getKey() ),
-                        ptv.getValue() ) )
-                .collect( Collectors.toSet() );
-        // Take intersection to get the JavaRDD of UUIDs matching all the property type values, but before filtering
-        // Entity Types
-        // TODO: repartitionbyCassandraReplica is not done, which means that intersection is potentially extremely slow.
-        JavaRDD<UUID> resultsBeforeFilteringEntityTypes = resultsMatchingPropertyValues.stream()
-                .reduce( ( leftRDD, rightRDD ) -> leftRDD.intersection( rightRDD ) )
-                .get();
+        final Map<FullQualifiedName, QueryResult> dfs = Maps.newConcurrentMap();
 
-        // Get the RDD of UUIDs matching all the property type values, after filtering Entity Types
-        // TODO: once Hristo's entity type to entity id table is done, maybe faster to use that rather than do multiple
-        // joinWithCassandraTable
-        // Looks like JavaSparkContext is not injected anymore.
-        JavaRDD<UUID> resultsAfterFilteringEntityTypes = ( new JavaSparkContext( sparkSession.sparkContext() ) )
-                .emptyRDD();
+        request.getEntityTypes().forEach( entityFqn -> {
+            Dataset<Row> entityDf = entityDataframeMap.get( entityFqn );
 
-        if ( !resultsBeforeFilteringEntityTypes.isEmpty() ) {
-            resultsAfterFilteringEntityTypes = request.getEntityTypes()
-                    .stream()
-                    .map( typeFQN -> cassandraTableManager.getTablenameForEntityType( typeFQN ) )
-                    .map( typeTablename -> CassandraJavaUtil.javaFunctions( resultsBeforeFilteringEntityTypes )
-                            .joinWithCassandraTable( keyspace,
-                                    typeTablename,
-                                    CassandraJavaUtil.someColumns( CommonColumns.ENTITYID.cql() ),
-                                    CassandraJavaUtil.someColumns( CommonColumns.ENTITYID.cql() ),
-                                    CassandraJavaUtil.mapColumnTo( UUID.class ),
-                                    // RowWriter not really necessary - should not be invoked during lazy evaluation.
-                                    new RowWriterFactory<UUID>() {
+            if ( entityDf == null ) {
+                entityDf = sparkSession
+                        .read()
+                        .format( "org.apache.spark.sql.cassandra" )
+                        .option( "table", cassandraTableManager.getTablenameForEntityType( entityFqn ) )
+                        .option( "keyspace", keyspace )
+                        .load();
+                entityDataframeMap.put( entityFqn, entityDf );
+            }
 
-                                        @Override
-                                        public RowWriter<UUID> rowWriter( TableDef t, IndexedSeq<ColumnRef> colRefs ) {
-                                            return new RowWriterForUUID();
-                                        }
-                                    } )
-                            .keys() )
-                    .reduce( ( leftRDD, rightRDD ) -> leftRDD.union( rightRDD ) )
-                    .get();
-        }
+            for ( Entry<FullQualifiedName, Object> e : request.getPropertyTypeToValueMap().entrySet() ) {
+                entityDf = entityDf
+                        .filter( entityDf.apply( Queries.fqnToColumnName( e.getKey() ) ).equalTo( e.getValue() instanceof UUID ? e.getValue().toString() : e.getValue() ) );
+            }
+            String tableName = cacheToCassandra( entityDf,
+                    cassandraTableManager.getEntityType( entityFqn ).getProperties().stream()
+                            .map( cassandraTableManager::getPropertyType ).collect( Collectors.toList() ) );
+            dfs.put( entityFqn,
+                    new QueryResult( CACHE_KEYSPACE, tableName, UUID.randomUUID(), UUID.randomUUID().toString() ) );
+            entityDf.createOrReplaceTempView( "entityDf" );
 
-        // Write to QueryResult
-        // Build Temp Table, using Yao's initializeTempTable function
-        // Initialize Temp Table
-        String cacheTable = initializeTempTable(
-                Collections.singletonList( CommonColumns.ENTITYID.cql() ),
-                Collections.singletonList( DataType.uuid() ) );
-        // Save RDD of entityID's to Cassandra.
-        CassandraJavaUtil.javaFunctions( resultsAfterFilteringEntityTypes )
-                .writerBuilder( CACHE_KEYSPACE,
-                        cacheTable,
-                        // toModify
-                        new RowWriterFactory<UUID>() {
+        } );
+        return dfs.values().iterator().next();
 
-                            @Override
-                            public RowWriter<UUID> rowWriter( TableDef t, IndexedSeq<ColumnRef> colRefs ) {
-                                return new RowWriterForUUID();
-                            }
-
-                        } )
-                .saveToCassandra();
-
-        // Return Query Result pointing to the temp table.
-        return new QueryResult( CACHE_KEYSPACE, cacheTable, UUID.randomUUID(), UUID.randomUUID().toString() );
+        // Set<JavaRDD<UUID>> resultsMatchingPropertyValues = request.getPropertyTypeToValueMap().entrySet()
+        // .parallelStream()
+        // .map( ptv -> getEntityIds( request.getUserId(),
+        // cassandraTableManager.getTablenameForPropertyValuesOfType( ptv.getKey() ),
+        // ptv.getValue() ) )
+        // .collect( Collectors.toSet() );
+        //
+        // // Take intersection to get the JavaRDD of UUIDs matching all the property type values, but before filtering
+        // // Entity Types
+        // // TODO: repartitionbyCassandraReplica is not done, which means that intersection is potentially extremely
+        // slow.
+        // JavaRDD<UUID> resultsBeforeFilteringEntityTypes = resultsMatchingPropertyValues.stream()
+        // .reduce( ( leftRDD, rightRDD ) -> leftRDD.intersection( rightRDD ) )
+        // .get();
+        //
+        // // Get the RDD of UUIDs matching all the property type values, after filtering Entity Types
+        // // TODO: once Hristo's entity type to entity id table is done, maybe faster to use that rather than do
+        // multiple
+        // // joinWithCassandraTable
+        // // Looks like JavaSparkContext is not injected anymore.
+        // JavaRDD<UUID> resultsAfterFilteringEntityTypes = ( new JavaSparkContext( sparkSession.sparkContext() ) )
+        // .emptyRDD();
+        //
+        // if ( !resultsBeforeFilteringEntityTypes.isEmpty() ) {
+        // resultsAfterFilteringEntityTypes = request.getEntityTypes()
+        // .stream()
+        // .map( typeFQN -> cassandraTableManager.getTablenameForEntityType( typeFQN ) )
+        // .map( typeTablename -> CassandraJavaUtil.javaFunctions( resultsBeforeFilteringEntityTypes )
+        // .joinWithCassandraTable( keyspace,
+        // typeTablename,
+        // CassandraJavaUtil.someColumns( CommonColumns.ENTITYID.cql() ),
+        // CassandraJavaUtil.someColumns( CommonColumns.ENTITYID.cql() ),
+        // CassandraJavaUtil.mapColumnTo( UUID.class ),
+        // // RowWriter not really necessary - should not be invoked during lazy evaluation.
+        // new RowWriterFactory<UUID>() {
+        //
+        // @Override
+        // public RowWriter<UUID> rowWriter( TableDef t, IndexedSeq<ColumnRef> colRefs ) {
+        // return new RowWriterForUUID();
+        // }
+        // } )
+        // .keys() )
+        // .reduce( ( leftRDD, rightRDD ) -> leftRDD.union( rightRDD ) )
+        // .get();
+        // }
+        //
+        // // Write to QueryResult
+        // // Build Temp Table, using Yao's initializeTempTable function
+        // // Initialize Temp Table
+        // String cacheTable = initializeTempTable(
+        // ImmutableList.of( CommonColumns.ENTITYID.cql() ),
+        // ImmutableList.of( DataType.uuid() ) );
+        // // Save RDD of entityID's to Cassandra.
+        // CassandraJavaUtil.javaFunctions( resultsAfterFilteringEntityTypes )
+        // .writerBuilder( CACHE_KEYSPACE,
+        // cacheTable,
+        // // toModify
+        // new RowWriterFactory<UUID>() {
+        //
+        // @Override
+        // public RowWriter<UUID> rowWriter( TableDef t, IndexedSeq<ColumnRef> colRefs ) {
+        // return new RowWriterForUUID();
+        // }
+        //
+        // } )
+        // .saveToCassandra();
+        //
+        // // Return Query Result pointing to the temp table.
+        // return new QueryResult( CACHE_KEYSPACE, cacheTable, UUID.randomUUID(), UUID.randomUUID().toString() );
     }
 
     private JavaRDD<UUID> getEntityIds( UUID userId, String table, Object value ) {
@@ -295,11 +327,12 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
             entityDataframeMap.put( entityTypeFqn, entityDf );
         }
 
-        List<String> columns = authorizedProperties.stream().map( pt -> Queries.fqnToColumnName( pt.getFullQualifiedName() ) )
-//        List<String> columns = authorizedProperties.stream().map( pt -> pt.getTypename() )
+        List<String> columns = authorizedProperties.stream()
+                .map( pt -> Queries.fqnToColumnName( pt.getFullQualifiedName() ) )
+                // List<String> columns = authorizedProperties.stream().map( pt -> pt.getTypename() )
                 .collect( Collectors.toList() );
         Preconditions.checkState( columns.size() > 0, "Must have access to at least one column." );
-        
+
         entityDf = entityDf.select( CommonColumns.ENTITYID.cql(), columns.toArray( new String[] {} ) );
         entityDf.createOrReplaceTempView( "entityDf" );
 
@@ -350,7 +383,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         String tableName = getValidCacheTableName();
         String query = new CacheTableBuilder( tableName ).columns( columnNames, dataTypes ).buildQuery();
 
-        CassandraConnector cassandraConnector = CassandraConnector.apply( sparkSession.sparkContext().conf() );
+        CassandraConnector cassandraConnector = CassandraConnector.apply( sparkSession.sparkContext().conf() ); 
         try ( Session session = cassandraConnector.openSession() ) {
             session.execute(
                     "CREATE KEYSPACE IF NOT EXISTS cache WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1}" );

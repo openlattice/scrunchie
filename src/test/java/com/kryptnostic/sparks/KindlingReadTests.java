@@ -16,6 +16,7 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SQLContext;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.google.common.collect.ImmutableMap;
@@ -75,6 +76,7 @@ public class KindlingReadTests extends BaseKindlingSparkTest {
     }
 
     @Test
+    @Ignore
     public void testStepOutOfTheCapsule() {
         UUID userId = UUID.randomUUID();
         CassandraTableManager ctb = ds.getContext().getBean( CassandraTableManager.class );

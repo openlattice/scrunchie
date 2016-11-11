@@ -23,7 +23,12 @@ public class LoomCassandraConnectionFactory implements CassandraConnectionFactor
 
     @Override
     public Cluster createCluster( CassandraConnectorConf ccf ) {
-        return Preconditions.checkNotNull( cluster.get(),
+        Cluster c = cluster.get();
+        if ( c.isClosed() ) {
+            c = SparkPod.getCluster().get();
+            cluster.set( c );
+        }
+        return Preconditions.checkNotNull( c,
                 "This is a hack that must be initialized before being used in a session using the CassandraPod" );
     }
 
