@@ -42,6 +42,7 @@ import com.kryptnostic.conductor.rpc.odata.EntityType;
 import com.kryptnostic.conductor.rpc.odata.PropertyType;
 import com.kryptnostic.datastore.cassandra.CassandraEdmMapping;
 import com.kryptnostic.datastore.cassandra.CommonColumns;
+import com.kryptnostic.datastore.cassandra.Queries;
 import com.kryptnostic.datastore.services.CassandraTableManager;
 import com.kryptnostic.datastore.services.EdmManager;
 
@@ -154,10 +155,11 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                     .load();
             entityDataframeMap.put( entityFqn, entityDf );
         }
-        List<String> columns = authorizedProperties.stream().map( pt -> pt.getTypename() )
+        List<String> columns = authorizedProperties.stream().map( pt -> Queries.fqnToColumnName( pt.getFullQualifiedName() ) )
+//        List<String> columns = authorizedProperties.stream().map( pt -> pt.getTypename() )
                 .collect( Collectors.toList() );
         Preconditions.checkState( columns.size() > 0, "Must have access to at least one column." );
-        entityDf = entityDf.select( columns.get( 0 ), columns.subList( 1, columns.size() ).toArray( new String[] {} ) );
+        entityDf = entityDf.select( CommonColumns.ENTITYID.cql(), columns.toArray( new String[] {} ) );
         entityDf.createOrReplaceTempView( "entityDf" );
         /*
          * entityDf = sparkSession .sql( "select " + CommonColumns.ENTITYID.cql() +
@@ -293,10 +295,12 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
             entityDataframeMap.put( entityTypeFqn, entityDf );
         }
 
-        List<String> columns = authorizedProperties.stream().map( pt -> pt.getTypename() )
+        List<String> columns = authorizedProperties.stream().map( pt -> Queries.fqnToColumnName( pt.getFullQualifiedName() ) )
+//        List<String> columns = authorizedProperties.stream().map( pt -> pt.getTypename() )
                 .collect( Collectors.toList() );
         Preconditions.checkState( columns.size() > 0, "Must have access to at least one column." );
-        entityDf = entityDf.select( columns.get( 0 ), columns.subList( 1, columns.size() ).toArray( new String[] {} ) );
+        
+        entityDf = entityDf.select( CommonColumns.ENTITYID.cql(), columns.toArray( new String[] {} ) );
         entityDf.createOrReplaceTempView( "entityDf" );
 
         /*
