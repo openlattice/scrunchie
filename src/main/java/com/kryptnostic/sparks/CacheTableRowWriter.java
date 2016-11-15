@@ -7,9 +7,6 @@ import scala.collection.Seq;
 
 import java.util.List;
 
-/**
- * Created by yao on 9/7/16.
- */
 public class CacheTableRowWriter implements RowWriter<Row> {
     private static final long serialVersionUID = -937664101639772865L;
     private final List<String> columnNames;

@@ -6,9 +6,6 @@ import org.apache.commons.lang3.StringUtils;
 
 import java.util.List;
 
-/**
- * Created by yao on 9/6/16.
- */
 public class CacheTableBuilder {
     private final String name;
     private List<String> columnNames;
