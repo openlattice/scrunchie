@@ -3,11 +3,9 @@ package com.kryptnostic.sparks;
 import java.io.Serializable;
 import java.math.BigInteger;
 import java.security.SecureRandom;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
@@ -16,7 +14,6 @@ import javax.inject.Inject;
 
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
@@ -26,14 +23,9 @@ import org.slf4j.LoggerFactory;
 import com.clearspring.analytics.util.Preconditions;
 import com.datastax.driver.core.DataType;
 import com.datastax.driver.core.Session;
-import com.datastax.spark.connector.ColumnRef;
 import com.datastax.spark.connector.cql.CassandraConnector;
-import com.datastax.spark.connector.cql.TableDef;
 import com.datastax.spark.connector.japi.CassandraJavaUtil;
 import com.datastax.spark.connector.japi.SparkContextJavaFunctions;
-import com.datastax.spark.connector.writer.RowWriter;
-import com.datastax.spark.connector.writer.RowWriterFactory;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.hazelcast.core.HazelcastInstance;
 import com.kryptnostic.conductor.rpc.ConductorSparkApi;
@@ -47,22 +39,20 @@ import com.kryptnostic.datastore.cassandra.Queries;
 import com.kryptnostic.datastore.services.CassandraTableManager;
 import com.kryptnostic.datastore.services.EdmManager;
 
-import scala.collection.IndexedSeq;
-
 public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
-    private static final long                                    serialVersionUID = 825467486008335571L;
-    private static final Logger                                  logger           = LoggerFactory
+    private static final long         serialVersionUID = 825467486008335571L;
+    private static final Logger       logger           = LoggerFactory
             .getLogger( ConductorSparkImpl.class );
-    private static final String                                  LEFTOUTER        = "leftouter";
-    private final SecureRandom                                   random           = new SecureRandom();
-    private static final String                                  CACHE_KEYSPACE   = "cache";
+    private static final String       LEFTOUTER        = "leftouter";
+    private final        SecureRandom random           = new SecureRandom();
+    private static final String       CACHE_KEYSPACE   = "cache";
 
-    private final SparkSession                                   sparkSession;
-    private final SparkContextJavaFunctions                      cassandraJavaContext;
-    private final SparkAuthorizationManager                      authzManager;
-    private final String                                         keyspace;
-    private final CassandraTableManager                          cassandraTableManager;
-    private final EdmManager                                     dataModelService;
+    private final SparkSession              sparkSession;
+    private final SparkContextJavaFunctions cassandraJavaContext;
+    private final SparkAuthorizationManager authzManager;
+    private final String                    keyspace;
+    private final CassandraTableManager     cassandraTableManager;
+    private final EdmManager                dataModelService;
 
     private final ConcurrentMap<FullQualifiedName, Dataset<Row>> entityDataframeMap;
     private final ConcurrentMap<FullQualifiedName, Dataset<Row>> propertyDataframeMap;
@@ -84,11 +74,11 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         this.cassandraTableManager = cassandraTableManager;
         this.dataModelService = dataModelService;
         this.entityDataframeMap = Maps.newConcurrentMap();// hazelcastInstance.getMap(
-                                                          // HazelcastNames.Maps.ENTITY_DATAFRAMES );
+        // HazelcastNames.Maps.ENTITY_DATAFRAMES );
         this.propertyDataframeMap = Maps.newConcurrentMap(); // hazelcastInstance.getMap(
-                                                             // HazelcastNames.Maps.PROPERTY_DATAFRAMES );
+        // HazelcastNames.Maps.PROPERTY_DATAFRAMES );
         this.entitySetDataframes = Maps.newConcurrentMap();// hazelcastInstance.getMap(
-                                                           // HazelcastNames.Maps.ENTITY_SET_DATAFRAMES );
+        // HazelcastNames.Maps.ENTITY_SET_DATAFRAMES );
         prepareDataframe();
     }
 
@@ -201,7 +191,8 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 
             for ( Entry<FullQualifiedName, Object> e : request.getPropertyTypeToValueMap().entrySet() ) {
                 entityDf = entityDf
-                        .filter( entityDf.apply( Queries.fqnToColumnName( e.getKey() ) ).equalTo( e.getValue() instanceof UUID ? e.getValue().toString() : e.getValue() ) );
+                        .filter( entityDf.apply( Queries.fqnToColumnName( e.getKey() ) )
+                                .equalTo( e.getValue() instanceof UUID ? e.getValue().toString() : e.getValue() ) );
             }
             String tableName = cacheToCassandra( entityDf,
                     cassandraTableManager.getEntityType( entityFqn ).getProperties().stream()
@@ -367,14 +358,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         CassandraJavaUtil.javaFunctions( df.toJavaRDD() )
                 .writerBuilder( "cache",
                         tableName,
-                        new RowWriterFactory<Row>() {
-                            @Override
-                            public RowWriter<Row> rowWriter(
-                                    TableDef table,
-                                    IndexedSeq<ColumnRef> selectedColumns ) {
-                                return new CacheTableRowWriter( columnNames );
-                            }
-                        } )
+                        ( table, selectedColumns ) -> new CacheTableRowWriter( columnNames ) )
                 .saveToCassandra();
         return tableName;
     }
@@ -383,7 +367,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         String tableName = getValidCacheTableName();
         String query = new CacheTableBuilder( tableName ).columns( columnNames, dataTypes ).buildQuery();
 
-        CassandraConnector cassandraConnector = CassandraConnector.apply( sparkSession.sparkContext().conf() ); 
+        CassandraConnector cassandraConnector = CassandraConnector.apply( sparkSession.sparkContext().conf() );
         try ( Session session = cassandraConnector.openSession() ) {
             session.execute(
                     "CREATE KEYSPACE IF NOT EXISTS cache WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1}" );
