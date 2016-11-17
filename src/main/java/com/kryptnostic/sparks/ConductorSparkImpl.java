@@ -79,7 +79,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         // HazelcastNames.Maps.PROPERTY_DATAFRAMES );
         this.entitySetDataframes = Maps.newConcurrentMap();// hazelcastInstance.getMap(
         // HazelcastNames.Maps.ENTITY_SET_DATAFRAMES );
-        prepareDataframe();
+        //prepareDataframe();
     }
 
     private void prepareDataframe() {
@@ -133,24 +133,30 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
          * propertyDataframeMap.put( fqn, propertyDf ); } } );
          */
 
-        Dataset<Row> entityDf = entityDataframeMap.get( entityFqn );
+//        Dataset<Row> entityDf = entityDataframeMap.get( entityFqn );
 
-        if ( entityDf == null ) {
-            entityDf = sparkSession
-                    .read()
-                    .format( "org.apache.spark.sql.cassandra" )
-                    .option( "table", cassandraTableManager.getTablenameForEntityType( entityType ) )
-                    .option( "keyspace", keyspace )
-                    .load();
-            entityDataframeMap.put( entityFqn, entityDf );
-        }
+//        if ( entityDf == null ) {
+//            entityDf = sparkSession
+//                    .read()
+//                    .format( "org.apache.spark.sql.cassandra" )
+//                    .option( "table", cassandraTableManager.getTablenameForEntityType( entityType ) )
+//                    .option( "keyspace", keyspace )
+//                    .load();
+//            entityDataframeMap.put( entityFqn, entityDf );
+//        }
+        Dataset<Row> entityDf = sparkSession
+                            .read()
+                            .format( "org.apache.spark.sql.cassandra" )
+                            .option( "table", cassandraTableManager.getTablenameForEntityType( entityType ) )
+                            .option( "keyspace", keyspace )
+                            .load();
         List<String> columns = authorizedProperties.stream()
                 .map( pt -> Queries.fqnToColumnName( pt.getFullQualifiedName() ) )
                 // List<String> columns = authorizedProperties.stream().map( pt -> pt.getTypename() )
                 .collect( Collectors.toList() );
         Preconditions.checkState( columns.size() > 0, "Must have access to at least one column." );
-        entityDf = entityDf.select( CommonColumns.ENTITYID.cql(), columns.toArray( new String[] {} ) );
-        entityDf.createOrReplaceTempView( "entityDf" );
+//        entityDf = entityDf.select( CommonColumns.ENTITYID.cql(), columns.toArray( new String[] {} ) );
+//        entityDf.createOrReplaceTempView( "entityDf" );
         /*
          * entityDf = sparkSession .sql( "select " + CommonColumns.ENTITYID.cql() +
          * " from entityDf where array_contains( " + CommonColumns.ENTITY_SETS.cql() + ", '" + entitySetName + "')" );
