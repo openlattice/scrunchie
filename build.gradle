@@ -55,11 +55,19 @@ dependencies {
 	 */
 	if (project.hasProperty("developmentMode") && project.developmentMode) {
         logger.quiet(project.name + " using project dependencies.")
+        
+        compile( project(":loom-api") ) {
+            exclude module: 'cassandra-driver-core'
+            exclude module: 'cassandra-driver-mapping'
+            exclude module: 'cassandra-driver-extras'
+        }
+
         compile( project(":kryptnostic-conductor-client") ) {
             exclude module: 'cassandra-driver-core'
             exclude module: 'cassandra-driver-mapping'
             exclude module: 'cassandra-driver-extras'
         }
+        
         testCompile( project(path: ":datastore", configuration: "tests")) {
             exclude module: 'cassandra-driver-core'
             exclude module: 'cassandra-driver-mapping'
@@ -80,11 +88,19 @@ dependencies {
     }
     else {
         logger.quiet(project.name + " using jar dependencies.")
+
+        compile ("com.dataloom:loom-api:${loom_api_version}"){
+            exclude module: 'cassandra-driver-core'
+            exclude module: 'cassandra-driver-mapping'
+            exclude module: 'cassandra-driver-extras'
+        }
+
         compile ("com.kryptnostic:kryptnostic-conductor-client:${conductor_client_version}"){
             exclude module: 'cassandra-driver-core'
             exclude module: 'cassandra-driver-mapping'
             exclude module: 'cassandra-driver-extras'
         }
+        
         testCompile ("com.kryptnostic:datastore:${datastore_version}:tests"){
             exclude module: 'cassandra-driver-core'
             exclude module: 'cassandra-driver-mapping'
