@@ -45,8 +45,6 @@ public class BaseKindlingSparkTest extends BootstrapDatastoreWithCassandra {
         init();
         CassandraTableManager ctb = ds.getContext().getBean( CassandraTableManager.class );
         EdmManager edm = ds.getContext().getBean( EdmManager.class );
-        Assert.assertTrue( "SSL must be enabled",
-                ds.getContext().getBean( CassandraConfiguration.class ).isSslEnabled() );
         sparkSession = ds.getContext().getBean( SparkSession.class );
         javaContext = new JavaSparkContext( sparkSession.sparkContext() );
         cassandraContext = new SQLContext( sparkSession.sparkContext() );

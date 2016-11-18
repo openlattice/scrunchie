@@ -5,6 +5,7 @@ import static org.apache.spark.sql.functions.col;
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dataloom.edm.internal.DatastoreConstants;
@@ -12,6 +13,7 @@ import com.kryptnostic.datastore.services.CassandraTableManager;
 
 public class PushdownFilterTest extends BaseKindlingSparkTest {
     // TEST: testing pushdown for spark join
+    @Ignore
     @Test
     public void TestPushDown(){
         CassandraTableManager ctb = ds.getContext().getBean( CassandraTableManager.class );
