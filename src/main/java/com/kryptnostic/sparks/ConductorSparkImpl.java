@@ -22,6 +22,8 @@ import org.slf4j.LoggerFactory;
 
 import com.clearspring.analytics.util.Preconditions;
 import com.dataloom.data.requests.LookupEntitiesRequest;
+import com.dataloom.edm.internal.EntityType;
+import com.dataloom.edm.internal.PropertyType;
 import com.datastax.driver.core.DataType;
 import com.datastax.driver.core.Session;
 import com.datastax.spark.connector.cql.CassandraConnector;
@@ -31,8 +33,6 @@ import com.google.common.collect.Maps;
 import com.hazelcast.core.HazelcastInstance;
 import com.kryptnostic.conductor.rpc.ConductorSparkApi;
 import com.kryptnostic.conductor.rpc.QueryResult;
-import com.kryptnostic.conductor.rpc.odata.EntityType;
-import com.kryptnostic.conductor.rpc.odata.PropertyType;
 import com.kryptnostic.datastore.cassandra.CassandraEdmMapping;
 import com.kryptnostic.datastore.cassandra.CommonColumns;
 import com.kryptnostic.datastore.cassandra.Queries;

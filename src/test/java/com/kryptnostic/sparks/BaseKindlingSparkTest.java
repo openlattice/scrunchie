@@ -11,9 +11,9 @@ import org.junit.BeforeClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dataloom.edm.internal.DatastoreConstants;
 import com.datastax.spark.connector.japi.SparkContextJavaFunctions;
 import com.hazelcast.core.HazelcastInstance;
-import com.kryptnostic.conductor.rpc.odata.DatastoreConstants;
 import com.kryptnostic.datastore.edm.BootstrapDatastoreWithCassandra;
 import com.kryptnostic.datastore.services.ActionAuthorizationService;
 import com.kryptnostic.datastore.services.CassandraTableManager;

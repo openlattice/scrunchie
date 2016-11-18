@@ -7,7 +7,7 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.junit.Test;
 
-import com.kryptnostic.conductor.rpc.odata.DatastoreConstants;
+import com.dataloom.edm.internal.DatastoreConstants;
 import com.kryptnostic.datastore.services.CassandraTableManager;
 
 public class PushdownFilterTest extends BaseKindlingSparkTest {

@@ -20,14 +20,14 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import com.dataloom.data.requests.LookupEntitiesRequest;
+import com.dataloom.edm.internal.EntityType;
+import com.dataloom.edm.internal.PropertyType;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.kryptnostic.conductor.rpc.QueryResult;
 import com.kryptnostic.conductor.rpc.UUIDs.ACLs;
 import com.kryptnostic.conductor.rpc.UUIDs.Syncs;
-import com.kryptnostic.conductor.rpc.odata.EntityType;
-import com.kryptnostic.conductor.rpc.odata.PropertyType;
 import com.kryptnostic.datastore.services.CassandraTableManager;
 import com.kryptnostic.datastore.services.ODataStorageService;
 

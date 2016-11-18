@@ -89,7 +89,7 @@ dependencies {
     else {
         logger.quiet(project.name + " using jar dependencies.")
 
-        compile ("com.dataloom:loom-api:${loom_api_version}"){
+        compile ("com.kryptnostic:loom-api:${loom_api_version}"){
             exclude module: 'cassandra-driver-core'
             exclude module: 'cassandra-driver-mapping'
             exclude module: 'cassandra-driver-extras'
