@@ -11,9 +11,9 @@ import org.junit.BeforeClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dataloom.edm.internal.DatastoreConstants;
 import com.datastax.spark.connector.japi.SparkContextJavaFunctions;
 import com.hazelcast.core.HazelcastInstance;
-import com.kryptnostic.conductor.rpc.odata.DatastoreConstants;
 import com.kryptnostic.datastore.edm.BootstrapDatastoreWithCassandra;
 import com.kryptnostic.datastore.services.ActionAuthorizationService;
 import com.kryptnostic.datastore.services.CassandraTableManager;
@@ -45,8 +45,6 @@ public class BaseKindlingSparkTest extends BootstrapDatastoreWithCassandra {
         init();
         CassandraTableManager ctb = ds.getContext().getBean( CassandraTableManager.class );
         EdmManager edm = ds.getContext().getBean( EdmManager.class );
-        Assert.assertTrue( "SSL must be enabled",
-                ds.getContext().getBean( CassandraConfiguration.class ).isSslEnabled() );
         sparkSession = ds.getContext().getBean( SparkSession.class );
         javaContext = new JavaSparkContext( sparkSession.sparkContext() );
         cassandraContext = new SQLContext( sparkSession.sparkContext() );
