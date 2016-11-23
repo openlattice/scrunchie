@@ -154,8 +154,16 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                 // List<String> columns = authorizedProperties.stream().map( pt -> pt.getTypename() )
                 .collect( Collectors.toList() );
         Preconditions.checkState( columns.size() > 0, "Must have access to at least one column." );
-//        entityDf = entityDf.select( CommonColumns.ENTITYID.cql(), columns.toArray( new String[] {} ) );
-//        entityDf.createOrReplaceTempView( "entityDf" );
+        
+        entityDf = entityDf.select( CommonColumns.ENTITYID.cql(), columns.toArray( new String[] {} ) )
+                .where( 
+                        "array_contains( " 
+                + CommonColumns.ENTITY_SETS.cql()
+                + ", "
+                + "'" + entitySetName + "'"
+                + ")"
+                );
+
         /*
          * entityDf = sparkSession .sql( "select " + CommonColumns.ENTITYID.cql() +
          * " from entityDf where array_contains( " + CommonColumns.ENTITY_SETS.cql() + ", '" + entitySetName + "')" );
@@ -342,7 +350,6 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         Preconditions.checkState( columns.size() > 0, "Must have access to at least one column." );
 
         entityDf = entityDf.select( CommonColumns.ENTITYID.cql(), columns.toArray( new String[] {} ) );
-        entityDf.createOrReplaceTempView( "entityDf" );
 
         /*
          * entityDf = entityDf.select( CommonColumns.ENTITYID.cql() ); List<Dataset<Row>> propertyDataFrames =
