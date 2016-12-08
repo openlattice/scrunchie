@@ -72,6 +72,8 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         this.keyspace = keyspace;
         this.cassandraTableManager = cassandraTableManager;
         this.dataModelService = dataModelService;
+
+        this.sparkSession.sql( "set spark.sql.caseSensitive=false" );
 //        this.entityDataframeMap = Maps.newConcurrentMap();// hazelcastInstance.getMap(
 //        // HazelcastNames.Maps.ENTITY_DATAFRAMES );
 //        this.propertyDataframeMap = Maps.newConcurrentMap(); // hazelcastInstance.getMap(
@@ -336,6 +338,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 //                    .load();
 //            entityDataframeMap.put( entityTypeFqn, entityDf );
 //        }
+
         Dataset<Row> entityDf = sparkSession
                             .read()
                             .format( "org.apache.spark.sql.cassandra" )
