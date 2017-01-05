@@ -152,7 +152,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                             .option( "keyspace", keyspace )
                             .load();
         List<String> columns = authorizedProperties.stream()
-                .map( pt -> Queries.fqnToColumnName( pt.getFullQualifiedName() ) )
+                .map( pt -> Queries.fqnToColumnName( pt.getType() ) )
                 // List<String> columns = authorizedProperties.stream().map( pt -> pt.getTypename() )
                 .collect( Collectors.toList() );
         Preconditions.checkState( columns.size() > 0, "Must have access to at least one column." );
@@ -216,8 +216,8 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                                 .equalTo( e.getValue() instanceof UUID ? e.getValue().toString() : e.getValue() ) );
             }
             String tableName = cacheToCassandra( entityDf,
-                    cassandraTableManager.getEntityType( entityFqn ).getProperties().stream()
-                            .map( cassandraTableManager::getPropertyType ).collect( Collectors.toList() ) );
+                    dataModelService.getEntityType( entityFqn ).getProperties().stream()
+                            .map( dataModelService::getPropertyType ).collect( Collectors.toList() ) );
             dfs.put( entityFqn,
                     new QueryResult( CACHE_KEYSPACE, tableName, UUID.randomUUID(), UUID.randomUUID().toString() ) );
             entityDf.createOrReplaceTempView( "entityDf" );
@@ -347,7 +347,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
                             .load();
 
         List<String> columns = authorizedProperties.stream()
-                .map( pt -> Queries.fqnToColumnName( pt.getFullQualifiedName() ) )
+                .map( pt -> Queries.fqnToColumnName( pt.getType() ) )
                 // List<String> columns = authorizedProperties.stream().map( pt -> pt.getTypename() )
                 .collect( Collectors.toList() );
         Preconditions.checkState( columns.size() > 0, "Must have access to at least one column." );
@@ -369,7 +369,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 
     private String cacheToCassandra( Dataset<Row> df, List<PropertyType> propertyTypes ) {
         List<String> columnNames = propertyTypes.stream()
-                .map( pt -> "value_" + pt.getTypename() )
+                .map( pt -> "value_" + pt.getType().getFullQualifiedNameAsString() )
                 .collect( Collectors.toList() );
         List<DataType> propertyDataTypes = propertyTypes.stream()
                 .map( pt -> CassandraEdmMapping.getCassandraType( pt.getDatatype() ) )
