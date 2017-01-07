@@ -20,6 +20,9 @@ ext.targetCompatibility=JavaVersion.VERSION_1_8
 
 repositories {
     mavenLocal()
+    maven {
+    	url "http://conjars.org/repo/"
+    }
 }
 
 configurations {
@@ -130,6 +133,19 @@ dependencies {
     compile "org.xerial.snappy:snappy-java:${snappy_version}"
     compile "net.jpountz.lz4:lz4:${lz4_version}"
     */
+    
+   	 /*
+      * ELASTICSEARCH
+      */
+     compile ("org.elasticsearch:elasticsearch:5.1.1")
+     compile ("org.elasticsearch.plugin:shield:2.4.3")
+     compile ("org.elasticsearch.plugin:license:2.4.3") {
+     	exclude module: 'apache-curator'
+     }
+     compile ("org.elasticsearch:elasticsearch-hadoop:5.1.1") {
+     	exclude module: 'apache-curator'
+     }
+     compile ("org.elasticsearch.client:transport:5.1.1")
     
  }
 
