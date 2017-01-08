@@ -133,12 +133,6 @@ public class KindlingElasticsearchHandler {
 				e.printStackTrace();
 			}
 	}
-	
-	private void addAclQueryForPermissions( BoolQueryBuilder query, String field, List<Permission> permissions ) {
-		for ( Permission permission: permissions ) {
-			query.should( QueryBuilders.matchQuery( field, permission.toString() ) );
-		}
-	}
 		
 	public void executeEntitySetDataModelKeywordSearch(
 			String userId,
@@ -154,19 +148,11 @@ public class KindlingElasticsearchHandler {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-
-		List<Permission> allowedPermissions = Lists.newArrayList();
-		allowedPermissions.add( Permission.DISCOVER );
-		allowedPermissions.add( Permission.READ );
-		allowedPermissions.add( Permission.WRITE );
-		allowedPermissions.add( Permission.OWNER );
-		allowedPermissions.add( Permission.ALTER );
-		allowedPermissions.add( Permission.DISCOVER );
 		
 		BoolQueryBuilder permissionsQuery = new BoolQueryBuilder();
-		addAclQueryForPermissions( permissionsQuery, "userAcls." + userId, allowedPermissions );
+		permissionsQuery.should( QueryBuilders.regexpQuery( "userAcls." + userId, ".*" ) );
 		for ( String role: roles ) {
-			addAclQueryForPermissions( permissionsQuery, "roleAcls." + role, allowedPermissions );
+			permissionsQuery.should( QueryBuilders.regexpQuery( "roleAcls." + role, ".*" ) );
 		}
 		permissionsQuery.minimumNumberShouldMatch( 1 );
 		BoolQueryBuilder query = new BoolQueryBuilder()

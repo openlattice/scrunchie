@@ -109,9 +109,9 @@ public class KindlingElasticsearchTests {
     
     @Test
     public void testEntitySetKeywordSearch() {
-    	String userId = "asdf";
-    	List<String> roles = Lists.newArrayList( "udser" );
-    	roles.add( "Sdfsdf");
+    	String userId = "kathesdfrine";
+    	List<String> roles = Lists.newArrayList( "evil" );
+    	//roles.add( "user");
     	
     	String query = "Employees";
     	FullQualifiedName entityTypeFqn = new FullQualifiedName("testcsv", "employee");
@@ -138,9 +138,9 @@ public class KindlingElasticsearchTests {
     
     @Test
     public void testAddEntitySetPermissions() {
-    	Principal principal = new Principal( PrincipalType.ROLE, "engineer" );
+    	Principal principal = new Principal( PrincipalType.ROLE, "evil" );
     	Set<Permission> newPermissions = Sets.newHashSet();
-    	newPermissions.add( Permission.READ );
+    //	newPermissions.add( Permission.READ );
     	KindlingConfiguration config = new KindlingConfiguration( Optional.of("localhost"), Optional.of("loom_development") );
 		KindlingElasticsearchHandler keh;
 		try {
