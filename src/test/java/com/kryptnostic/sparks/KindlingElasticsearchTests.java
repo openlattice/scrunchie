@@ -109,9 +109,9 @@ public class KindlingElasticsearchTests {
     
     @Test
     public void testEntitySetKeywordSearch() {
-    	String userId = "kathesdfrine";
-    	List<String> roles = Lists.newArrayList( "evil" );
-    	//roles.add( "user");
+    	Set<Principal> principals = Sets.newHashSet();
+    	principals.add( new Principal( PrincipalType.USER, "katherine" ) );
+    	principals.add( new Principal( PrincipalType.ROLE, "evil" ) );
     	
     	String query = "Employees";
     	FullQualifiedName entityTypeFqn = new FullQualifiedName("testcsv", "employee");
@@ -123,8 +123,7 @@ public class KindlingElasticsearchTests {
 		try {
 			keh = new KindlingElasticsearchHandler( config );
 			keh.executeEntitySetDataModelKeywordSearch(
-					userId,
-					roles,
+					principals,
 					query,
 					Optional.absent(),
 					Optional.absent()

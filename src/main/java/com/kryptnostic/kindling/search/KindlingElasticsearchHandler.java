@@ -135,8 +135,7 @@ public class KindlingElasticsearchHandler {
 	}
 		
 	public void executeEntitySetDataModelKeywordSearch(
-			String userId,
-			List<String> roles,
+			Set<Principal> principals,
 			String searchTerm,
 			Optional<FullQualifiedName> optionalEntityType,
 			Optional<List<FullQualifiedName>> optionalPropertyTypes ) {
@@ -148,11 +147,11 @@ public class KindlingElasticsearchHandler {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
+
 		BoolQueryBuilder permissionsQuery = new BoolQueryBuilder();
-		permissionsQuery.should( QueryBuilders.regexpQuery( "userAcls." + userId, ".*" ) );
-		for ( String role: roles ) {
-			permissionsQuery.should( QueryBuilders.regexpQuery( "roleAcls." + role, ".*" ) );
+		for ( Principal principal: principals) {
+			String typePath = ( principal.getType() == PrincipalType.USER ) ? "userAcls." : "roleAcls.";
+			permissionsQuery.should( QueryBuilders.regexpQuery( typePath + principal.getId(), ".*" ) );
 		}
 		permissionsQuery.minimumNumberShouldMatch( 1 );
 		BoolQueryBuilder query = new BoolQueryBuilder()
