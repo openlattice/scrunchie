@@ -1,42 +1,30 @@
 package com.kryptnostic.sparks;
 
-import java.io.IOException;
 import java.net.UnknownHostException;
-
-import com.google.common.base.Optional;
-
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
-import org.apache.olingo.commons.api.data.Entity;
-import org.apache.olingo.commons.api.data.Property;
-import org.apache.olingo.commons.api.data.ValueType;
 import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind;
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
-import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
 import org.apache.storm.shade.com.google.common.collect.Lists;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.common.xcontent.XContentFactory;
-import org.elasticsearch.spark.sql.api.java.JavaEsSparkSQL;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dataloom.authorization.requests.Permission;
+import com.dataloom.authorization.requests.Principal;
+import com.dataloom.authorization.requests.PrincipalType;
 import com.dataloom.edm.internal.EntitySet;
 import com.dataloom.edm.internal.PropertyType;
+import com.google.common.base.Optional;
 import com.google.common.collect.Sets;
-import com.kryptnostic.conductor.rpc.UUIDs.ACLs;
-import com.kryptnostic.conductor.rpc.UUIDs.Syncs;
-import com.kryptnostic.datastore.services.ODataStorageService;
 import com.kryptnostic.kindling.search.KindlingConfiguration;
 import com.kryptnostic.kindling.search.KindlingElasticsearchHandler;
 
 public class KindlingElasticsearchTests {
 	
-    private static final UUID   ENTITY_SET_ID  = UUID.randomUUID();
+    private static final UUID   ENTITY_SET_ID  = UUID.fromString( "0a648f39-5e41-46b5-a928-ec44cdeeae13" );
     private static final String TITLE          = "The Entity Set Title";
     private static final String DESCRIPTION    = "This is a description for the entity set called employees.";
     
@@ -57,8 +45,9 @@ public class KindlingElasticsearchTests {
     @Test
     public void initializeIndex() {
     	KindlingConfiguration config = new KindlingConfiguration( Optional.of("localhost"), Optional.of("loom_development") );
-    	try {
-			KindlingElasticsearchHandler keh = new KindlingElasticsearchHandler( config, null );
+		KindlingElasticsearchHandler keh;
+		try {
+			keh = new KindlingElasticsearchHandler( config );
 			keh.initializeEntitySetDataModelIndex();
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
@@ -109,8 +98,9 @@ public class KindlingElasticsearchTests {
         propertyTypes.add( empDept );
         
 		KindlingConfiguration config = new KindlingConfiguration( Optional.of("localhost"), Optional.of("loom_development") );
+		KindlingElasticsearchHandler keh;
 		try {
-			KindlingElasticsearchHandler keh = new KindlingElasticsearchHandler( config, null );
+			keh = new KindlingElasticsearchHandler( config );
 			keh.saveEntitySetToElasticsearch( entitySet, propertyTypes );
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
@@ -119,22 +109,47 @@ public class KindlingElasticsearchTests {
     
     @Test
     public void testEntitySetKeywordSearch() {
+    	String userId = "asdf";
+    	List<String> roles = Lists.newArrayList( "udser" );
+    	roles.add( "Sdfsdf");
+    	
     	String query = "Employees";
     	FullQualifiedName entityTypeFqn = new FullQualifiedName("testcsv", "employee");
     	List<FullQualifiedName> propertyTypes = Lists.newArrayList();
     	propertyTypes.add( new FullQualifiedName( "testcsv", "salary") );
     	propertyTypes.add( new FullQualifiedName( "testcsv", "employee_dept" ) );
     	KindlingConfiguration config = new KindlingConfiguration( Optional.of("localhost"), Optional.of("loom_development") );
+		KindlingElasticsearchHandler keh;
 		try {
-			KindlingElasticsearchHandler keh = new KindlingElasticsearchHandler( config, null );
+			keh = new KindlingElasticsearchHandler( config );
 			keh.executeEntitySetDataModelKeywordSearch(
+					userId,
+					roles,
 					query,
-					Optional.of( entityTypeFqn ),
-					Optional.of( propertyTypes )
+					Optional.absent(),
+					Optional.absent()
+	//				Optional.of( entityTypeFqn ),
+		//			Optional.of( propertyTypes )
 			);
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
 		}
+    }
+    
+    @Test
+    public void testAddEntitySetPermissions() {
+    	Principal principal = new Principal( PrincipalType.ROLE, "engineer" );
+    	Set<Permission> newPermissions = Sets.newHashSet();
+    	newPermissions.add( Permission.READ );
+    	KindlingConfiguration config = new KindlingConfiguration( Optional.of("localhost"), Optional.of("loom_development") );
+		KindlingElasticsearchHandler keh;
+		try {
+			keh = new KindlingElasticsearchHandler( config );
+			keh.updateEntitySetPermissions( ENTITY_SET_ID, principal, newPermissions );
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		}
+		
     }
 //    
 //    @Test
