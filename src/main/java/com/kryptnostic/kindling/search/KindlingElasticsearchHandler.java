@@ -2,7 +2,6 @@ package com.kryptnostic.kindling.search;
 
 import java.io.IOException;
 import java.net.UnknownHostException;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -11,39 +10,53 @@ import java.util.concurrent.ExecutionException;
 
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.search.SearchType;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.Fuzziness;
 import org.elasticsearch.index.query.BoolQueryBuilder;
-import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spark_project.guava.collect.Maps;
-import org.spark_project.guava.collect.Sets;
 import org.springframework.scheduling.annotation.Scheduled;
 
-import com.clearspring.analytics.util.Lists;
 import com.dataloom.authorization.requests.Permission;
 import com.dataloom.authorization.requests.Principal;
 import com.dataloom.authorization.requests.PrincipalType;
 import com.dataloom.edm.internal.EntitySet;
 import com.dataloom.edm.internal.PropertyType;
-import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.guava.GuavaModule;
 import com.fasterxml.jackson.datatype.joda.JodaModule;
 import com.google.common.base.Optional;
 
+import jersey.repackaged.com.google.common.collect.Lists;
+
 public class KindlingElasticsearchHandler {
+	
+	// index setup consts
+	private static final String ENTITY_SET_DATA_MODEL = "entity_set_data_model";
+	private static final String ENTITY_SET_TYPE = "entity_set";
+	private static final String ES_PROPERTIES = "properties";
+	private static final String TYPE = "type";
+	private static final String OBJECT = "object";
+	private static final String NESTED = "nested";
+	private static final String NUM_SHARDS = "index.number_of_shards";
+	private static final String NUM_REPLICAS = "index.number_of_replicas";
+	
+	// entity set field consts
+	private static final String ENTITY_SET = "entitySet";
+	private static final String PROPERTY_TYPES = "propertyTypes";
+	private static final String ROLE_ACLS = "roleAcls";
+	private static final String USER_ACLS = "userAcls";
+	private static final String NAME = "name";
+	private static final String TITLE = "title";
+	private static final String DESCRIPTION = "description";
+	private static final String ID = "id";
+	
 	
 	private Client client;
 	private KindlingTransportClientFactory factory;
@@ -72,22 +85,21 @@ public class KindlingElasticsearchHandler {
 	
 	public void initializeEntitySetDataModelIndex() {
 		Map<String, Object> properties = Maps.newHashMap();
-		Map<String, Object> aclMap = Maps.newHashMap();
-		properties.put( "propertyTypes", Maps.newHashMap()
-				.put( "type", "nested" ) );
-		properties.put( "roleAcls", Maps.newHashMap()
-				.put( "type", "object" ) );
-		properties.put( "userAcls", Maps.newHashMap()
-				.put( "type", "object" ) );
+		properties.put( PROPERTY_TYPES, Maps.newHashMap()
+				.put( TYPE, NESTED ) );
+		properties.put( ROLE_ACLS, Maps.newHashMap()
+				.put( TYPE, OBJECT ) );
+		properties.put( USER_ACLS, Maps.newHashMap()
+				.put( TYPE, OBJECT ) );
 		Map<String, Object> mapping = Maps.newHashMap();
-		mapping.put( "entity_set", Maps.newHashMap()
-				.put("properties", properties ) );
+		mapping.put( ENTITY_SET_TYPE, Maps.newHashMap()
+				.put( ES_PROPERTIES, properties ) );
 
-		client.admin().indices().prepareCreate( "entity_set_data_model" )
+		client.admin().indices().prepareCreate( ENTITY_SET_DATA_MODEL )
 		.setSettings( Settings.builder()
-				.put( "index.number_of_shards", 3 )
-				.put( "index.number_of_replicas", 2 ) )
-		.addMapping( "entity_set", mapping)
+				.put( NUM_SHARDS, 3 )
+				.put( NUM_REPLICAS, 2 ) )
+		.addMapping( ENTITY_SET_TYPE, mapping)
 		.get();
 	}
 	
@@ -118,17 +130,17 @@ public class KindlingElasticsearchHandler {
 //			userPermissions.put( "katherine", ps );
 		
 	        Map<String, Object> entitySetDataModel = Maps.newHashMap();
-	        entitySetDataModel.put( "entitySet", entitySet );
-	        entitySetDataModel.put( "propertyTypes", propertyTypes );
-	        entitySetDataModel.put( "roleAcls", Maps.newHashMap() );
-	        entitySetDataModel.put( "userAcls", Maps.newHashMap() );
+	        entitySetDataModel.put( ENTITY_SET, entitySet );
+	        entitySetDataModel.put( PROPERTY_TYPES, propertyTypes );
+	        entitySetDataModel.put( ROLE_ACLS, Maps.newHashMap() );
+	        entitySetDataModel.put( USER_ACLS, Maps.newHashMap() );
 	        
 			ObjectMapper mapper = new ObjectMapper();
 			mapper.registerModule( new GuavaModule() );
 			mapper.registerModule( new JodaModule() );
 			try {
 				String s = mapper.writeValueAsString( entitySetDataModel );
-				client.prepareIndex( "entity_set_data_model", "entity_set", entitySet.getId().toString() ).setSource( s ).execute().actionGet();
+				client.prepareIndex( ENTITY_SET_DATA_MODEL, ENTITY_SET_TYPE, entitySet.getId().toString() ).setSource( s ).execute().actionGet();
 			} catch (JsonProcessingException e) {
 				e.printStackTrace();
 			}
@@ -137,53 +149,55 @@ public class KindlingElasticsearchHandler {
 	public void executeEntitySetDataModelKeywordSearch(
 			Set<Principal> principals,
 			String searchTerm,
-			Optional<FullQualifiedName> optionalEntityType,
-			Optional<List<FullQualifiedName>> optionalPropertyTypes ) {
+			Optional<UUID> optionalEntityType,
+			Optional<List<UUID>> optionalPropertyTypes ) {
 		
 		
 		try {
 			if ( !verifyElasticsearchConnection() ) return;
 		} catch (UnknownHostException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-
+		
 		BoolQueryBuilder permissionsQuery = new BoolQueryBuilder();
 		for ( Principal principal: principals) {
-			String typePath = ( principal.getType() == PrincipalType.USER ) ? "userAcls." : "roleAcls.";
-			permissionsQuery.should( QueryBuilders.regexpQuery( typePath + principal.getId(), ".*" ) );
+			String typePath = ( principal.getType() == PrincipalType.USER ) ? USER_ACLS : ROLE_ACLS;
+			permissionsQuery.should( QueryBuilders.regexpQuery( typePath + "." + principal.getId(), ".*" ) );
 		}
 		permissionsQuery.minimumNumberShouldMatch( 1 );
 		BoolQueryBuilder query = new BoolQueryBuilder()
 				.must( permissionsQuery )
-				.should( QueryBuilders.matchQuery( "entitySet.name", searchTerm ).fuzziness( Fuzziness.AUTO ) )
-				.should( QueryBuilders.matchQuery( "entitySet.title", searchTerm).fuzziness( Fuzziness.AUTO ) )
-				.should( QueryBuilders.matchQuery( "entitySet.description", searchTerm ).fuzziness( Fuzziness.AUTO ) )
+				.should( QueryBuilders.matchQuery( ENTITY_SET + "." + NAME, searchTerm ).fuzziness( Fuzziness.AUTO ) )
+				.should( QueryBuilders.matchQuery( ENTITY_SET + "." + TITLE, searchTerm).fuzziness( Fuzziness.AUTO ) )
+				.should( QueryBuilders.matchQuery( ENTITY_SET + "." + DESCRIPTION, searchTerm ).fuzziness( Fuzziness.AUTO ) )
 				.minimumNumberShouldMatch( 1 );
 		if ( optionalEntityType.isPresent() ) {
-			FullQualifiedName entityType = optionalEntityType.get();
-			query.must( QueryBuilders.matchQuery( "entitySet.type.namespace", entityType.getNamespace() ) );
-			query.must( QueryBuilders.matchQuery( "entitySet.type.name", entityType.getName() ) );
-		}
-		if ( optionalPropertyTypes.isPresent() ) {
-			List<FullQualifiedName> propertyTypes = optionalPropertyTypes.get();
-			for ( FullQualifiedName fqn: propertyTypes ) {
-				query.must( QueryBuilders.matchQuery( "propertyTypes.type.namespace", fqn.getNamespace() ) )
-				.must( QueryBuilders.matchQuery( "propertyTypes.type.name", fqn.getName() ) );
+			UUID eid = optionalEntityType.get();
+			query.must( QueryBuilders.matchQuery( ENTITY_SET + "." + TYPE + "." + ID, eid ) );
+		} else if ( optionalPropertyTypes.isPresent() ) {
+			List<UUID> propertyTypes = optionalPropertyTypes.get();
+			for ( UUID pid: propertyTypes ) {
+				query.must( QueryBuilders.matchQuery( PROPERTY_TYPES + "." + ID, pid ) );
 			}
 		}
-			
-		SearchResponse response = client.prepareSearch( "entity_set_data_model" )
-				.setTypes( "entity_set" )
+
+		SearchResponse response = client.prepareSearch( ENTITY_SET_DATA_MODEL )
+				.setTypes( ENTITY_SET_TYPE )
 			//	.setQuery( QueryBuilders.matchQuery( "_all", query ).fuzziness( Fuzziness.AUTO ) )
 				.setQuery( query )
+				.setFetchSource( new String[]{ ENTITY_SET, PROPERTY_TYPES }, null )
 				.setFrom( 0 ).setSize( 50 ).setExplain( true )
 				.get();
-		logger.debug( response.toString() );
+		logger.debug( response.getHits().getAt(0).getSourceAsString() );
+		List<String> hits = Lists.newArrayList();
+		for ( SearchHit hit: response.getHits() ) {
+			hits.add( hit.getSourceAsString() );
+		}
+		logger.debug( hits.toString() );
 	}
 	
 	public void updateEntitySetPermissions( UUID entitySetId, Principal principal, Set<Permission> permissions ) {
-		String typeField = (principal.getType() == PrincipalType.ROLE) ? "roleAcls" : "userAcls";
+		String typeField = (principal.getType() == PrincipalType.ROLE) ? ROLE_ACLS : USER_ACLS;
 		ObjectMapper mapper = new ObjectMapper();
 		mapper.registerModule( new GuavaModule() );
 		mapper.registerModule( new JodaModule() );
@@ -194,7 +208,7 @@ public class KindlingElasticsearchHandler {
 			newPermissions.put( typeField, permissionsMap );
 			
 			String s = mapper.writeValueAsString( newPermissions );
-			UpdateRequest updateRequest = new UpdateRequest( "entity_set_data_model", "entity_set", entitySetId.toString() ).doc( s );
+			UpdateRequest updateRequest = new UpdateRequest( ENTITY_SET_DATA_MODEL, ENTITY_SET_TYPE, entitySetId.toString() ).doc( s );
 			client.update( updateRequest ).get();
 
 		} catch ( InterruptedException | ExecutionException | IOException e) {

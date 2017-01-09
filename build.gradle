@@ -138,10 +138,6 @@ dependencies {
       * ELASTICSEARCH
       */
      compile ("org.elasticsearch:elasticsearch:5.1.1")
-     compile ("org.elasticsearch.plugin:shield:2.4.3")
-     compile ("org.elasticsearch.plugin:license:2.4.3") {
-     	exclude module: 'apache-curator'
-     }
      compile ("org.elasticsearch:elasticsearch-hadoop:5.1.1") {
      	exclude module: 'apache-curator'
      }
