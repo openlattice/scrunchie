@@ -55,6 +55,7 @@ public class KindlingElasticsearchHandler {
 	private static final String NAME = "name";
 	private static final String TITLE = "title";
 	private static final String DESCRIPTION = "description";
+	private static final String ENTITY_TYPE_ID = "entityTypeId";
 	private static final String ID = "id";
 	
 	
@@ -90,6 +91,8 @@ public class KindlingElasticsearchHandler {
 		properties.put( ROLE_ACLS, Maps.newHashMap()
 				.put( TYPE, OBJECT ) );
 		properties.put( USER_ACLS, Maps.newHashMap()
+				.put( TYPE, OBJECT ) );
+		properties.put( ENTITY_SET, Maps.newHashMap()
 				.put( TYPE, OBJECT ) );
 		Map<String, Object> mapping = Maps.newHashMap();
 		mapping.put( ENTITY_SET_TYPE, Maps.newHashMap()
@@ -128,7 +131,6 @@ public class KindlingElasticsearchHandler {
 //			rolePermissions.put( "user", ps );
 //			Map<String, List<String>> userPermissions = Maps.newHashMap();
 //			userPermissions.put( "katherine", ps );
-		
 	        Map<String, Object> entitySetDataModel = Maps.newHashMap();
 	        entitySetDataModel.put( ENTITY_SET, entitySet );
 	        entitySetDataModel.put( PROPERTY_TYPES, propertyTypes );
@@ -173,11 +175,11 @@ public class KindlingElasticsearchHandler {
 				.minimumNumberShouldMatch( 1 );
 		if ( optionalEntityType.isPresent() ) {
 			UUID eid = optionalEntityType.get();
-			query.must( QueryBuilders.matchQuery( ENTITY_SET + "." + TYPE + "." + ID, eid ) );
+			query.must( QueryBuilders.matchQuery( ENTITY_SET + "." + ENTITY_TYPE_ID, eid.toString() ) );
 		} else if ( optionalPropertyTypes.isPresent() ) {
 			List<UUID> propertyTypes = optionalPropertyTypes.get();
 			for ( UUID pid: propertyTypes ) {
-				query.must( QueryBuilders.matchQuery( PROPERTY_TYPES + "." + ID, pid ) );
+				query.must( QueryBuilders.matchQuery( PROPERTY_TYPES + "." + ID, pid.toString() ) );
 			}
 		}
 
@@ -185,15 +187,16 @@ public class KindlingElasticsearchHandler {
 				.setTypes( ENTITY_SET_TYPE )
 			//	.setQuery( QueryBuilders.matchQuery( "_all", query ).fuzziness( Fuzziness.AUTO ) )
 				.setQuery( query )
-				.setFetchSource( new String[]{ ENTITY_SET, PROPERTY_TYPES }, null )
+				//.setFetchSource( new String[]{ ENTITY_SET, PROPERTY_TYPES }, null )
 				.setFrom( 0 ).setSize( 50 ).setExplain( true )
 				.get();
-		logger.debug( response.getHits().getAt(0).getSourceAsString() );
-		List<String> hits = Lists.newArrayList();
-		for ( SearchHit hit: response.getHits() ) {
-			hits.add( hit.getSourceAsString() );
-		}
-		logger.debug( hits.toString() );
+		logger.debug( response.getHits().getAt( 0 ).getSourceAsString() );
+	//	logger.debug( response.getHits().getAt( 0 ).getInnerHits().toString() );
+	//	List<String> hits = Lists.newArrayList();
+	//	for ( SearchHit hit: response.getHits() ) {
+	//		hits.add( hit.getSourceAsString() );
+	//	}
+	//	logger.debug( hits.toString() );
 	}
 	
 	public void updateEntitySetPermissions( UUID entitySetId, Principal principal, Set<Permission> permissions ) {

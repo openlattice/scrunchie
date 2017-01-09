@@ -25,6 +25,7 @@ import com.kryptnostic.kindling.search.KindlingElasticsearchHandler;
 public class KindlingElasticsearchTests {
 	
     private static final UUID   ENTITY_SET_ID  = UUID.fromString( "0a648f39-5e41-46b5-a928-ec44cdeeae13" );
+    private static final UUID   ENTITY_TYPE_ID = UUID.fromString( "c271a300-ea05-420b-b33b-8ecb18de5ce7" );
     private static final String TITLE          = "The Entity Set Title";
     private static final String DESCRIPTION    = "This is a description for the entity set called employees.";
     
@@ -60,32 +61,43 @@ public class KindlingElasticsearchTests {
     	EntitySet entitySet = new EntitySet(
     			ENTITY_SET_ID,
     			ENTITY_TYPE,
+    			ENTITY_TYPE_ID,
     			ENTITY_SET_NAME,
     			TITLE,
-    			DESCRIPTION );
+    			Optional.of(DESCRIPTION) );
         PropertyType empId = new PropertyType(
         		UUID.randomUUID(),
         		new FullQualifiedName( NAMESPACE, EMPLOYEE_ID ),
+        		"Employee Id",
+        		Optional.of("id of the employee"),
         		Sets.newHashSet(),
         		EdmPrimitiveTypeKind.String );
         PropertyType empName = new PropertyType(
         		UUID.randomUUID(),
         		new FullQualifiedName( NAMESPACE, EMPLOYEE_NAME ),
+        		"Employee Name",
+        		Optional.of("name of the employee"),
         		Sets.newHashSet(),
         		EdmPrimitiveTypeKind.String );
         PropertyType empTitle = new PropertyType(
         		UUID.randomUUID(),
         		new FullQualifiedName( NAMESPACE, EMPLOYEE_TITLE ),
+        		"Employee Title",
+        		Optional.of("title of the employee"),
         		Sets.newHashSet(),
         		EdmPrimitiveTypeKind.String );
         PropertyType empSalary = new PropertyType(
         		UUID.randomUUID(),
         		new FullQualifiedName( NAMESPACE, SALARY ),
+        		"Employee Salary",
+        		Optional.of("salary of the employee"),
         		Sets.newHashSet(),
         		EdmPrimitiveTypeKind.String );
         PropertyType empDept = new PropertyType(
         		UUID.randomUUID(),
         		new FullQualifiedName( NAMESPACE, EMPLOYEE_DEPT ),
+        		"Employee Department",
+        		Optional.of("department of the employee"),
         		Sets.newHashSet(),
         		EdmPrimitiveTypeKind.String );
     	
@@ -125,8 +137,8 @@ public class KindlingElasticsearchTests {
 			keh.executeEntitySetDataModelKeywordSearch(
 					principals,
 					query,
-					Optional.absent(),
-					Optional.absent()
+					Optional.of( ENTITY_TYPE_ID ),
+					Optional.of( Lists.newArrayList(UUID.randomUUID() ) )
 	//				Optional.of( entityTypeFqn ),
 		//			Optional.of( propertyTypes )
 			);
@@ -137,9 +149,9 @@ public class KindlingElasticsearchTests {
     
     @Test
     public void testAddEntitySetPermissions() {
-    	Principal principal = new Principal( PrincipalType.ROLE, "evil" );
+    	Principal principal = new Principal( PrincipalType.USER, "katherine" );
     	Set<Permission> newPermissions = Sets.newHashSet();
-    //	newPermissions.add( Permission.READ );
+    	newPermissions.add( Permission.READ );
     	KindlingConfiguration config = new KindlingConfiguration( Optional.of("localhost"), Optional.of("loom_development") );
 		KindlingElasticsearchHandler keh;
 		try {
