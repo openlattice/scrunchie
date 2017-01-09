@@ -130,7 +130,11 @@ dependencies {
     compile "org.xerial.snappy:snappy-java:${snappy_version}"
     compile "net.jpountz.lz4:lz4:${lz4_version}"
     */
-    
+    /*
+     * TESTING
+     */
+    testCompile "junit:junit:${junit_version}"
+    testCompile "org.mockito:mockito-core:2.2.7";    
  }
 
 eclipse {
