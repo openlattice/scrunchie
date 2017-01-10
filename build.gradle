@@ -85,6 +85,9 @@ dependencies {
             exclude module: 'cassandra-driver-mapping'
             exclude module: 'cassandra-driver-extras'
         }
+
+        testCompile( project(path: ":rhizome-client", configuration: "tests")) 
+        
     }
     else {
         logger.quiet(project.name + " using jar dependencies.")
@@ -116,6 +119,8 @@ dependencies {
             exclude module: 'cassandra-driver-mapping'
             exclude module: 'cassandra-driver-extras'
         }
+
+        testCompile "com.kryptnostic:rhizome-client:${rhizome_client_version}:tests"
     } 
 
      /**
