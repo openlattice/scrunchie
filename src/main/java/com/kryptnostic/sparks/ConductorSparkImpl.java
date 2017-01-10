@@ -2,8 +2,11 @@ package com.kryptnostic.sparks;
 
 import java.io.Serializable;
 import java.math.BigInteger;
+import java.net.UnknownHostException;
 import java.security.SecureRandom;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -17,7 +20,10 @@ import org.apache.spark.sql.SparkSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.dataloom.authorization.Permission;
+import com.dataloom.authorization.Principal;
 import com.dataloom.data.requests.LookupEntitiesRequest;
+import com.dataloom.edm.internal.EntitySet;
 import com.dataloom.edm.internal.EntityType;
 import com.dataloom.edm.internal.PropertyType;
 import com.datastax.driver.core.DataType;
@@ -25,12 +31,15 @@ import com.datastax.driver.core.Session;
 import com.datastax.spark.connector.cql.CassandraConnector;
 import com.datastax.spark.connector.japi.CassandraJavaUtil;
 import com.datastax.spark.connector.japi.SparkContextJavaFunctions;
+import com.google.common.base.Optional;
 import com.hazelcast.core.HazelcastInstance;
 import com.kryptnostic.conductor.rpc.ConductorSparkApi;
 import com.kryptnostic.conductor.rpc.QueryResult;
 import com.kryptnostic.datastore.cassandra.CassandraEdmMapping;
 import com.kryptnostic.datastore.cassandra.CommonColumns;
 import com.kryptnostic.datastore.services.EdmManager;
+import com.kryptnostic.kindling.search.KindlingConfiguration;
+import com.kryptnostic.kindling.search.KindlingElasticsearchHandler;
 
 public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     private static final long               serialVersionUID = 825467486008335571L;
@@ -39,6 +48,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     private static final String             LEFTOUTER        = "leftouter";
     private final SecureRandom              random           = new SecureRandom();
     private static final String             CACHE_KEYSPACE   = "cache";
+    private KindlingElasticsearchHandler    keh              = null;
 
     private final SparkSession              sparkSession;
     private final SparkContextJavaFunctions cassandraJavaContext;
@@ -69,6 +79,12 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         // this.entitySetDataframes = Maps.newConcurrentMap();// hazelcastInstance.getMap(
         // // HazelcastNames.Maps.ENTITY_SET_DATAFRAMES );
         // //prepareDataframe();
+        KindlingConfiguration config = new KindlingConfiguration( Optional.of("localhost"), Optional.of("loom_development") );
+        try {
+			this.keh = new KindlingElasticsearchHandler( config );
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		}
     }
 
     // private void prepareDataframe() {
@@ -398,5 +414,28 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         String rdm = new BigInteger( 130, random ).toString( 32 );
         return "cache_" + rdm;
     }
+
+	@Override
+	public Boolean submitEntitySetToElasticsearch(EntitySet entitySet, Set<PropertyType> propertyTypes) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public Boolean submitEntitySetDataToElasticsearch(EntitySet entitySet, Dataset<Row> entitySetData) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public List<Map<String, Object>> executeElasticsearchMetadataQuery(String query, Optional<UUID> optionalEntityType,
+			Optional<Set<UUID>> optionalPropertyTypes, Set<Principal> principals) {
+		return keh.executeEntitySetDataModelKeywordSearch( query, optionalEntityType, optionalPropertyTypes, principals );
+	}
+	
+	@Override
+	public Boolean updateEntitySetPermissions( UUID entitySetId, Principal principal, Set<Permission> permissions ) {
+		return keh.updateEntitySetPermissions( entitySetId, principal, permissions );
+	}
 
 }

@@ -24,8 +24,8 @@ import org.slf4j.LoggerFactory;
 import org.spark_project.guava.collect.Maps;
 import org.springframework.scheduling.annotation.Scheduled;
 
-import com.dataloom.authorization.requests.Permission;
-import com.dataloom.authorization.requests.Principal;
+import com.dataloom.authorization.Permission;
+import com.dataloom.authorization.Principal;
 import com.dataloom.edm.internal.EntitySet;
 import com.dataloom.edm.internal.PropertyType;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -145,10 +145,10 @@ public class KindlingElasticsearchHandler {
 	}
 		
 	public List<Map<String, Object>> executeEntitySetDataModelKeywordSearch(
-			Set<Principal> principals,
 			String searchTerm,
 			Optional<UUID> optionalEntityType,
-			Optional<List<UUID>> optionalPropertyTypes ) {
+			Optional<Set<UUID>> optionalPropertyTypes,
+			Set<Principal> principals ) {
 		
 		
 		try {
@@ -178,7 +178,7 @@ public class KindlingElasticsearchHandler {
 			UUID eid = optionalEntityType.get();
 			query.must( QueryBuilders.matchQuery( ENTITY_SET + "." + ENTITY_TYPE_ID, eid.toString() ) );
 		} else if ( optionalPropertyTypes.isPresent() ) {
-			List<UUID> propertyTypes = optionalPropertyTypes.get();
+			Set<UUID> propertyTypes = optionalPropertyTypes.get();
 			for ( UUID pid: propertyTypes ) {
 				query.must( QueryBuilders.matchQuery( PROPERTY_TYPES + "." + ID, pid.toString() ) );
 			}
@@ -192,21 +192,22 @@ public class KindlingElasticsearchHandler {
 		
 		List<Map<String, Object>> hits = Lists.newArrayList();
 		for ( SearchHit hit: response.getHits() ) {
-			Map<String, Object> match = Maps.newHashMap();
-			match.put( ENTITY_SET, hit.getSourceAsString() );
+			Map<String, Object> match = hit.getSource();
+			//logger.debug( hit.getSource().toString() );
+			//match.put( ENTITY_SET, hit.getSourceAsString() );
 			Set<String> permissions = Sets.newHashSet();
 			for( SearchHits innerHits: hit.getInnerHits().values() ) {
 				for (SearchHit innerHit: innerHits.getHits() ) {
 					permissions.addAll( (List<String>) innerHit.getSource().get( ACLS ) );
 				}
 			}
-			match.put( ACLS, permissions.toString() );
+			match.put( ACLS, permissions );
 			hits.add( match );
 		}
 		return hits;
 	}
 	
-	public void updateEntitySetPermissions( UUID entitySetId, Principal principal, Set<Permission> permissions ) {
+	public Boolean updateEntitySetPermissions( UUID entitySetId, Principal principal, Set<Permission> permissions ) {
         Map<String, Object> acl = Maps.newHashMap();
         acl.put( ACLS, permissions );
         acl.put( TYPE, principal.getType().toString() );
@@ -219,9 +220,11 @@ public class KindlingElasticsearchHandler {
 			String s = mapper.writeValueAsString( acl );
 			String id = entitySetId.toString() + "_" + principal.getType().toString() + "_" + principal.getId();
 			client.prepareIndex( ENTITY_SET_DATA_MODEL, ACLS, id ).setParent( entitySetId.toString() ).setSource( s ).execute().actionGet();
+			return true;
 		} catch (JsonProcessingException e) {
 			e.printStackTrace();
 		}
+		return false;
 	}
 	
 	public void updatePropertyTypesInEntitySet( UUID entitySetId, Set<PropertyType> newPropertyTypes ) {

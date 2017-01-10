@@ -11,9 +11,9 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dataloom.authorization.requests.Permission;
-import com.dataloom.authorization.requests.Principal;
-import com.dataloom.authorization.requests.PrincipalType;
+import com.dataloom.authorization.Permission;
+import com.dataloom.authorization.Principal;
+import com.dataloom.authorization.PrincipalType;
 import com.dataloom.edm.internal.EntitySet;
 import com.dataloom.edm.internal.PropertyType;
 import com.google.common.base.Optional;
@@ -22,7 +22,7 @@ import com.google.common.collect.Sets;
 import com.kryptnostic.kindling.search.KindlingConfiguration;
 import com.kryptnostic.kindling.search.KindlingElasticsearchHandler;
 
-public class KindlingElasticsearchTests {
+public class KindlingElasticsearchTests extends BaseKindlingSparkTest {
 	
     private static final UUID   ENTITY_SET_ID  = UUID.fromString( "0a648f39-5e41-46b5-a928-ec44cdeeae13" );
     private static final UUID   ENTITY_TYPE_ID = UUID.fromString( "c271a300-ea05-420b-b33b-8ecb18de5ce7" );
@@ -136,10 +136,10 @@ public class KindlingElasticsearchTests {
 		try {
 			keh = new KindlingElasticsearchHandler( config );
 			keh.executeEntitySetDataModelKeywordSearch(
-					principals,
 					query,
 					Optional.of( ENTITY_TYPE_ID ),
-					Optional.of( Lists.newArrayList(UUID.randomUUID() ) )
+					Optional.of( Sets.newHashSet() ),
+					principals
 	//				Optional.of( entityTypeFqn ),
 		//			Optional.of( propertyTypes )
 			);
