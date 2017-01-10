@@ -20,15 +20,15 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableList;
 
-public class KindlingTransportClientFactory {
+public class ElasticsearchTransportClientFactory {
 	
-	public static final Logger log = LoggerFactory.getLogger( KindlingTransportClientFactory.class );
+	public static final Logger log = LoggerFactory.getLogger( ElasticsearchTransportClientFactory.class );
 	private String clientTransportHost;
 	private Integer clientTransportPort;
 	private boolean disabled = false;
 	private String cluster;
 	
-	public KindlingTransportClientFactory(
+	public ElasticsearchTransportClientFactory(
 			String clientTransportHost,
 			Integer clientTransportPort,
 			boolean disabled,

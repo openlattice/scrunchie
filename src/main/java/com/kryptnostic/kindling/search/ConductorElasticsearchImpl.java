@@ -33,60 +33,39 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.guava.GuavaModule;
 import com.fasterxml.jackson.datatype.joda.JodaModule;
 import com.google.common.base.Optional;
+import com.kryptnostic.conductor.rpc.ConductorElasticsearchApi;
 
 import jersey.repackaged.com.google.common.collect.Lists;
 import jersey.repackaged.com.google.common.collect.Sets;
 
-public class KindlingElasticsearchHandler {
-	
-	// index setup consts
-	private static final String ENTITY_SET_DATA_MODEL = "entity_set_data_model";
-	private static final String ENTITY_SET_TYPE = "entity_set";
-	private static final String ES_PROPERTIES = "properties";
-	private static final String PARENT = "parent";
-	private static final String TYPE = "type";
-	private static final String OBJECT = "object";
-	private static final String NESTED = "nested";
-	private static final String KEYWORD = "keyword";
-	private static final String NUM_SHARDS = "index.number_of_shards";
-	private static final String NUM_REPLICAS = "index.number_of_replicas";
-	
-	// entity set field consts
-	private static final String ENTITY_SET = "entitySet";
-	private static final String PROPERTY_TYPES = "propertyTypes";
-	private static final String ACLS = "acls";
-	private static final String NAME = "name";
-	private static final String TITLE = "title";
-	private static final String DESCRIPTION = "description";
-	private static final String ENTITY_TYPE_ID = "entityTypeId";
-	private static final String ID = "id";
-	
+public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 	
 	private Client client;
-	private KindlingTransportClientFactory factory;
+	private ElasticsearchTransportClientFactory factory;
 	private boolean connected = true;
 	private String server;
 	private String cluster;
-	private static final Logger logger = LoggerFactory.getLogger( KindlingElasticsearchHandler.class );
+	private static final Logger logger = LoggerFactory.getLogger( ConductorElasticsearchImpl.class );
 	
-	public KindlingElasticsearchHandler( KindlingConfiguration config ) throws UnknownHostException {
+	public ConductorElasticsearchImpl( ElasticsearchConfiguration config ) throws UnknownHostException {
 		init( config );
 		client = factory.getClient();
 	}
 	
-	public KindlingElasticsearchHandler(
-			KindlingConfiguration config,
+	public ConductorElasticsearchImpl(
+			ElasticsearchConfiguration config,
 			Client someClient ) {
 		init( config );
 		client = someClient;
 	}
 	
-	private void init( KindlingConfiguration config ) {
+	private void init( ElasticsearchConfiguration config ) {
 		server = config.getElasticsearchUrl().get();
 		cluster = config.getElasticsearchCluster().get();
-		factory = new KindlingTransportClientFactory( server, 9300, false, cluster );
+		factory = new ElasticsearchTransportClientFactory( server, 9300, false, cluster );
 	}
 	
+	@Override
 	public void initializeEntitySetDataModelIndex() {
 		
 		// constant Map<String, String> type fields
@@ -128,7 +107,8 @@ public class KindlingElasticsearchHandler {
 		.get();
 	}
 	
-	public void saveEntitySetToElasticsearch( EntitySet entitySet, Set<PropertyType> propertyTypes ) {
+	@Override
+	public void saveEntitySetToElasticsearch( EntitySet entitySet, List<PropertyType> propertyTypes, Principal principal ) {
 	        Map<String, Object> entitySetDataModel = Maps.newHashMap();
 	        entitySetDataModel.put( ENTITY_SET, entitySet );
 	        entitySetDataModel.put( PROPERTY_TYPES, propertyTypes );
@@ -139,11 +119,16 @@ public class KindlingElasticsearchHandler {
 			try {
 				String s = mapper.writeValueAsString( entitySetDataModel );
 				client.prepareIndex( ENTITY_SET_DATA_MODEL, ENTITY_SET_TYPE, entitySet.getId().toString() ).setSource( s ).execute().actionGet();
+				updateEntitySetPermissions(
+						entitySet.getId(),
+						principal,
+						Sets.newHashSet( Permission.OWNER, Permission.READ, Permission.WRITE, Permission.DISCOVER, Permission.LINK ) );
 			} catch (JsonProcessingException e) {
 				e.printStackTrace();
 			}
 	}
-		
+	
+	@Override
 	public List<Map<String, Object>> executeEntitySetDataModelKeywordSearch(
 			String searchTerm,
 			Optional<UUID> optionalEntityType,
@@ -207,6 +192,7 @@ public class KindlingElasticsearchHandler {
 		return hits;
 	}
 	
+	@Override
 	public Boolean updateEntitySetPermissions( UUID entitySetId, Principal principal, Set<Permission> permissions ) {
         Map<String, Object> acl = Maps.newHashMap();
         acl.put( ACLS, permissions );
@@ -227,6 +213,7 @@ public class KindlingElasticsearchHandler {
 		return false;
 	}
 	
+	@Override
 	public void updatePropertyTypesInEntitySet( UUID entitySetId, Set<PropertyType> newPropertyTypes ) {
 		Map<String, Object> propertyTypes = Maps.newHashMap();
 		propertyTypes.put( PROPERTY_TYPES, newPropertyTypes);

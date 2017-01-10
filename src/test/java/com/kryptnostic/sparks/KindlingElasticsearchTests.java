@@ -19,8 +19,8 @@ import com.dataloom.edm.internal.PropertyType;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.kryptnostic.kindling.search.KindlingConfiguration;
-import com.kryptnostic.kindling.search.KindlingElasticsearchHandler;
+import com.kryptnostic.kindling.search.ElasticsearchConfiguration;
+import com.kryptnostic.kindling.search.ConductorElasticsearchImpl;
 
 public class KindlingElasticsearchTests extends BaseKindlingSparkTest {
 	
@@ -45,11 +45,11 @@ public class KindlingElasticsearchTests extends BaseKindlingSparkTest {
     
     @Test
     public void initializeIndex() {
-    	KindlingConfiguration config = new KindlingConfiguration( Optional.of("localhost"), Optional.of("loom_development") );
-		KindlingElasticsearchHandler keh;
+    	ElasticsearchConfiguration config = new ElasticsearchConfiguration( Optional.of("localhost"), Optional.of("loom_development") );
+		ConductorElasticsearchImpl elasticsearchApi;
 		try {
-			keh = new KindlingElasticsearchHandler( config );
-			keh.initializeEntitySetDataModelIndex();
+			elasticsearchApi = new ConductorElasticsearchImpl( config );
+			elasticsearchApi.initializeEntitySetDataModelIndex();
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
 		}
@@ -102,18 +102,20 @@ public class KindlingElasticsearchTests extends BaseKindlingSparkTest {
         		EdmPrimitiveTypeKind.String );
     	
 
-        Set<PropertyType> propertyTypes = Sets.newHashSet();
+        List<PropertyType> propertyTypes = Lists.newArrayList();
         propertyTypes.add( empId );
         propertyTypes.add( empName );
         propertyTypes.add( empTitle );
         propertyTypes.add( empSalary );
         propertyTypes.add( empDept );
         
-		KindlingConfiguration config = new KindlingConfiguration( Optional.of("localhost"), Optional.of("loom_development") );
-		KindlingElasticsearchHandler keh;
+        Principal owner = new Principal( PrincipalType.USER, "katherine" );
+        
+		ElasticsearchConfiguration config = new ElasticsearchConfiguration( Optional.of("localhost"), Optional.of("loom_development") );
+		ConductorElasticsearchImpl elasticsearchApi;
 		try {
-			keh = new KindlingElasticsearchHandler( config );
-			keh.saveEntitySetToElasticsearch( entitySet, propertyTypes );
+			elasticsearchApi = new ConductorElasticsearchImpl( config );
+			elasticsearchApi.saveEntitySetToElasticsearch( entitySet, propertyTypes, owner );
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
 		}
@@ -131,11 +133,11 @@ public class KindlingElasticsearchTests extends BaseKindlingSparkTest {
     	List<FullQualifiedName> propertyTypes = Lists.newArrayList();
     	propertyTypes.add( new FullQualifiedName( "testcsv", "salary") );
     	propertyTypes.add( new FullQualifiedName( "testcsv", "employee_dept" ) );
-    	KindlingConfiguration config = new KindlingConfiguration( Optional.of("localhost"), Optional.of("loom_development") );
-		KindlingElasticsearchHandler keh;
+    	ElasticsearchConfiguration config = new ElasticsearchConfiguration( Optional.of("localhost"), Optional.of("loom_development") );
+		ConductorElasticsearchImpl elasticsearchApi;
 		try {
-			keh = new KindlingElasticsearchHandler( config );
-			keh.executeEntitySetDataModelKeywordSearch(
+			elasticsearchApi = new ConductorElasticsearchImpl( config );
+			elasticsearchApi.executeEntitySetDataModelKeywordSearch(
 					query,
 					Optional.of( ENTITY_TYPE_ID ),
 					Optional.of( Sets.newHashSet() ),
@@ -154,11 +156,11 @@ public class KindlingElasticsearchTests extends BaseKindlingSparkTest {
     	Set<Permission> newPermissions = Sets.newHashSet();
     	newPermissions.add( Permission.WRITE );
     	newPermissions.add( Permission.READ );
-    	KindlingConfiguration config = new KindlingConfiguration( Optional.of("localhost"), Optional.of("loom_development") );
-		KindlingElasticsearchHandler keh;
+    	ElasticsearchConfiguration config = new ElasticsearchConfiguration( Optional.of("localhost"), Optional.of("loom_development") );
+		ConductorElasticsearchImpl elasticsearchApi;
 		try {
-			keh = new KindlingElasticsearchHandler( config );
-			keh.updateEntitySetPermissions( ENTITY_SET_ID, principal, newPermissions );
+			elasticsearchApi = new ConductorElasticsearchImpl( config );
+			elasticsearchApi.updateEntitySetPermissions( ENTITY_SET_ID, principal, newPermissions );
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
 		}
@@ -210,11 +212,11 @@ public class KindlingElasticsearchTests extends BaseKindlingSparkTest {
         propertyTypes.add( empTitle );
         propertyTypes.add( empSalary );
         propertyTypes.add( empDept );
-    	KindlingConfiguration config = new KindlingConfiguration( Optional.of("localhost"), Optional.of("loom_development") );
-		KindlingElasticsearchHandler keh;
+    	ElasticsearchConfiguration config = new ElasticsearchConfiguration( Optional.of("localhost"), Optional.of("loom_development") );
+		ConductorElasticsearchImpl elasticsearchApi;
 		try {
-			keh = new KindlingElasticsearchHandler( config );
-			keh.updatePropertyTypesInEntitySet( ENTITY_SET_ID, propertyTypes);
+			elasticsearchApi = new ConductorElasticsearchImpl( config );
+			elasticsearchApi.updatePropertyTypesInEntitySet( ENTITY_SET_ID, propertyTypes);
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
 		}

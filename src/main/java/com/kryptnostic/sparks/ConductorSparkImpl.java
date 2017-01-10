@@ -33,13 +33,14 @@ import com.datastax.spark.connector.japi.CassandraJavaUtil;
 import com.datastax.spark.connector.japi.SparkContextJavaFunctions;
 import com.google.common.base.Optional;
 import com.hazelcast.core.HazelcastInstance;
+import com.kryptnostic.conductor.rpc.ConductorElasticsearchApi;
 import com.kryptnostic.conductor.rpc.ConductorSparkApi;
 import com.kryptnostic.conductor.rpc.QueryResult;
 import com.kryptnostic.datastore.cassandra.CassandraEdmMapping;
 import com.kryptnostic.datastore.cassandra.CommonColumns;
 import com.kryptnostic.datastore.services.EdmManager;
-import com.kryptnostic.kindling.search.KindlingConfiguration;
-import com.kryptnostic.kindling.search.KindlingElasticsearchHandler;
+import com.kryptnostic.kindling.search.ElasticsearchConfiguration;
+import com.kryptnostic.kindling.search.ConductorElasticsearchImpl;
 
 public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     private static final long               serialVersionUID = 825467486008335571L;
@@ -48,12 +49,12 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     private static final String             LEFTOUTER        = "leftouter";
     private final SecureRandom              random           = new SecureRandom();
     private static final String             CACHE_KEYSPACE   = "cache";
-    private KindlingElasticsearchHandler    keh              = null;
 
     private final SparkSession              sparkSession;
     private final SparkContextJavaFunctions cassandraJavaContext;
     private final String                    keyspace;
     private final EdmManager                dataModelService;
+    private final ConductorElasticsearchApi elasticsearchApi;
 
     // private final ConcurrentMap<FullQualifiedName, Dataset<Row>> entityDataframeMap;
     // private final ConcurrentMap<FullQualifiedName, Dataset<Row>> propertyDataframeMap;
@@ -65,7 +66,8 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
             SparkSession sparkSession,
             SparkContextJavaFunctions cassandraJavaContext,
             EdmManager dataModelService,
-            HazelcastInstance hazelcastInstance ) {
+            HazelcastInstance hazelcastInstance,
+            ConductorElasticsearchApi elasticsearchApi ) {
         this.sparkSession = sparkSession;
         this.cassandraJavaContext = cassandraJavaContext;
         this.keyspace = keyspace;
@@ -79,12 +81,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         // this.entitySetDataframes = Maps.newConcurrentMap();// hazelcastInstance.getMap(
         // // HazelcastNames.Maps.ENTITY_SET_DATAFRAMES );
         // //prepareDataframe();
-        KindlingConfiguration config = new KindlingConfiguration( Optional.of("localhost"), Optional.of("loom_development") );
-        try {
-			this.keh = new KindlingElasticsearchHandler( config );
-		} catch (UnknownHostException e) {
-			e.printStackTrace();
-		}
+        this.elasticsearchApi = elasticsearchApi;
     }
 
     // private void prepareDataframe() {
@@ -416,9 +413,10 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     }
 
 	@Override
-	public Boolean submitEntitySetToElasticsearch(EntitySet entitySet, Set<PropertyType> propertyTypes) {
+	public Boolean submitEntitySetToElasticsearch(EntitySet entitySet, List<PropertyType> propertyTypes, Principal principal) {
+		elasticsearchApi.saveEntitySetToElasticsearch( entitySet, propertyTypes, principal );
 		// TODO Auto-generated method stub
-		return null;
+		return true;
 	}
 
 	@Override
@@ -430,12 +428,12 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 	@Override
 	public List<Map<String, Object>> executeElasticsearchMetadataQuery(String query, Optional<UUID> optionalEntityType,
 			Optional<Set<UUID>> optionalPropertyTypes, Set<Principal> principals) {
-		return keh.executeEntitySetDataModelKeywordSearch( query, optionalEntityType, optionalPropertyTypes, principals );
+		return elasticsearchApi.executeEntitySetDataModelKeywordSearch( query, optionalEntityType, optionalPropertyTypes, principals );
 	}
 	
 	@Override
 	public Boolean updateEntitySetPermissions( UUID entitySetId, Principal principal, Set<Permission> permissions ) {
-		return keh.updateEntitySetPermissions( entitySetId, principal, permissions );
+		return elasticsearchApi.updateEntitySetPermissions( entitySetId, principal, permissions );
 	}
 
 }

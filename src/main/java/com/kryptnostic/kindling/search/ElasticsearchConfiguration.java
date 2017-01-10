@@ -6,7 +6,7 @@ import com.kryptnostic.rhizome.configuration.Configuration;
 import com.kryptnostic.rhizome.configuration.ConfigurationKey;
 import com.kryptnostic.rhizome.configuration.SimpleConfigurationKey;
 
-public class KindlingConfiguration implements Configuration {
+public class ElasticsearchConfiguration implements Configuration {
 	
 	private static final long serialVersionUID        = 1997194565743699166L;
 	private static final String ELASTICSEARCH_URL     = "elasticsearchUrl";
@@ -16,7 +16,7 @@ public class KindlingConfiguration implements Configuration {
 	private final Optional<String> elasticsearchUrl;
 	private final Optional<String> elasticsearchCluster;
 	
-	public KindlingConfiguration(
+	public ElasticsearchConfiguration(
 			@JsonProperty( ELASTICSEARCH_URL ) Optional<String> elasticsearchUrl,
 			@JsonProperty( ELASTICSEARCH_CLUSTER ) Optional<String> elasticsearchCluster ) {
 		this.elasticsearchUrl = elasticsearchUrl;
