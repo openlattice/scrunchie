@@ -12,9 +12,12 @@ import org.apache.olingo.commons.api.edm.FullQualifiedName;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.common.lucene.search.function.FiltersFunctionScoreQuery.ScoreMode;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.Fuzziness;
 import org.elasticsearch.index.query.BoolQueryBuilder;
+import org.elasticsearch.index.query.InnerHitBuilder;
+import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.slf4j.Logger;
@@ -41,17 +44,18 @@ public class KindlingElasticsearchHandler {
 	private static final String ENTITY_SET_DATA_MODEL = "entity_set_data_model";
 	private static final String ENTITY_SET_TYPE = "entity_set";
 	private static final String ES_PROPERTIES = "properties";
+	private static final String PARENT = "parent";
 	private static final String TYPE = "type";
 	private static final String OBJECT = "object";
 	private static final String NESTED = "nested";
+	private static final String KEYWORD = "keyword";
 	private static final String NUM_SHARDS = "index.number_of_shards";
 	private static final String NUM_REPLICAS = "index.number_of_replicas";
 	
 	// entity set field consts
 	private static final String ENTITY_SET = "entitySet";
 	private static final String PROPERTY_TYPES = "propertyTypes";
-	private static final String ROLE_ACLS = "roleAcls";
-	private static final String USER_ACLS = "userAcls";
+	private static final String ACLS = "acls";
 	private static final String NAME = "name";
 	private static final String TITLE = "title";
 	private static final String DESCRIPTION = "description";
@@ -85,57 +89,50 @@ public class KindlingElasticsearchHandler {
 	}
 	
 	public void initializeEntitySetDataModelIndex() {
+		
+		// constant Map<String, String> type fields
+		Map<String, String> objectField = Maps.newHashMap();
+		Map<String, String> nestedField = Maps.newHashMap();
+		Map<String, String> keywordField = Maps.newHashMap();
+		Map<String, Object> aclParent = Maps.newHashMap();
+		objectField.put( TYPE, OBJECT );
+		nestedField.put( TYPE, NESTED );
+		keywordField.put( TYPE, KEYWORD );
+		aclParent.put( TYPE, ENTITY_SET_TYPE );
+		
+		// entity_set type mapping
 		Map<String, Object> properties = Maps.newHashMap();
-		properties.put( PROPERTY_TYPES, Maps.newHashMap()
-				.put( TYPE, NESTED ) );
-		properties.put( ROLE_ACLS, Maps.newHashMap()
-				.put( TYPE, OBJECT ) );
-		properties.put( USER_ACLS, Maps.newHashMap()
-				.put( TYPE, OBJECT ) );
-		properties.put( ENTITY_SET, Maps.newHashMap()
-				.put( TYPE, OBJECT ) );
+		Map<String, Object> entitySetData = Maps.newHashMap();
 		Map<String, Object> mapping = Maps.newHashMap();
-		mapping.put( ENTITY_SET_TYPE, Maps.newHashMap()
-				.put( ES_PROPERTIES, properties ) );
-
+		properties.put( PROPERTY_TYPES, nestedField );
+		properties.put( ENTITY_SET, objectField );
+		entitySetData.put( ES_PROPERTIES, properties );
+		mapping.put( ENTITY_SET_TYPE, entitySetData );
+		
+		// acl type mapping
+		Map<String, Object> aclProperties = Maps.newHashMap();
+		Map<String, Object> aclData = Maps.newHashMap();
+		Map<String, Object> aclMapping = Maps.newHashMap();
+		aclProperties.put( ACLS, keywordField );
+		aclProperties.put( TYPE, keywordField );
+		aclProperties.put( NAME, keywordField );
+		aclData.put( ES_PROPERTIES, aclProperties );
+		aclData.put( PARENT, aclParent );
+		aclMapping.put( ACLS, aclData );
+		
 		client.admin().indices().prepareCreate( ENTITY_SET_DATA_MODEL )
 		.setSettings( Settings.builder()
 				.put( NUM_SHARDS, 3 )
 				.put( NUM_REPLICAS, 2 ) )
 		.addMapping( ENTITY_SET_TYPE, mapping)
+		.addMapping( ACLS, aclMapping )
 		.get();
 	}
 	
 	public void saveEntitySetToElasticsearch( EntitySet entitySet, Set<PropertyType> propertyTypes ) {
-	//	logger.debug("\n\n\n\n" + entitySet.toString() + "\n\n\n\n\n");
-	//	XContentBuilder builder;
-//			builder = XContentFactory.jsonBuilder().startObject()
-//					.field( "id", entitySet.getId() )
-//					.field( "typename", entitySet.getType().getFullQualifiedNameAsString() )
-//					.field( "name", entitySet.getName() )
-//					.field( "title", entitySet.getTitle() )
-//					.field( "description", entitySet.getDescription() );
-//	        builder.startArray( "propertyTypes" );
-//	        for ( PropertyType propertyType: propertyTypes ) {
-//	        	builder.value( propertyType.getType().getFullQualifiedNameAsString() );
-//	        }
-//	        builder.endArray();
-//	        builder.endObject();
-//	        String json = builder.string();
-//	        logger.debug(json);
-			//Map<String, Object> permissions = Maps.newHashMap();
-
-		//			Map<String, List<String>> rolePermissions = Maps.newHashMap();
-//			List<String> ps = Lists.newArrayList();
-//			ps.add("read");
-//			rolePermissions.put( "user", ps );
-//			Map<String, List<String>> userPermissions = Maps.newHashMap();
-//			userPermissions.put( "katherine", ps );
 	        Map<String, Object> entitySetDataModel = Maps.newHashMap();
 	        entitySetDataModel.put( ENTITY_SET, entitySet );
 	        entitySetDataModel.put( PROPERTY_TYPES, propertyTypes );
-	        entitySetDataModel.put( ROLE_ACLS, Maps.newHashMap() );
-	        entitySetDataModel.put( USER_ACLS, Maps.newHashMap() );
 	        
 			ObjectMapper mapper = new ObjectMapper();
 			mapper.registerModule( new GuavaModule() );
@@ -160,13 +157,18 @@ public class KindlingElasticsearchHandler {
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
 		}
-		
+
 		BoolQueryBuilder permissionsQuery = new BoolQueryBuilder();
 		for ( Principal principal: principals) {
-			String typePath = ( principal.getType() == PrincipalType.USER ) ? USER_ACLS : ROLE_ACLS;
-			permissionsQuery.should( QueryBuilders.regexpQuery( typePath + "." + principal.getId(), ".*" ) );
+			BoolQueryBuilder childQuery = new BoolQueryBuilder();
+			childQuery.must( QueryBuilders.matchQuery( NAME, principal.getId() ) );
+			childQuery.must( QueryBuilders.matchQuery( TYPE, principal.getType().toString() ) );
+			childQuery.must( QueryBuilders.regexpQuery( ACLS, ".*" ) );
+			permissionsQuery.should( QueryBuilders.hasChildQuery( ACLS, childQuery, org.apache.lucene.search.join.ScoreMode.Avg)
+					.innerHit( new InnerHitBuilder().setDocValueFields( Lists.newArrayList( ACLS )) ) );
 		}
 		permissionsQuery.minimumNumberShouldMatch( 1 );
+		
 		BoolQueryBuilder query = new BoolQueryBuilder()
 				.must( permissionsQuery )
 				.should( QueryBuilders.matchQuery( ENTITY_SET + "." + NAME, searchTerm ).fuzziness( Fuzziness.AUTO ) )
@@ -182,39 +184,54 @@ public class KindlingElasticsearchHandler {
 				query.must( QueryBuilders.matchQuery( PROPERTY_TYPES + "." + ID, pid.toString() ) );
 			}
 		}
-
+		logger.debug("A");
 		SearchResponse response = client.prepareSearch( ENTITY_SET_DATA_MODEL )
 				.setTypes( ENTITY_SET_TYPE )
 			//	.setQuery( QueryBuilders.matchQuery( "_all", query ).fuzziness( Fuzziness.AUTO ) )
 				.setQuery( query )
-				//.setFetchSource( new String[]{ ENTITY_SET, PROPERTY_TYPES }, null )
+				.setFetchSource( new String[]{ ENTITY_SET, PROPERTY_TYPES }, null )
 				.setFrom( 0 ).setSize( 50 ).setExplain( true )
 				.get();
-		logger.debug( response.getHits().getAt( 0 ).getSourceAsString() );
+		logger.debug( response.toString() );
 	//	logger.debug( response.getHits().getAt( 0 ).getInnerHits().toString() );
 	//	List<String> hits = Lists.newArrayList();
-	//	for ( SearchHit hit: response.getHits() ) {
-	//		hits.add( hit.getSourceAsString() );
-	//	}
+		for ( SearchHit hit: response.getHits() ) {
+	//		logger.debug( hit.getInnerHits().get( "acls").getAt(0).getSourceAsString() );
+			logger.debug( String.valueOf(hit.getInnerHits().size() ) );
+//			logger.debug("all inner hits.....");
+//			logger.debug( hit.getInnerHits().toString());
+//			logger.debug( hit.getInnerHits().get( "acls").toString());
+//	//		logger.debug( hit.getInnerHits().get( "acls").);
+//			for ( SearchHit innerHit: hit.getInnerHits().get( "acls" ) ) {
+//			//for (String key: hit.getInnerHits().keySet() ) {
+//				logger.debug("INNER HIT");
+//				logger.debug( innerHit.getSourceAsString());
+//				//logger.debug( key);
+//				//for (SearchHit acl: hit.getInnerHits().get(key) ) {
+//					//logger.debug( acl.getSource().get("acls").toString() );
+//				//}
+//			//	logger.debug( hit.getInnerHits().get( key ).toString() );
+//			}
+		//	logger.debug( hit.getInnerHits().toString() );
+		//	hits.add( hit.getSourceAsString() );
+		}
 	//	logger.debug( hits.toString() );
 	}
 	
 	public void updateEntitySetPermissions( UUID entitySetId, Principal principal, Set<Permission> permissions ) {
-		String typeField = (principal.getType() == PrincipalType.ROLE) ? ROLE_ACLS : USER_ACLS;
+        Map<String, Object> acl = Maps.newHashMap();
+        acl.put( ACLS, permissions );
+        acl.put( TYPE, principal.getType().toString() );
+        acl.put( NAME, principal.getId() );
+        
 		ObjectMapper mapper = new ObjectMapper();
 		mapper.registerModule( new GuavaModule() );
 		mapper.registerModule( new JodaModule() );
-		Map<String, Object> permissionsMap = Maps.newHashMap();
 		try {
-			permissionsMap.put( principal.getId(), permissions );
-			Map<String, Object> newPermissions = Maps.newHashMap();
-			newPermissions.put( typeField, permissionsMap );
-			
-			String s = mapper.writeValueAsString( newPermissions );
-			UpdateRequest updateRequest = new UpdateRequest( ENTITY_SET_DATA_MODEL, ENTITY_SET_TYPE, entitySetId.toString() ).doc( s );
-			client.update( updateRequest ).get();
-
-		} catch ( InterruptedException | ExecutionException | IOException e) {
+			String s = mapper.writeValueAsString( acl );
+			String id = entitySetId.toString() + "_" + principal.getType().toString() + "_" + principal.getId();
+			client.prepareIndex( ENTITY_SET_DATA_MODEL, ACLS, id ).setParent( entitySetId.toString() ).setSource( s ).execute().actionGet();
+		} catch (JsonProcessingException e) {
 			e.printStackTrace();
 		}
 	}
