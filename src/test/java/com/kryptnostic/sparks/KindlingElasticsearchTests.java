@@ -123,7 +123,8 @@ public class KindlingElasticsearchTests {
     public void testEntitySetKeywordSearch() {
     	Set<Principal> principals = Sets.newHashSet();
     	principals.add( new Principal( PrincipalType.USER, "katherine" ) );
-    	principals.add( new Principal( PrincipalType.ROLE, "evil" ) );
+    	//principals.add( new Principal( PrincipalType.ROLE, "evil" ) );
+    	principals.add( new Principal( PrincipalType.ROLE, "user" ) );
     	
     	String query = "Employees";
     	FullQualifiedName entityTypeFqn = new FullQualifiedName("testcsv", "employee");
@@ -149,8 +150,9 @@ public class KindlingElasticsearchTests {
     
     @Test
     public void testAddEntitySetPermissions() {
-    	Principal principal = new Principal( PrincipalType.USER, "katherine" );
+    	Principal principal = new Principal( PrincipalType.ROLE, "user" );
     	Set<Permission> newPermissions = Sets.newHashSet();
+    	newPermissions.add( Permission.WRITE );
     	newPermissions.add( Permission.READ );
     	KindlingConfiguration config = new KindlingConfiguration( Optional.of("localhost"), Optional.of("loom_development") );
 		KindlingElasticsearchHandler keh;
@@ -161,6 +163,61 @@ public class KindlingElasticsearchTests {
 			e.printStackTrace();
 		}
 		
+    }
+    
+    @Test
+    public void testUpdatePropertyTypes() {
+    	PropertyType empId = new PropertyType(
+        		UUID.randomUUID(),
+        		new FullQualifiedName( NAMESPACE, EMPLOYEE_ID ),
+        		"Employee Id",
+        		Optional.of("id of the employee"),
+        		Sets.newHashSet(),
+        		EdmPrimitiveTypeKind.String );
+        PropertyType empName = new PropertyType(
+        		UUID.randomUUID(),
+        		new FullQualifiedName( NAMESPACE, EMPLOYEE_NAME ),
+        		"Employee Name",
+        		Optional.of("name of the employee"),
+        		Sets.newHashSet(),
+        		EdmPrimitiveTypeKind.String );
+        PropertyType empTitle = new PropertyType(
+        		UUID.randomUUID(),
+        		new FullQualifiedName( NAMESPACE, EMPLOYEE_TITLE ),
+        		"Employee Title",
+        		Optional.of("title of the employee"),
+        		Sets.newHashSet(),
+        		EdmPrimitiveTypeKind.String );
+        PropertyType empSalary = new PropertyType(
+        		UUID.randomUUID(),
+        		new FullQualifiedName( NAMESPACE, SALARY ),
+        		"Employee Salary",
+        		Optional.of("salary of the employee"),
+        		Sets.newHashSet(),
+        		EdmPrimitiveTypeKind.String );
+        PropertyType empDept = new PropertyType(
+        		UUID.randomUUID(),
+        		new FullQualifiedName( NAMESPACE, EMPLOYEE_DEPT ),
+        		"Employee Department",
+        		Optional.of("department of the employee"),
+        		Sets.newHashSet(),
+        		EdmPrimitiveTypeKind.String );
+    	
+
+        Set<PropertyType> propertyTypes = Sets.newHashSet();
+        propertyTypes.add( empId );
+        propertyTypes.add( empName );
+        propertyTypes.add( empTitle );
+        propertyTypes.add( empSalary );
+        propertyTypes.add( empDept );
+    	KindlingConfiguration config = new KindlingConfiguration( Optional.of("localhost"), Optional.of("loom_development") );
+		KindlingElasticsearchHandler keh;
+		try {
+			keh = new KindlingElasticsearchHandler( config );
+			keh.updatePropertyTypesInEntitySet( ENTITY_SET_ID, propertyTypes);
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		}
     }
 //    
 //    @Test

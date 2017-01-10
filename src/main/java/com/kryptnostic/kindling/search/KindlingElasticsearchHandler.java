@@ -1,12 +1,15 @@
 package com.kryptnostic.kindling.search;
 
+import java.io.IOException;
 import java.net.UnknownHostException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.Fuzziness;
@@ -192,7 +195,6 @@ public class KindlingElasticsearchHandler {
 			Map<String, Object> match = Maps.newHashMap();
 			match.put( ENTITY_SET, hit.getSourceAsString() );
 			Set<String> permissions = Sets.newHashSet();
-			logger.debug( hit.getInnerHits().toString());
 			for( SearchHits innerHits: hit.getInnerHits().values() ) {
 				for (SearchHit innerHit: innerHits.getHits() ) {
 					permissions.addAll( (List<String>) innerHit.getSource().get( ACLS ) );
@@ -200,7 +202,6 @@ public class KindlingElasticsearchHandler {
 			}
 			match.put( ACLS, permissions.toString() );
 			hits.add( match );
-			logger.debug( permissions.toString() );
 		}
 		return hits;
 	}
@@ -219,6 +220,21 @@ public class KindlingElasticsearchHandler {
 			String id = entitySetId.toString() + "_" + principal.getType().toString() + "_" + principal.getId();
 			client.prepareIndex( ENTITY_SET_DATA_MODEL, ACLS, id ).setParent( entitySetId.toString() ).setSource( s ).execute().actionGet();
 		} catch (JsonProcessingException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	public void updatePropertyTypesInEntitySet( UUID entitySetId, Set<PropertyType> newPropertyTypes ) {
+		Map<String, Object> propertyTypes = Maps.newHashMap();
+		propertyTypes.put( PROPERTY_TYPES, newPropertyTypes);
+		ObjectMapper mapper = new ObjectMapper();
+		mapper.registerModule( new GuavaModule() );
+		mapper.registerModule( new JodaModule() );
+		try {
+			String s = mapper.writeValueAsString( propertyTypes );
+			UpdateRequest updateRequest = new UpdateRequest( ENTITY_SET_DATA_MODEL, ENTITY_SET_TYPE, entitySetId.toString() ).doc( s );
+			client.update( updateRequest ).get();
+		} catch (IOException | InterruptedException | ExecutionException e) {
 			e.printStackTrace();
 		}
 	}
