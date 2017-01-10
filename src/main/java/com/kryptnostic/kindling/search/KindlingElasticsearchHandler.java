@@ -1,35 +1,28 @@
 package com.kryptnostic.kindling.search;
 
-import java.io.IOException;
 import java.net.UnknownHostException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 
-import org.apache.olingo.commons.api.edm.FullQualifiedName;
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.common.lucene.search.function.FiltersFunctionScoreQuery.ScoreMode;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.Fuzziness;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.InnerHitBuilder;
-import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.fetch.subphase.FetchSourceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spark_project.guava.collect.Maps;
 import org.springframework.scheduling.annotation.Scheduled;
 
-import com.auth0.jwt.internal.org.bouncycastle.util.Arrays;
 import com.dataloom.authorization.requests.Permission;
 import com.dataloom.authorization.requests.Principal;
-import com.dataloom.authorization.requests.PrincipalType;
 import com.dataloom.edm.internal.EntitySet;
 import com.dataloom.edm.internal.PropertyType;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -160,15 +153,15 @@ public class KindlingElasticsearchHandler {
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
 		}
-
 		BoolQueryBuilder permissionsQuery = new BoolQueryBuilder();
 		for ( Principal principal: principals) {
 			BoolQueryBuilder childQuery = new BoolQueryBuilder();
 			childQuery.must( QueryBuilders.matchQuery( NAME, principal.getId() ) );
 			childQuery.must( QueryBuilders.matchQuery( TYPE, principal.getType().toString() ) );
 			childQuery.must( QueryBuilders.regexpQuery( ACLS, ".*" ) );
+			String hitName = "acl_" + principal.getType().toString() + "_" + principal.getId();
 			permissionsQuery.should( QueryBuilders.hasChildQuery( ACLS, childQuery, org.apache.lucene.search.join.ScoreMode.Avg)
-					.innerHit( new InnerHitBuilder().setFetchSourceContext( new FetchSourceContext(true, new String[]{ACLS}, null)) ) );
+					.innerHit( new InnerHitBuilder().setFetchSourceContext( new FetchSourceContext(true, new String[]{ACLS}, null)).setName( hitName ) ) );
 		}
 		permissionsQuery.minimumNumberShouldMatch( 1 );
 		
@@ -199,11 +192,15 @@ public class KindlingElasticsearchHandler {
 			Map<String, Object> match = Maps.newHashMap();
 			match.put( ENTITY_SET, hit.getSourceAsString() );
 			Set<String> permissions = Sets.newHashSet();
-			for( SearchHit innerHit: hit.getInnerHits().get( ACLS ) ) {
-				permissions.addAll( (List<String>) innerHit.getSource().get( ACLS ) );
+			logger.debug( hit.getInnerHits().toString());
+			for( SearchHits innerHits: hit.getInnerHits().values() ) {
+				for (SearchHit innerHit: innerHits.getHits() ) {
+					permissions.addAll( (List<String>) innerHit.getSource().get( ACLS ) );
+				}
 			}
 			match.put( ACLS, permissions.toString() );
 			hits.add( match );
+			logger.debug( permissions.toString() );
 		}
 		return hits;
 	}
