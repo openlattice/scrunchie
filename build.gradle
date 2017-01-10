@@ -67,12 +67,6 @@ dependencies {
             exclude module: 'cassandra-driver-mapping'
             exclude module: 'cassandra-driver-extras'
         }
-        
-        testCompile( project(path: ":datastore", configuration: "tests")) {
-            exclude module: 'cassandra-driver-core'
-            exclude module: 'cassandra-driver-mapping'
-            exclude module: 'cassandra-driver-extras'
-        }
 
         testCompile( project(path: ":rhizome", configuration: "tests")) {
             exclude module: 'cassandra-driver-core'
@@ -104,22 +98,12 @@ dependencies {
             exclude module: 'cassandra-driver-extras'
         }
         
-        testCompile ("com.kryptnostic:datastore:${datastore_version}:tests"){
-            exclude module: 'cassandra-driver-core'
-            exclude module: 'cassandra-driver-mapping'
-            exclude module: 'cassandra-driver-extras'
-        }
         testCompile ("com.kryptnostic:rhizome:${rhizome_version}:tests"){
             exclude module: 'cassandra-driver-core'
             exclude module: 'cassandra-driver-mapping'
             exclude module: 'cassandra-driver-extras'
         }
-        testCompile ("com.kryptnostic:datastore:${datastore_version}"){
-            exclude module: 'cassandra-driver-core'
-            exclude module: 'cassandra-driver-mapping'
-            exclude module: 'cassandra-driver-extras'
-        }
-
+        
         testCompile "com.kryptnostic:rhizome-client:${rhizome_client_version}:tests"
     } 
 
