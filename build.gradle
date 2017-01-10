@@ -43,8 +43,6 @@ configurations.all {
 
 dependencies {
     compile "com.fasterxml.jackson.dataformat:jackson-dataformat-csv:${jackson_version}"
-    //compile "com.datastax.spark:spark-cassandra-connector-java_2.10:${spark_cassandra_connector_version}"
-    //compile 'com.datastax.spark:spark-cassandra-connector_2.10:1.6.0'
     compile  "com.datastax.spark:spark-cassandra-connector_2.11:${spark_cassandra_connector_version}"
     provided "org.apache.spark:spark-core_2.11:${spark_version}"
     provided "org.apache.spark:spark-sql_2.11:${spark_version}"
@@ -70,12 +68,6 @@ dependencies {
             exclude module: 'cassandra-driver-mapping'
             exclude module: 'cassandra-driver-extras'
         }
-        
-        testCompile( project(path: ":datastore", configuration: "tests")) {
-            exclude module: 'cassandra-driver-core'
-            exclude module: 'cassandra-driver-mapping'
-            exclude module: 'cassandra-driver-extras'
-        }
 
         testCompile( project(path: ":rhizome", configuration: "tests")) {
             exclude module: 'cassandra-driver-core'
@@ -88,6 +80,9 @@ dependencies {
             exclude module: 'cassandra-driver-mapping'
             exclude module: 'cassandra-driver-extras'
         }
+
+        testCompile( project(path: ":rhizome-client", configuration: "tests")) 
+        
     }
     else {
         logger.quiet(project.name + " using jar dependencies.")
@@ -104,21 +99,13 @@ dependencies {
             exclude module: 'cassandra-driver-extras'
         }
         
-        testCompile ("com.kryptnostic:datastore:${datastore_version}:tests"){
-            exclude module: 'cassandra-driver-core'
-            exclude module: 'cassandra-driver-mapping'
-            exclude module: 'cassandra-driver-extras'
-        }
         testCompile ("com.kryptnostic:rhizome:${rhizome_version}:tests"){
             exclude module: 'cassandra-driver-core'
             exclude module: 'cassandra-driver-mapping'
             exclude module: 'cassandra-driver-extras'
         }
-        testCompile ("com.kryptnostic:datastore:${datastore_version}"){
-            exclude module: 'cassandra-driver-core'
-            exclude module: 'cassandra-driver-mapping'
-            exclude module: 'cassandra-driver-extras'
-        }
+        
+        testCompile "com.kryptnostic:rhizome-client:${rhizome_client_version}:tests"
     } 
 
      /**
@@ -126,13 +113,6 @@ dependencies {
       */
     compile group: 'com.datastax.cassandra', name: 'cassandra-driver-mapping', version: "${cassandra_driver_version}"
     compile group: 'com.datastax.cassandra', name: 'cassandra-driver-extras', version: "${cassandra_driver_version}"
-    /*
-    compile group: 'com.datastax.cassandra', name: 'cassandra-driver-core', version: "${cassandra_driver_version}"
-    compile group: 'com.datastax.cassandra', name: 'cassandra-driver-extras', version: "${cassandra_driver_version}"
-
-    compile "org.xerial.snappy:snappy-java:${snappy_version}"
-    compile "net.jpountz.lz4:lz4:${lz4_version}"
-    */
     
    	 /*
       * ELASTICSEARCH
@@ -143,6 +123,11 @@ dependencies {
      }
      compile ("org.elasticsearch.client:transport:5.1.1")
     
+    /*
+     * TESTING
+     */
+    testCompile "junit:junit:${junit_version}"
+    testCompile "org.mockito:mockito-core:2.2.7";    
  }
 
 eclipse {
