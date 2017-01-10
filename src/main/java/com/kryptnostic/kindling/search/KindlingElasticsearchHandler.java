@@ -20,11 +20,13 @@ import org.elasticsearch.index.query.InnerHitBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.fetch.subphase.FetchSourceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spark_project.guava.collect.Maps;
 import org.springframework.scheduling.annotation.Scheduled;
 
+import com.auth0.jwt.internal.org.bouncycastle.util.Arrays;
 import com.dataloom.authorization.requests.Permission;
 import com.dataloom.authorization.requests.Principal;
 import com.dataloom.authorization.requests.PrincipalType;
@@ -37,6 +39,7 @@ import com.fasterxml.jackson.datatype.joda.JodaModule;
 import com.google.common.base.Optional;
 
 import jersey.repackaged.com.google.common.collect.Lists;
+import jersey.repackaged.com.google.common.collect.Sets;
 
 public class KindlingElasticsearchHandler {
 	
@@ -145,7 +148,7 @@ public class KindlingElasticsearchHandler {
 			}
 	}
 		
-	public void executeEntitySetDataModelKeywordSearch(
+	public List<Map<String, Object>> executeEntitySetDataModelKeywordSearch(
 			Set<Principal> principals,
 			String searchTerm,
 			Optional<UUID> optionalEntityType,
@@ -153,7 +156,7 @@ public class KindlingElasticsearchHandler {
 		
 		
 		try {
-			if ( !verifyElasticsearchConnection() ) return;
+			if ( !verifyElasticsearchConnection() ) return null;
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
 		}
@@ -165,7 +168,7 @@ public class KindlingElasticsearchHandler {
 			childQuery.must( QueryBuilders.matchQuery( TYPE, principal.getType().toString() ) );
 			childQuery.must( QueryBuilders.regexpQuery( ACLS, ".*" ) );
 			permissionsQuery.should( QueryBuilders.hasChildQuery( ACLS, childQuery, org.apache.lucene.search.join.ScoreMode.Avg)
-					.innerHit( new InnerHitBuilder().setDocValueFields( Lists.newArrayList( ACLS )) ) );
+					.innerHit( new InnerHitBuilder().setFetchSourceContext( new FetchSourceContext(true, new String[]{ACLS}, null)) ) );
 		}
 		permissionsQuery.minimumNumberShouldMatch( 1 );
 		
@@ -184,38 +187,25 @@ public class KindlingElasticsearchHandler {
 				query.must( QueryBuilders.matchQuery( PROPERTY_TYPES + "." + ID, pid.toString() ) );
 			}
 		}
-		logger.debug("A");
 		SearchResponse response = client.prepareSearch( ENTITY_SET_DATA_MODEL )
 				.setTypes( ENTITY_SET_TYPE )
-			//	.setQuery( QueryBuilders.matchQuery( "_all", query ).fuzziness( Fuzziness.AUTO ) )
 				.setQuery( query )
 				.setFetchSource( new String[]{ ENTITY_SET, PROPERTY_TYPES }, null )
 				.setFrom( 0 ).setSize( 50 ).setExplain( true )
 				.get();
-		logger.debug( response.toString() );
-	//	logger.debug( response.getHits().getAt( 0 ).getInnerHits().toString() );
-	//	List<String> hits = Lists.newArrayList();
+		
+		List<Map<String, Object>> hits = Lists.newArrayList();
 		for ( SearchHit hit: response.getHits() ) {
-	//		logger.debug( hit.getInnerHits().get( "acls").getAt(0).getSourceAsString() );
-			logger.debug( String.valueOf(hit.getInnerHits().size() ) );
-//			logger.debug("all inner hits.....");
-//			logger.debug( hit.getInnerHits().toString());
-//			logger.debug( hit.getInnerHits().get( "acls").toString());
-//	//		logger.debug( hit.getInnerHits().get( "acls").);
-//			for ( SearchHit innerHit: hit.getInnerHits().get( "acls" ) ) {
-//			//for (String key: hit.getInnerHits().keySet() ) {
-//				logger.debug("INNER HIT");
-//				logger.debug( innerHit.getSourceAsString());
-//				//logger.debug( key);
-//				//for (SearchHit acl: hit.getInnerHits().get(key) ) {
-//					//logger.debug( acl.getSource().get("acls").toString() );
-//				//}
-//			//	logger.debug( hit.getInnerHits().get( key ).toString() );
-//			}
-		//	logger.debug( hit.getInnerHits().toString() );
-		//	hits.add( hit.getSourceAsString() );
+			Map<String, Object> match = Maps.newHashMap();
+			match.put( ENTITY_SET, hit.getSourceAsString() );
+			Set<String> permissions = Sets.newHashSet();
+			for( SearchHit innerHit: hit.getInnerHits().get( ACLS ) ) {
+				permissions.addAll( (List<String>) innerHit.getSource().get( ACLS ) );
+			}
+			match.put( ACLS, permissions.toString() );
+			hits.add( match );
 		}
-	//	logger.debug( hits.toString() );
+		return hits;
 	}
 	
 	public void updateEntitySetPermissions( UUID entitySetId, Principal principal, Set<Permission> permissions ) {
