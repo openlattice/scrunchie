@@ -436,4 +436,9 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 		return elasticsearchApi.updateEntitySetPermissions( entitySetId, principal, permissions );
 	}
 
+	@Override
+	public Boolean deleteEntitySet( UUID entitySetId ) {
+		return elasticsearchApi.deleteEntitySet( entitySetId );
+	}
+
 }

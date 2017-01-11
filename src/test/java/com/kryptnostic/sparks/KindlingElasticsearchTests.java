@@ -221,6 +221,18 @@ public class KindlingElasticsearchTests extends BaseKindlingSparkTest {
 			e.printStackTrace();
 		}
     }
+    
+    @Test
+    public void testDeleteEntitySet() {
+    	ElasticsearchConfiguration config = new ElasticsearchConfiguration( Optional.of("localhost"), Optional.of("loom_development") );
+		ConductorElasticsearchImpl elasticsearchApi;
+		try {
+			elasticsearchApi = new ConductorElasticsearchImpl( config );
+			elasticsearchApi.deleteEntitySet( ENTITY_SET_ID );
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		}
+    }
 //    
 //    @Test
 //    public void testWriteEntitySetData (EntitySet entitySet ) {

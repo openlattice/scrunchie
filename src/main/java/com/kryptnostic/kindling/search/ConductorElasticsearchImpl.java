@@ -16,6 +16,8 @@ import org.elasticsearch.common.unit.Fuzziness;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.InnerHitBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.reindex.DeleteByQueryAction;
+import org.elasticsearch.index.reindex.DeleteByQueryRequestBuilder;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.fetch.subphase.FetchSourceContext;
@@ -94,6 +96,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 		aclProperties.put( ACLS, keywordField );
 		aclProperties.put( TYPE, keywordField );
 		aclProperties.put( NAME, keywordField );
+		aclProperties.put( ENTITY_SET_ID, keywordField );
 		aclData.put( ES_PROPERTIES, aclProperties );
 		aclData.put( PARENT, aclParent );
 		aclMapping.put( ACLS, aclData );
@@ -198,6 +201,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         acl.put( ACLS, permissions );
         acl.put( TYPE, principal.getType().toString() );
         acl.put( NAME, principal.getId() );
+        acl.put( ENTITY_SET_ID, entitySetId.toString() );
         
 		ObjectMapper mapper = new ObjectMapper();
 		mapper.registerModule( new GuavaModule() );
@@ -247,6 +251,22 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 	@Scheduled( fixedRate = 1800000 )
 	public void verifyRunner() throws UnknownHostException {
 		verifyElasticsearchConnection();
+	}
+
+	@Override
+	public Boolean deleteEntitySet( UUID entitySetId ) {
+		Map<String, Object> idField = Maps.newHashMap();
+		idField.put( ENTITY_SET_ID, entitySetId.toString() );
+		client.prepareDelete( ENTITY_SET_DATA_MODEL, ENTITY_SET_TYPE, entitySetId.toString() ).get();
+
+		new DeleteByQueryRequestBuilder(client, DeleteByQueryAction.INSTANCE).filter(
+				QueryBuilders.boolQuery()
+				.must( QueryBuilders.matchQuery( TYPE_FIELD, ACLS ) )
+				.must( QueryBuilders.matchQuery(ENTITY_SET_ID, entitySetId.toString() ) ) )
+		.source( ENTITY_SET_DATA_MODEL )
+		.get();
+		
+		return true;
 	}
 
 }
