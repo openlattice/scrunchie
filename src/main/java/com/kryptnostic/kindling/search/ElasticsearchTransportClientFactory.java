@@ -25,25 +25,19 @@ public class ElasticsearchTransportClientFactory {
 	public static final Logger log = LoggerFactory.getLogger( ElasticsearchTransportClientFactory.class );
 	private String clientTransportHost;
 	private Integer clientTransportPort;
-	private boolean disabled = false;
 	private String cluster;
 	
 	public ElasticsearchTransportClientFactory(
 			String clientTransportHost,
 			Integer clientTransportPort,
-			boolean disabled,
 			String cluster ) {
 		this.clientTransportHost = clientTransportHost;
 		this.clientTransportPort = clientTransportPort;
-		this.disabled = disabled;
 		this.cluster = cluster;
 	}
 	
 	public Client getClient() throws UnknownHostException {
-		if ( this.disabled ) {
-			log.info( "logging to elasticsearch disabled ");
-			return null;
-		} else if ( this.clientTransportHost == null ) {
+		if ( this.clientTransportHost == null ) {
 			log.info( "no server passed in, logging to database" );
 			return null;
 		}

@@ -64,7 +64,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 	private void init( ElasticsearchConfiguration config ) {
 		server = config.getElasticsearchUrl().get();
 		cluster = config.getElasticsearchCluster().get();
-		factory = new ElasticsearchTransportClientFactory( server, 9300, false, cluster );
+		factory = new ElasticsearchTransportClientFactory( server, 9300, cluster );
 	}
 	
 	@Override
