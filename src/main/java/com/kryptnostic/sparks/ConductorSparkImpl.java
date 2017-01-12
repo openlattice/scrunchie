@@ -39,7 +39,6 @@ import com.kryptnostic.conductor.rpc.QueryResult;
 import com.kryptnostic.datastore.cassandra.CassandraEdmMapping;
 import com.kryptnostic.datastore.cassandra.CommonColumns;
 import com.kryptnostic.datastore.services.EdmManager;
-import com.kryptnostic.kindling.search.ElasticsearchConfiguration;
 import com.kryptnostic.kindling.search.ConductorElasticsearchImpl;
 
 public class ConductorSparkImpl implements ConductorSparkApi, Serializable {

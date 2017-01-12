@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind;
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
+import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,7 +20,7 @@ import com.dataloom.edm.internal.PropertyType;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.kryptnostic.kindling.search.ElasticsearchConfiguration;
+import com.kryptnostic.conductor.rpc.SearchConfiguration;
 import com.kryptnostic.kindling.search.ConductorElasticsearchImpl;
 
 public class KindlingElasticsearchTests extends BaseKindlingSparkTest {
@@ -41,18 +42,23 @@ public class KindlingElasticsearchTests extends BaseKindlingSparkTest {
             NAMESPACE,
             "employee" );
     
+    private SearchConfiguration config;
+    private ConductorElasticsearchImpl elasticsearchApi;
     private final Logger logger = LoggerFactory.getLogger( getClass() );
-    
-    @Test
-    public void initializeIndex() {
-    	ElasticsearchConfiguration config = new ElasticsearchConfiguration( Optional.of("localhost"), Optional.of("loom_development") );
-		ConductorElasticsearchImpl elasticsearchApi;
-		try {
-			elasticsearchApi = new ConductorElasticsearchImpl( config );
-			elasticsearchApi.initializeEntitySetDataModelIndex();
+
+    @Before
+    public void init() {
+    	this.config = new SearchConfiguration( "localhost", "loom_development", 9300 );
+    	try {
+			this.elasticsearchApi = new ConductorElasticsearchImpl( config );
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
 		}
+    }
+        
+    @Test
+    public void initializeIndex() {
+		elasticsearchApi.initializeEntitySetDataModelIndex();
     }
     
 
@@ -111,20 +117,13 @@ public class KindlingElasticsearchTests extends BaseKindlingSparkTest {
         
         Principal owner = new Principal( PrincipalType.USER, "katherine" );
         
-		ElasticsearchConfiguration config = new ElasticsearchConfiguration( Optional.of("localhost"), Optional.of("loom_development") );
-		ConductorElasticsearchImpl elasticsearchApi;
-		try {
-			elasticsearchApi = new ConductorElasticsearchImpl( config );
-			elasticsearchApi.saveEntitySetToElasticsearch( entitySet, propertyTypes, owner );
-		} catch (UnknownHostException e) {
-			e.printStackTrace();
-		}
+		elasticsearchApi.saveEntitySetToElasticsearch( entitySet, propertyTypes, owner );
     }
     
     @Test
     public void testEntitySetKeywordSearch() {
     	Set<Principal> principals = Sets.newHashSet();
-    	principals.add( new Principal( PrincipalType.USER, "katherine" ) );
+    //	principals.add( new Principal( PrincipalType.USER, "katherine" ) );
     	//principals.add( new Principal( PrincipalType.ROLE, "evil" ) );
     	principals.add( new Principal( PrincipalType.ROLE, "user" ) );
     	
@@ -133,21 +132,14 @@ public class KindlingElasticsearchTests extends BaseKindlingSparkTest {
     	List<FullQualifiedName> propertyTypes = Lists.newArrayList();
     	propertyTypes.add( new FullQualifiedName( "testcsv", "salary") );
     	propertyTypes.add( new FullQualifiedName( "testcsv", "employee_dept" ) );
-    	ElasticsearchConfiguration config = new ElasticsearchConfiguration( Optional.of("localhost"), Optional.of("loom_development") );
-		ConductorElasticsearchImpl elasticsearchApi;
-		try {
-			elasticsearchApi = new ConductorElasticsearchImpl( config );
-			elasticsearchApi.executeEntitySetDataModelKeywordSearch(
-					query,
-					Optional.of( ENTITY_TYPE_ID ),
-					Optional.of( Sets.newHashSet() ),
-					principals
-	//				Optional.of( entityTypeFqn ),
-		//			Optional.of( propertyTypes )
-			);
-		} catch (UnknownHostException e) {
-			e.printStackTrace();
-		}
+		elasticsearchApi.executeEntitySetDataModelKeywordSearch(
+				query,
+				Optional.of( UUID.fromString("b87afe10-5963-4222-bf42-b39eec398744") ),
+				Optional.of( Sets.newHashSet() ),
+				principals
+//				Optional.of( entityTypeFqn ),
+		//		Optional.of( propertyTypes )
+		);
     }
     
     @Test
@@ -156,15 +148,7 @@ public class KindlingElasticsearchTests extends BaseKindlingSparkTest {
     	Set<Permission> newPermissions = Sets.newHashSet();
     	newPermissions.add( Permission.WRITE );
     	newPermissions.add( Permission.READ );
-    	ElasticsearchConfiguration config = new ElasticsearchConfiguration( Optional.of("localhost"), Optional.of("loom_development") );
-		ConductorElasticsearchImpl elasticsearchApi;
-		try {
-			elasticsearchApi = new ConductorElasticsearchImpl( config );
-			elasticsearchApi.updateEntitySetPermissions( ENTITY_SET_ID, principal, newPermissions );
-		} catch (UnknownHostException e) {
-			e.printStackTrace();
-		}
-		
+		elasticsearchApi.updateEntitySetPermissions( ENTITY_SET_ID, principal, newPermissions );
     }
     
     @Test
@@ -212,26 +196,12 @@ public class KindlingElasticsearchTests extends BaseKindlingSparkTest {
         propertyTypes.add( empTitle );
         propertyTypes.add( empSalary );
         propertyTypes.add( empDept );
-    	ElasticsearchConfiguration config = new ElasticsearchConfiguration( Optional.of("localhost"), Optional.of("loom_development") );
-		ConductorElasticsearchImpl elasticsearchApi;
-		try {
-			elasticsearchApi = new ConductorElasticsearchImpl( config );
-			elasticsearchApi.updatePropertyTypesInEntitySet( ENTITY_SET_ID, propertyTypes);
-		} catch (UnknownHostException e) {
-			e.printStackTrace();
-		}
+		elasticsearchApi.updatePropertyTypesInEntitySet( ENTITY_SET_ID, propertyTypes);
     }
     
     @Test
     public void testDeleteEntitySet() {
-    	ElasticsearchConfiguration config = new ElasticsearchConfiguration( Optional.of("localhost"), Optional.of("loom_development") );
-		ConductorElasticsearchImpl elasticsearchApi;
-		try {
-			elasticsearchApi = new ConductorElasticsearchImpl( config );
-			elasticsearchApi.deleteEntitySet( ENTITY_SET_ID );
-		} catch (UnknownHostException e) {
-			e.printStackTrace();
-		}
+		elasticsearchApi.deleteEntitySet( ENTITY_SET_ID );
     }
 //    
 //    @Test

@@ -38,7 +38,7 @@ import com.fasterxml.jackson.datatype.guava.GuavaModule;
 import com.fasterxml.jackson.datatype.joda.JodaModule;
 import com.google.common.base.Optional;
 import com.kryptnostic.conductor.rpc.ConductorElasticsearchApi;
-import com.kryptnostic.rhizome.configuration.service.ConfigurationService;
+import com.kryptnostic.conductor.rpc.SearchConfiguration;
 
 import jersey.repackaged.com.google.common.collect.Lists;
 import jersey.repackaged.com.google.common.collect.Sets;
@@ -50,10 +50,11 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 	private boolean connected = true;
 	private String server;
 	private String cluster;
+	private int port;
 	private static final Logger logger = LoggerFactory.getLogger( ConductorElasticsearchImpl.class );
 	
 	@Inject
-	public ConductorElasticsearchImpl( ElasticsearchConfiguration config ) throws UnknownHostException {
+	public ConductorElasticsearchImpl( SearchConfiguration config ) throws UnknownHostException {
 		init( config );
 		client = factory.getClient();
 		initializeIndexUnlessItExists();
@@ -61,17 +62,18 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 
 	@Inject
 	public ConductorElasticsearchImpl(
-			ElasticsearchConfiguration config,
+			SearchConfiguration config,
 			Client someClient ) {
 		init( config );
 		client = someClient;
 		initializeIndexUnlessItExists();
 	}
 	
-	private void init( ElasticsearchConfiguration config ) {
-		server = config.getElasticsearchUrl().get();
-		cluster = config.getElasticsearchCluster().get();
-		factory = new ElasticsearchTransportClientFactory( server, 9300, cluster );
+	private void init( SearchConfiguration config ) {
+		server = config.getElasticsearchUrl();
+		cluster = config.getElasticsearchCluster();
+		port = config.getElasticsearchPort();
+		factory = new ElasticsearchTransportClientFactory( server, port, cluster );
 	}
 	
 	public void initializeIndexUnlessItExists() {
@@ -153,10 +155,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 			Optional<UUID> optionalEntityType,
 			Optional<Set<UUID>> optionalPropertyTypes,
 			Set<Principal> principals ) {
-		
-		
 		try {
-			if ( !verifyElasticsearchConnection() ) return null;
+			if ( !verifyElasticsearchConnection() ) return Lists.newArrayList();
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
 		}
