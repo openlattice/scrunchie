@@ -8,6 +8,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
+import javax.inject.Inject;
+
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.Client;
@@ -36,6 +38,7 @@ import com.fasterxml.jackson.datatype.guava.GuavaModule;
 import com.fasterxml.jackson.datatype.joda.JodaModule;
 import com.google.common.base.Optional;
 import com.kryptnostic.conductor.rpc.ConductorElasticsearchApi;
+import com.kryptnostic.rhizome.configuration.service.ConfigurationService;
 
 import jersey.repackaged.com.google.common.collect.Lists;
 import jersey.repackaged.com.google.common.collect.Sets;
@@ -49,22 +52,34 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 	private String cluster;
 	private static final Logger logger = LoggerFactory.getLogger( ConductorElasticsearchImpl.class );
 	
+	@Inject
 	public ConductorElasticsearchImpl( ElasticsearchConfiguration config ) throws UnknownHostException {
 		init( config );
 		client = factory.getClient();
+		initializeIndexUnlessItExists();
 	}
-	
+
+	@Inject
 	public ConductorElasticsearchImpl(
 			ElasticsearchConfiguration config,
 			Client someClient ) {
 		init( config );
 		client = someClient;
+		initializeIndexUnlessItExists();
 	}
 	
 	private void init( ElasticsearchConfiguration config ) {
 		server = config.getElasticsearchUrl().get();
 		cluster = config.getElasticsearchCluster().get();
 		factory = new ElasticsearchTransportClientFactory( server, 9300, cluster );
+	}
+	
+	public void initializeIndexUnlessItExists() {
+		boolean exists = client.admin().indices()
+				.prepareExists( ENTITY_SET_DATA_MODEL ).execute().actionGet().isExists();
+		if ( !exists ) {
+			initializeEntitySetDataModelIndex();
+		}
 	}
 	
 	@Override
@@ -107,7 +122,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 				.put( NUM_REPLICAS, 2 ) )
 		.addMapping( ENTITY_SET_TYPE, mapping)
 		.addMapping( ACLS, aclMapping )
-		.get();
+		.execute().actionGet();
+
 	}
 	
 	@Override
@@ -151,7 +167,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 			childQuery.must( QueryBuilders.matchQuery( TYPE, principal.getType().toString() ) );
 			childQuery.must( QueryBuilders.regexpQuery( ACLS, ".*" ) );
 			String hitName = "acl_" + principal.getType().toString() + "_" + principal.getId();
-			permissionsQuery.should( QueryBuilders.hasChildQuery( ACLS, childQuery, org.apache.lucene.search.join.ScoreMode.Avg)
+			permissionsQuery.should( QueryBuilders.hasChildQuery( ACLS, childQuery, org.apache.lucene.search.join.ScoreMode.Avg )
 					.innerHit( new InnerHitBuilder().setFetchSourceContext( new FetchSourceContext(true, new String[]{ACLS}, null)).setName( hitName ) ) );
 		}
 		permissionsQuery.minimumNumberShouldMatch( 1 );
