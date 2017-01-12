@@ -10,6 +10,8 @@ import java.util.concurrent.ExecutionException;
 
 import javax.inject.Inject;
 
+import org.apache.lucene.search.join.ScoreMode;
+
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.Client;
@@ -180,7 +182,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 			childQuery.must( QueryBuilders.matchQuery( TYPE, principal.getType().toString() ) );
 			childQuery.must( QueryBuilders.regexpQuery( ACLS, ".*" ) );
 			String hitName = "acl_" + principal.getType().toString() + "_" + principal.getId();
-			permissionsQuery.should( QueryBuilders.hasChildQuery( ACLS, childQuery, org.apache.lucene.search.join.ScoreMode.Avg )
+			permissionsQuery.should( QueryBuilders.hasChildQuery( ACLS, childQuery, ScoreMode.Avg )
 					.innerHit( new InnerHitBuilder().setFetchSourceContext( new FetchSourceContext(true, new String[]{ACLS}, null)).setName( hitName ) ) );
 		}
 		permissionsQuery.minimumNumberShouldMatch( 1 );
@@ -197,7 +199,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 		} else if ( optionalPropertyTypes.isPresent() ) {
 			Set<UUID> propertyTypes = optionalPropertyTypes.get();
 			for ( UUID pid: propertyTypes ) {
-				query.must( QueryBuilders.matchQuery( PROPERTY_TYPES + "." + ID, pid.toString() ) );
+				query.must( QueryBuilders.nestedQuery( PROPERTY_TYPES, QueryBuilders.matchQuery( PROPERTY_TYPES + "." + ID, pid.toString() ), ScoreMode.Avg ) );
 			}
 		}
 		SearchResponse response = client.prepareSearch( ENTITY_SET_DATA_MODEL )
