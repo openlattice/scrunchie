@@ -85,7 +85,12 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 	}
 	
 	@Override
-	public void initializeEntitySetDataModelIndex() {
+	public Boolean initializeEntitySetDataModelIndex() {
+		try {
+			if ( !verifyElasticsearchConnection() ) return false;
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		}
 		
 		// constant Map<String, String> type fields
 		Map<String, String> objectField = Maps.newHashMap();
@@ -125,30 +130,38 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 		.addMapping( ENTITY_SET_TYPE, mapping)
 		.addMapping( ACLS, aclMapping )
 		.execute().actionGet();
-
+		return true;
 	}
 	
 	@Override
-	public void saveEntitySetToElasticsearch( EntitySet entitySet, List<PropertyType> propertyTypes, Principal principal ) {
-	        Map<String, Object> entitySetDataModel = Maps.newHashMap();
-	        entitySetDataModel.put( ENTITY_SET, entitySet );
-	        entitySetDataModel.put( PROPERTY_TYPES, propertyTypes );
+	public Boolean saveEntitySetToElasticsearch( EntitySet entitySet, List<PropertyType> propertyTypes, Principal principal ) {
+		try {
+			if ( !verifyElasticsearchConnection() ) return false;
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		}
+	    Map<String, Object> entitySetDataModel = Maps.newHashMap();
+	    entitySetDataModel.put( ENTITY_SET, entitySet );
+	    entitySetDataModel.put( PROPERTY_TYPES, propertyTypes );
 	        
-			ObjectMapper mapper = new ObjectMapper();
-			mapper.registerModule( new GuavaModule() );
-			mapper.registerModule( new JodaModule() );
-			try {
-				String s = mapper.writeValueAsString( entitySetDataModel );
-				client.prepareIndex( ENTITY_SET_DATA_MODEL, ENTITY_SET_TYPE, entitySet.getId().toString() ).setSource( s ).execute().actionGet();
-				updateEntitySetPermissions(
-						entitySet.getId(),
-						principal,
-						Sets.newHashSet( Permission.OWNER, Permission.READ, Permission.WRITE, Permission.DISCOVER, Permission.LINK ) );
-			} catch (JsonProcessingException e) {
-				e.printStackTrace();
-			}
+		ObjectMapper mapper = new ObjectMapper();
+		mapper.registerModule( new GuavaModule() );
+		mapper.registerModule( new JodaModule() );
+		try {
+			String s = mapper.writeValueAsString( entitySetDataModel );
+			client.prepareIndex( ENTITY_SET_DATA_MODEL, ENTITY_SET_TYPE, entitySet.getId().toString() ).setSource( s ).execute().actionGet();
+			updateEntitySetPermissions(
+					entitySet.getId(),
+					principal,
+					Sets.newHashSet( Permission.OWNER, Permission.READ, Permission.WRITE, Permission.DISCOVER, Permission.LINK ) );
+			return true;
+		} catch (JsonProcessingException e) {
+			e.printStackTrace();
+		}
+		return false;
 	}
 	
+	@SuppressWarnings("unchecked")
 	@Override
 	public List<Map<String, Object>> executeEntitySetDataModelKeywordSearch(
 			String searchTerm,
@@ -197,8 +210,6 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 		List<Map<String, Object>> hits = Lists.newArrayList();
 		for ( SearchHit hit: response.getHits() ) {
 			Map<String, Object> match = hit.getSource();
-			//logger.debug( hit.getSource().toString() );
-			//match.put( ENTITY_SET, hit.getSourceAsString() );
 			Set<String> permissions = Sets.newHashSet();
 			for( SearchHits innerHits: hit.getInnerHits().values() ) {
 				for (SearchHit innerHit: innerHits.getHits() ) {
@@ -213,7 +224,12 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 	
 	@Override
 	public Boolean updateEntitySetPermissions( UUID entitySetId, Principal principal, Set<Permission> permissions ) {
-        Map<String, Object> acl = Maps.newHashMap();
+		try {
+			if ( !verifyElasticsearchConnection() ) return false;
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		}
+		Map<String, Object> acl = Maps.newHashMap();
         acl.put( ACLS, permissions );
         acl.put( TYPE, principal.getType().toString() );
         acl.put( NAME, principal.getId() );
@@ -234,7 +250,13 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 	}
 	
 	@Override
-	public void updatePropertyTypesInEntitySet( UUID entitySetId, Set<PropertyType> newPropertyTypes ) {
+	public Boolean updatePropertyTypesInEntitySet( UUID entitySetId, Set<PropertyType> newPropertyTypes ) {
+		try {
+			if ( !verifyElasticsearchConnection() ) return false;
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		}
+		
 		Map<String, Object> propertyTypes = Maps.newHashMap();
 		propertyTypes.put( PROPERTY_TYPES, newPropertyTypes);
 		ObjectMapper mapper = new ObjectMapper();
@@ -244,9 +266,11 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 			String s = mapper.writeValueAsString( propertyTypes );
 			UpdateRequest updateRequest = new UpdateRequest( ENTITY_SET_DATA_MODEL, ENTITY_SET_TYPE, entitySetId.toString() ).doc( s );
 			client.update( updateRequest ).get();
+			return true;
 		} catch (IOException | InterruptedException | ExecutionException e) {
 			e.printStackTrace();
 		}
+		return false;
 	}
 	
 	
@@ -271,6 +295,12 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 
 	@Override
 	public Boolean deleteEntitySet( UUID entitySetId ) {
+		try {
+			if ( !verifyElasticsearchConnection() ) return false;
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		}
+		
 		Map<String, Object> idField = Maps.newHashMap();
 		idField.put( ENTITY_SET_ID, entitySetId.toString() );
 		client.prepareDelete( ENTITY_SET_DATA_MODEL, ENTITY_SET_TYPE, entitySetId.toString() ).get();
