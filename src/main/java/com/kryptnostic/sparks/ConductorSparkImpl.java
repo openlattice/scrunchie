@@ -425,9 +425,9 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 	}
 
 	@Override
-	public List<Map<String, Object>> executeElasticsearchMetadataQuery(String query, Optional<UUID> optionalEntityType,
+	public List<Map<String, Object>> executeElasticsearchMetadataQuery(Optional<String> optionalQuery, Optional<UUID> optionalEntityType,
 			Optional<Set<UUID>> optionalPropertyTypes, Set<Principal> principals) {
-		return elasticsearchApi.executeEntitySetDataModelKeywordSearch( query, optionalEntityType, optionalPropertyTypes, principals );
+		return elasticsearchApi.executeEntitySetDataModelKeywordSearch( optionalQuery, optionalEntityType, optionalPropertyTypes, principals );
 	}
 	
 	@Override

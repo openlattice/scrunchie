@@ -60,7 +60,6 @@ public class KindlingElasticsearchTests extends BaseKindlingSparkTest {
     public void initializeIndex() {
 		elasticsearchApi.initializeEntitySetDataModelIndex();
     }
-    
 
     @Test
     public void testWriteEntitySetMetadata() {
@@ -115,7 +114,7 @@ public class KindlingElasticsearchTests extends BaseKindlingSparkTest {
         propertyTypes.add( empSalary );
         propertyTypes.add( empDept );
         
-        Principal owner = new Principal( PrincipalType.USER, "katherine" );
+        Principal owner = new Principal( PrincipalType.USER, "support@kryptnostic.com" );
         
 		elasticsearchApi.saveEntitySetToElasticsearch( entitySet, propertyTypes, owner );
     }
@@ -133,7 +132,7 @@ public class KindlingElasticsearchTests extends BaseKindlingSparkTest {
     	propertyTypes.add( new FullQualifiedName( "testcsv", "salary") );
     	propertyTypes.add( new FullQualifiedName( "testcsv", "employee_dept" ) );
 		elasticsearchApi.executeEntitySetDataModelKeywordSearch(
-				query,
+				Optional.of( query ),
 				Optional.of( UUID.fromString("b87afe10-5963-4222-bf42-b39eec398744") ),
 				Optional.of( Sets.newHashSet() ),
 				principals

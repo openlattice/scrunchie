@@ -166,7 +166,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 	@SuppressWarnings("unchecked")
 	@Override
 	public List<Map<String, Object>> executeEntitySetDataModelKeywordSearch(
-			String searchTerm,
+			Optional<String> optionalSearchTerm,
 			Optional<UUID> optionalEntityType,
 			Optional<Set<UUID>> optionalPropertyTypes,
 			Set<Principal> principals ) {
@@ -187,12 +187,16 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 		}
 		permissionsQuery.minimumNumberShouldMatch( 1 );
 		
-		BoolQueryBuilder query = new BoolQueryBuilder()
-				.must( permissionsQuery )
-				.should( QueryBuilders.matchQuery( ENTITY_SET + "." + NAME, searchTerm ).fuzziness( Fuzziness.AUTO ) )
+		BoolQueryBuilder query = new BoolQueryBuilder().must( permissionsQuery );
+		
+		if ( optionalSearchTerm.isPresent() ) {
+			String searchTerm = optionalSearchTerm.get();
+			query.should( QueryBuilders.matchQuery( ENTITY_SET + "." + NAME, searchTerm ).fuzziness( Fuzziness.AUTO ) )
 				.should( QueryBuilders.matchQuery( ENTITY_SET + "." + TITLE, searchTerm).fuzziness( Fuzziness.AUTO ) )
 				.should( QueryBuilders.matchQuery( ENTITY_SET + "." + DESCRIPTION, searchTerm ).fuzziness( Fuzziness.AUTO ) )
 				.minimumNumberShouldMatch( 1 );
+		}
+		
 		if ( optionalEntityType.isPresent() ) {
 			UUID eid = optionalEntityType.get();
 			query.must( QueryBuilders.matchQuery( ENTITY_SET + "." + ENTITY_TYPE_ID, eid.toString() ) );
