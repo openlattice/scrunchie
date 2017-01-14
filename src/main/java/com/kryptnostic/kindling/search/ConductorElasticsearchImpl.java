@@ -11,7 +11,6 @@ import java.util.concurrent.ExecutionException;
 import javax.inject.Inject;
 
 import org.apache.lucene.search.join.ScoreMode;
-
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.Client;
@@ -34,10 +33,8 @@ import com.dataloom.authorization.Permission;
 import com.dataloom.authorization.Principal;
 import com.dataloom.edm.internal.EntitySet;
 import com.dataloom.edm.internal.PropertyType;
+import com.dataloom.mappers.ObjectMappers;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.guava.GuavaModule;
-import com.fasterxml.jackson.datatype.joda.JodaModule;
 import com.google.common.base.Optional;
 import com.kryptnostic.conductor.rpc.ConductorElasticsearchApi;
 import com.kryptnostic.conductor.rpc.SearchConfiguration;
@@ -49,7 +46,6 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 	
 	private Client client;
 	private ElasticsearchTransportClientFactory factory;
-	private ObjectMapper mapper;
 	private boolean connected = true;
 	private String server;
 	private String cluster;
@@ -77,10 +73,6 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 		cluster = config.getElasticsearchCluster();
 		port = config.getElasticsearchPort();
 		factory = new ElasticsearchTransportClientFactory( server, port, cluster );
-		ObjectMapper mapper = new ObjectMapper();
-		mapper.registerModule( new GuavaModule() );
-		mapper.registerModule( new JodaModule() );
-		this.mapper = mapper;
 	}
 	
 	public void initializeIndexUnlessItExists() {
@@ -152,7 +144,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 	    entitySetDataModel.put( ENTITY_SET, entitySet );
 	    entitySetDataModel.put( PROPERTY_TYPES, propertyTypes );
 		try {
-			String s = mapper.writeValueAsString( entitySetDataModel );
+			String s = ObjectMappers.getJsonMapper().writeValueAsString( entitySetDataModel );
 			client.prepareIndex( ENTITY_SET_DATA_MODEL, ENTITY_SET_TYPE, entitySet.getId().toString() ).setSource( s ).execute().actionGet();
 			updateEntitySetPermissions(
 					entitySet.getId(),
@@ -245,7 +237,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         acl.put( NAME, principal.getId() );
         acl.put( ENTITY_SET_ID, entitySetId.toString() );
 		try {
-			String s = mapper.writeValueAsString( acl );
+			String s = ObjectMappers.getJsonMapper().writeValueAsString( acl );
 			String id = entitySetId.toString() + "_" + principal.getType().toString() + "_" + principal.getId();
 			client.prepareIndex( ENTITY_SET_DATA_MODEL, ACLS, id ).setParent( entitySetId.toString() ).setSource( s ).execute().actionGet();
 			return true;
@@ -267,7 +259,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 		Map<String, Object> propertyTypes = Maps.newHashMap();
 		propertyTypes.put( PROPERTY_TYPES, newPropertyTypes);
 		try {
-			String s = mapper.writeValueAsString( propertyTypes );
+			String s = ObjectMappers.getJsonMapper().writeValueAsString( propertyTypes );
 			UpdateRequest updateRequest = new UpdateRequest( ENTITY_SET_DATA_MODEL, ENTITY_SET_TYPE, entitySetId.toString() ).doc( s );
 			client.update( updateRequest ).get();
 			return true;
