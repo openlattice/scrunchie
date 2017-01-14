@@ -22,7 +22,7 @@ import com.google.common.collect.ImmutableList;
 
 public class ElasticsearchTransportClientFactory {
 	
-	public static final Logger log = LoggerFactory.getLogger( ElasticsearchTransportClientFactory.class );
+	public static final Logger logger = LoggerFactory.getLogger( ElasticsearchTransportClientFactory.class );
 	private String clientTransportHost;
 	private Integer clientTransportPort;
 	private String cluster;
@@ -38,12 +38,12 @@ public class ElasticsearchTransportClientFactory {
 	
 	public Client getClient() throws UnknownHostException {
 		if ( this.clientTransportHost == null ) {
-			log.info( "no server passed in, logging to database" );
+			logger.info( "no server passed in, logging to database" );
 			return null;
 		}
 		
 		
-		log.info( "getting kindling elasticsearch client on " + clientTransportHost + ":" + clientTransportPort + " with elasticsearch cluster " + cluster );
+		logger.info( "getting kindling elasticsearch client on " + clientTransportHost + ":" + clientTransportPort + " with elasticsearch cluster " + cluster );
 		Settings settings = Settings.builder().put( "cluster.name", cluster ).build();
 		TransportClient client = new PreBuiltTransportClient( settings );
 		client.addTransportAddress( new InetSocketTransportAddress(
@@ -51,26 +51,26 @@ public class ElasticsearchTransportClientFactory {
 				this.clientTransportPort )
 		);
 		
-		if ( verifyConnection( client ) ) {
+		if ( isConnected( client ) ) {
 			return client;
 		} else {
 			return null;
 		}
 	}
 	
-	public boolean verifyConnection( Client someClient ) {
+	public boolean isConnected( Client someClient ) {
 		if ( someClient == null ) {
-			log.info( "not connected to elasticsearch" );
+			logger.info( "not connected to elasticsearch" );
 			return false;
 		} else if ( someClient instanceof TransportClient ) {
 			TransportClient client = (TransportClient) someClient;
 			List<DiscoveryNode> nodes = client.connectedNodes();
 			if ( nodes.isEmpty() ) {
-				log.info( "no elasticsearch nodes found" );
+				logger.info( "no elasticsearch nodes found" );
 				client.close();
 				return false;
 			} else {
-				log.info( "connected to elasticsearch nodes: " + nodes.toString() );
+				logger.info( "connected to elasticsearch nodes: " + nodes.toString() );
 				return true;
 			}
 		} else {
@@ -79,10 +79,10 @@ public class ElasticsearchTransportClientFactory {
 			Future<ClusterStateResponse> response = client.admin().cluster().state( request );
 			try {
 				response.get();
-				log.info( "connected to elasticsearch" );
+				logger.info( "connected to elasticsearch" );
 				return true;
 			} catch ( InterruptedException | ExecutionException e ) {
-				log.info( "not connected to elasticsearch" );
+				logger.info( "not connected to elasticsearch" );
 				client.close();
 				return false;
 			}

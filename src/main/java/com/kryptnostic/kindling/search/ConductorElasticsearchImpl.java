@@ -49,6 +49,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 	
 	private Client client;
 	private ElasticsearchTransportClientFactory factory;
+	private ObjectMapper mapper;
 	private boolean connected = true;
 	private String server;
 	private String cluster;
@@ -76,6 +77,10 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 		cluster = config.getElasticsearchCluster();
 		port = config.getElasticsearchPort();
 		factory = new ElasticsearchTransportClientFactory( server, port, cluster );
+		ObjectMapper mapper = new ObjectMapper();
+		mapper.registerModule( new GuavaModule() );
+		mapper.registerModule( new JodaModule() );
+		this.mapper = mapper;
 	}
 	
 	public void initializeIndexUnlessItExists() {
@@ -140,15 +145,12 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 		try {
 			if ( !verifyElasticsearchConnection() ) return false;
 		} catch (UnknownHostException e) {
+			logger.debug( "not connected to elasticsearch" );
 			e.printStackTrace();
 		}
 	    Map<String, Object> entitySetDataModel = Maps.newHashMap();
 	    entitySetDataModel.put( ENTITY_SET, entitySet );
 	    entitySetDataModel.put( PROPERTY_TYPES, propertyTypes );
-	        
-		ObjectMapper mapper = new ObjectMapper();
-		mapper.registerModule( new GuavaModule() );
-		mapper.registerModule( new JodaModule() );
 		try {
 			String s = mapper.writeValueAsString( entitySetDataModel );
 			client.prepareIndex( ENTITY_SET_DATA_MODEL, ENTITY_SET_TYPE, entitySet.getId().toString() ).setSource( s ).execute().actionGet();
@@ -173,6 +175,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 		try {
 			if ( !verifyElasticsearchConnection() ) return Lists.newArrayList();
 		} catch (UnknownHostException e) {
+			logger.debug( "not connected to elasticsearch" );
 			e.printStackTrace();
 		}
 		BoolQueryBuilder permissionsQuery = new BoolQueryBuilder();
@@ -233,6 +236,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 		try {
 			if ( !verifyElasticsearchConnection() ) return false;
 		} catch (UnknownHostException e) {
+			logger.debug( "not connected to elasticsearch" );
 			e.printStackTrace();
 		}
 		Map<String, Object> acl = Maps.newHashMap();
@@ -240,10 +244,6 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         acl.put( TYPE, principal.getType().toString() );
         acl.put( NAME, principal.getId() );
         acl.put( ENTITY_SET_ID, entitySetId.toString() );
-        
-		ObjectMapper mapper = new ObjectMapper();
-		mapper.registerModule( new GuavaModule() );
-		mapper.registerModule( new JodaModule() );
 		try {
 			String s = mapper.writeValueAsString( acl );
 			String id = entitySetId.toString() + "_" + principal.getType().toString() + "_" + principal.getId();
@@ -260,14 +260,12 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 		try {
 			if ( !verifyElasticsearchConnection() ) return false;
 		} catch (UnknownHostException e) {
+			logger.debug( "not connected to elasticsearch" );
 			e.printStackTrace();
 		}
 		
 		Map<String, Object> propertyTypes = Maps.newHashMap();
 		propertyTypes.put( PROPERTY_TYPES, newPropertyTypes);
-		ObjectMapper mapper = new ObjectMapper();
-		mapper.registerModule( new GuavaModule() );
-		mapper.registerModule( new JodaModule() );
 		try {
 			String s = mapper.writeValueAsString( propertyTypes );
 			UpdateRequest updateRequest = new UpdateRequest( ENTITY_SET_DATA_MODEL, ENTITY_SET_TYPE, entitySetId.toString() ).doc( s );
@@ -282,7 +280,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 	
 	public boolean verifyElasticsearchConnection() throws UnknownHostException {
 		if ( connected ) {
-			if ( !factory.verifyConnection( client ) ) {
+			if ( !factory.isConnected( client ) ) {
 				connected = false;
 			}
 		} else {
@@ -304,6 +302,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 		try {
 			if ( !verifyElasticsearchConnection() ) return false;
 		} catch (UnknownHostException e) {
+			logger.debug( "not connected to elasticsearch" );
 			e.printStackTrace();
 		}
 		
