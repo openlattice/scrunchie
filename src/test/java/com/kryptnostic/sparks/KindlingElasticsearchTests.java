@@ -1,18 +1,12 @@
 package com.kryptnostic.sparks;
 
-import java.io.IOException;
-import java.net.UnknownHostException;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
 import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind;
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
-import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.dataloom.authorization.Permission;
 import com.dataloom.authorization.Principal;
@@ -22,61 +16,8 @@ import com.dataloom.edm.internal.PropertyType;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.kryptnostic.conductor.rpc.SearchConfiguration;
-import com.kryptnostic.kindling.search.ConductorElasticsearchImpl;
 
-import pl.allegro.tech.embeddedelasticsearch.EmbeddedElastic;
-import pl.allegro.tech.embeddedelasticsearch.PopularProperties;
-
-import org.elasticsearch.common.settings.Settings;
-
-public class KindlingElasticsearchTests extends BaseKindlingSparkTest {
-	
-    private static final UUID   ENTITY_SET_ID  = UUID.fromString( "0a648f39-5e41-46b5-a928-ec44cdeeae13" );
-    private static final UUID   ENTITY_TYPE_ID = UUID.fromString( "c271a300-ea05-420b-b33b-8ecb18de5ce7" );
-    private static final String TITLE          = "The Entity Set Title";
-    private static final String DESCRIPTION    = "This is a description for the entity set called employees.";
-    
-    private static final String NAMESPACE                = "testcsv";
-    private static final String SALARY                   = "salary";
-    private static final String EMPLOYEE_NAME            = "employee_name";
-    private static final String EMPLOYEE_TITLE           = "employee_title";
-    private static final String EMPLOYEE_DEPT            = "employee_dept";
-    private static final String EMPLOYEE_ID              = "employee_id";
-    private static final String WEIGHT					 = "weight";
-    private static final String ENTITY_SET_NAME          = "Employees";
-    private static final FullQualifiedName    ENTITY_TYPE              = new FullQualifiedName(
-            NAMESPACE,
-            "employee" );
-    
-    private SearchConfiguration config;
-    private ConductorElasticsearchImpl elasticsearchApi;
-    private final Logger logger = LoggerFactory.getLogger( getClass() );
-    
-    @BeforeClass
-    public static void startElasticsearchCluster() {
-    	Settings settings = Settings.builder().put( "cluster.name", "loom_development" ).build();
-    	try {
-			EmbeddedElastic elastic = EmbeddedElastic.builder()
-					.withElasticVersion( "5.1.1" )
-					.withSetting( PopularProperties.TRANSPORT_TCP_PORT, 9300 )
-					.withSetting( PopularProperties.CLUSTER_NAME, "loom_development" )
-					.build()
-					.start();
-		} catch (IOException | InterruptedException e) {
-			e.printStackTrace();
-		}
-    }
-
-    @Before
-    public void init() {
-    	this.config = new SearchConfiguration( "localhost", "loom_development", 9300 );
-    	try {
-			this.elasticsearchApi = new ConductorElasticsearchImpl( config );
-		} catch (UnknownHostException e) {
-			e.printStackTrace();
-		}
-    }
+public class KindlingElasticsearchTests extends BaseElasticsearchTest {
         
     @Test
     public void initializeIndex() {
