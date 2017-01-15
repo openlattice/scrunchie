@@ -10,6 +10,9 @@ plugins {
 description = "Kryptnostic Spark RPC Library"
 group = "com.kryptnostic"
 ext.projectName = "kindling"
+ext.scmUrl = 'scm:git:https://github.com/dataloom/kindling.git'
+ext.connectionUrl = 'scm:git:https://github.com/dataloom/kindling.git'
+ext.developerConnectionUrl = 'scm:git:https://github.com/dataloom/kindling.git'
 
 apply from: 'https://raw.githubusercontent.com/kryptnostic/gradles/master/kryptnostic.gradle'
 
