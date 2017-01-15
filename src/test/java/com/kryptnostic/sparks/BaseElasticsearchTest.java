@@ -37,6 +37,7 @@ public class BaseElasticsearchTest {
     private static final int ELASTICSEARCH_PORT = 9300;
     private static final String ELASTICSEARCH_CLUSTER = "loom_development_test";
     private static final String ELASTICSEARCH_URL = "localhost";
+    private static final String ELASTICSEARCH_TMPDIR = "-Djava.io.tmpdir=elasticsearchtmp";
     
 	private static EmbeddedElastic elastic;
 	private static SearchConfiguration config;
@@ -50,6 +51,7 @@ public class BaseElasticsearchTest {
 					.withElasticVersion( ELASTICSEARCH_VERSION )
 					.withSetting( PopularProperties.TRANSPORT_TCP_PORT, ELASTICSEARCH_PORT )
 					.withSetting( PopularProperties.CLUSTER_NAME, ELASTICSEARCH_CLUSTER )
+					.withEsJavaOpts( ELASTICSEARCH_TMPDIR )
 					.build()
 					.start();
 			config = new SearchConfiguration( ELASTICSEARCH_URL, ELASTICSEARCH_CLUSTER, ELASTICSEARCH_PORT );
