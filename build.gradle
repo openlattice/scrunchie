@@ -21,6 +21,13 @@ applicationDefaultJvmArgs = ["-Xmx4G","-Xms4G","-server"]
 ext.sourceCompatibility=JavaVersion.VERSION_1_8
 ext.targetCompatibility=JavaVersion.VERSION_1_8
 
+repositories {
+    mavenLocal()
+    maven {
+    	url "http://conjars.org/repo/"
+    }
+}
+
 configurations {
     provided
 }
@@ -35,6 +42,7 @@ configurations.all {
   resolutionStrategy {
     force 'com.fasterxml.jackson.core:jackson-core:2.6.5','com.fasterxml.jackson.core:jackson-databind:2.6.5','com.fasterxml.jackson.module:jackson-module-afterburner:2.6.5','com.fasterxml.jackson.datatype:jackson-datatype-guava:2.6.5','com.fasterxml.jackson.dataformat:jackson-dataformat-smile:2.6.5','com.fasterxml.jackson.module:jackson-module-jaxb-annotations:2.6.5','com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.6.5','com.fasterxml.jackson.jaxrs:jackson-jaxrs-json-provider:2.6.5'
   }
+  exclude module: 'slf4j-log4j12'
 }
 
 dependencies {
@@ -110,12 +118,26 @@ dependencies {
     compile group: 'com.datastax.cassandra', name: 'cassandra-driver-mapping', version: "${cassandra_driver_version}"
     compile group: 'com.datastax.cassandra', name: 'cassandra-driver-extras', version: "${cassandra_driver_version}"
     
-
+   	 /*
+      * ELASTICSEARCH
+      */
+     compile ("org.elasticsearch:elasticsearch:5.1.1") {
+     	exclude module: 'slf4j-log4j12'
+     }
+     compile ("org.elasticsearch:elasticsearch-hadoop:5.1.1") {
+     	exclude module: 'apache-curator'
+     	exclude module: 'slf4j-log4j12'
+     }
+     compile ("org.elasticsearch.client:transport:5.1.1") {
+     	exclude module: 'slf4j-log4j12'
+     }
+    
     /*
      * TESTING
      */
     testCompile "junit:junit:${junit_version}"
-    testCompile "org.mockito:mockito-core:2.2.7";    
+    testCompile "org.mockito:mockito-core:2.2.7";
+    testCompile 'pl.allegro.tech:embedded-elasticsearch:2.1.0'    
  }
 
 eclipse {
