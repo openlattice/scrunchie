@@ -56,7 +56,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 	public ConductorElasticsearchImpl( SearchConfiguration config ) throws UnknownHostException {
 		init( config );
 		client = factory.getClient();
-		initializeIndexUnlessItExists();
+		initializeEntitySetDataModelIndex();
 	}
 
 	@Inject
@@ -65,7 +65,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 			Client someClient ) {
 		init( config );
 		client = someClient;
-		initializeIndexUnlessItExists();
+		initializeEntitySetDataModelIndex();
 	}
 	
 	private void init( SearchConfiguration config ) {
@@ -75,20 +75,18 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 		factory = new ElasticsearchTransportClientFactory( server, port, cluster );
 	}
 	
-	public void initializeIndexUnlessItExists() {
-		boolean exists = client.admin().indices()
-				.prepareExists( ENTITY_SET_DATA_MODEL ).execute().actionGet().isExists();
-		if ( !exists ) {
-			initializeEntitySetDataModelIndex();
-		}
-	}
-	
 	@Override
 	public Boolean initializeEntitySetDataModelIndex() {
 		try {
 			if ( !verifyElasticsearchConnection() ) return false;
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
+		}
+		
+		boolean exists = client.admin().indices()
+				.prepareExists( ENTITY_SET_DATA_MODEL ).execute().actionGet().isExists();
+		if ( exists ) {
+			return true;
 		}
 		
 		// constant Map<String, String> type fields

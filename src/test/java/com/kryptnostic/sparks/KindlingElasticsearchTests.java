@@ -1,5 +1,6 @@
 package com.kryptnostic.sparks;
 
+import java.io.IOException;
 import java.net.UnknownHostException;
 import java.util.List;
 import java.util.Set;
@@ -8,6 +9,7 @@ import java.util.UUID;
 import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind;
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,6 +24,11 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.kryptnostic.conductor.rpc.SearchConfiguration;
 import com.kryptnostic.kindling.search.ConductorElasticsearchImpl;
+
+import pl.allegro.tech.embeddedelasticsearch.EmbeddedElastic;
+import pl.allegro.tech.embeddedelasticsearch.PopularProperties;
+
+import org.elasticsearch.common.settings.Settings;
 
 public class KindlingElasticsearchTests extends BaseKindlingSparkTest {
 	
@@ -45,6 +52,21 @@ public class KindlingElasticsearchTests extends BaseKindlingSparkTest {
     private SearchConfiguration config;
     private ConductorElasticsearchImpl elasticsearchApi;
     private final Logger logger = LoggerFactory.getLogger( getClass() );
+    
+    @BeforeClass
+    public static void startElasticsearchCluster() {
+    	Settings settings = Settings.builder().put( "cluster.name", "loom_development" ).build();
+    	try {
+			EmbeddedElastic elastic = EmbeddedElastic.builder()
+					.withElasticVersion( "5.1.1" )
+					.withSetting( PopularProperties.TRANSPORT_TCP_PORT, 9300 )
+					.withSetting( PopularProperties.CLUSTER_NAME, "loom_development" )
+					.build()
+					.start();
+		} catch (IOException | InterruptedException e) {
+			e.printStackTrace();
+		}
+    }
 
     @Before
     public void init() {
@@ -120,6 +142,16 @@ public class KindlingElasticsearchTests extends BaseKindlingSparkTest {
     }
     
     @Test
+    public void testAddEntitySetPermissions() {
+    	Principal principal = new Principal( PrincipalType.ROLE, "user" );
+    	Set<Permission> newPermissions = Sets.newHashSet();
+    	newPermissions.add( Permission.WRITE );
+    	newPermissions.add( Permission.READ );
+		elasticsearchApi.updateEntitySetPermissions( ENTITY_SET_ID, principal, newPermissions );
+    }
+    
+    
+    @Test
     public void testEntitySetKeywordSearch() {
     	Set<Principal> principals = Sets.newHashSet();
     //	principals.add( new Principal( PrincipalType.USER, "katherine" ) );
@@ -139,15 +171,6 @@ public class KindlingElasticsearchTests extends BaseKindlingSparkTest {
 //				Optional.of( entityTypeFqn ),
 		//		Optional.of( propertyTypes )
 		);
-    }
-    
-    @Test
-    public void testAddEntitySetPermissions() {
-    	Principal principal = new Principal( PrincipalType.ROLE, "user" );
-    	Set<Permission> newPermissions = Sets.newHashSet();
-    	newPermissions.add( Permission.WRITE );
-    	newPermissions.add( Permission.READ );
-		elasticsearchApi.updateEntitySetPermissions( ENTITY_SET_ID, principal, newPermissions );
     }
     
     @Test
