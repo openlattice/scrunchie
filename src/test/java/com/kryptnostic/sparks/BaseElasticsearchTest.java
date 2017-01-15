@@ -49,8 +49,9 @@ public class BaseElasticsearchTest {
     	try {
 			elastic = EmbeddedElastic.builder()
 					.withElasticVersion( ELASTICSEARCH_VERSION )
-					.withSetting( PopularProperties.TRANSPORT_TCP_PORT, ELASTICSEARCH_PORT )
+					//.withSetting( PopularProperties.TRANSPORT_TCP_PORT, ELASTICSEARCH_PORT )
 					.withSetting( PopularProperties.CLUSTER_NAME, ELASTICSEARCH_CLUSTER )
+					.withSetting("http.enabled", false )
 					.withEsJavaOpts( ELASTICSEARCH_TMPDIR )
 					.build()
 					.start();
