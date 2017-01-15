@@ -4,8 +4,6 @@ import java.io.IOException;
 import java.util.UUID;
 
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
-import org.elasticsearch.common.settings.Settings;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,10 +57,5 @@ public class BaseElasticsearchTest {
 		} catch (IOException | InterruptedException e) {
 			e.printStackTrace();
 		}
-    }
-    
-    @AfterClass
-    public static void killElasticsearch() {
-    	elastic.stop();
     }
 }
