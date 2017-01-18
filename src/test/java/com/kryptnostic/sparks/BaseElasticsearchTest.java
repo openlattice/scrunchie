@@ -1,6 +1,6 @@
 package com.kryptnostic.sparks;
 
-import java.io.IOException;
+import java.net.UnknownHostException;
 import java.util.UUID;
 
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
@@ -8,11 +8,10 @@ import org.junit.BeforeClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.kryptnostic.conductor.rpc.ConductorConfiguration;
 import com.kryptnostic.conductor.rpc.SearchConfiguration;
 import com.kryptnostic.kindling.search.ConductorElasticsearchImpl;
-
-import pl.allegro.tech.embeddedelasticsearch.EmbeddedElastic;
-import pl.allegro.tech.embeddedelasticsearch.PopularProperties;
+import com.kryptnostic.rhizome.configuration.service.ConfigurationService.StaticLoader;
 
 public class BaseElasticsearchTest {
 	
@@ -33,32 +32,19 @@ public class BaseElasticsearchTest {
             NAMESPACE,
             "employee" );
     
-    private static final String ELASTICSEARCH_VERSION = "5.1.1";
-    private static final int ELASTICSEARCH_PORT = 9300;
-    private static final String ELASTICSEARCH_CLUSTER = "loom_development_test";
-    private static final String ELASTICSEARCH_URL = "localhost";
-    private static final String ELASTICSEARCH_TMPDIR = "-Djava.io.tmpdir=elasticsearchtmp";
-    
-	private static EmbeddedElastic elastic;
-	private static SearchConfiguration config;
+    protected static final int ELASTICSEARCH_PORT = 9300;
+    protected static final String ELASTICSEARCH_CLUSTER = "loom_development";
+    protected static final String ELASTICSEARCH_URL = "localhost";
 	protected static ConductorElasticsearchImpl elasticsearchApi;
-	protected final Logger logger = LoggerFactory.getLogger( getClass() );
+	protected static final Logger logger = LoggerFactory.getLogger( BaseElasticsearchTest.class );
 	
-    @BeforeClass
-    public static void startElasticsearchCluster() {
-    	try {
-			elastic = EmbeddedElastic.builder()
-					.withElasticVersion( ELASTICSEARCH_VERSION )
-					//.withSetting( PopularProperties.TRANSPORT_TCP_PORT, ELASTICSEARCH_PORT )
-					.withSetting( PopularProperties.CLUSTER_NAME, ELASTICSEARCH_CLUSTER )
-					.withSetting("http.enabled", false )
-					.withEsJavaOpts( ELASTICSEARCH_TMPDIR )
-					.build()
-					.start();
-			config = new SearchConfiguration( ELASTICSEARCH_URL, ELASTICSEARCH_CLUSTER, ELASTICSEARCH_PORT );
-			elasticsearchApi = new ConductorElasticsearchImpl( config );
-		} catch (IOException | InterruptedException e) {
-			e.printStackTrace();
-		}
-    }
+	@BeforeClass
+	public static void init() {
+	    SearchConfiguration config = StaticLoader.loadConfiguration( ConductorConfiguration.class ).getSearchConfiguration();
+	    try {
+            elasticsearchApi = new ConductorElasticsearchImpl( config );
+        } catch ( UnknownHostException e ) {
+            e.printStackTrace();
+        }
+	}
 }

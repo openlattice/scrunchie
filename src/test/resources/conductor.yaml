@@ -1,0 +1,11 @@
+#
+# Conductor Server Configuration
+#
+reportEmailAddress: yao@kryptnostic.com
+sparkJars:
+  - ../kindling/build/libs/kindling-0.0.0-SNAPSHOT-all.jar
+  - ./kindling/build/libs/kindling-0.0.0-SNAPSHOT-all.jar
+searchConfiguration:
+  elasticsearchUrl: elasticsearch
+  elasticsearchCluster: loom_development
+  elasticsearchPort: 9300
