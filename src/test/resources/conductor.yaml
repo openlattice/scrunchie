@@ -6,6 +6,6 @@ sparkJars:
   - ../kindling/build/libs/kindling-0.0.0-SNAPSHOT-all.jar
   - ./kindling/build/libs/kindling-0.0.0-SNAPSHOT-all.jar
 searchConfiguration:
-  elasticsearchUrl: elasticsearch
+  elasticsearchUrl: localhost
   elasticsearchCluster: loom_development
   elasticsearchPort: 9300
