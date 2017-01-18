@@ -21,13 +21,6 @@ applicationDefaultJvmArgs = ["-Xmx4G","-Xms4G","-server"]
 ext.sourceCompatibility=JavaVersion.VERSION_1_8
 ext.targetCompatibility=JavaVersion.VERSION_1_8
 
-repositories {
-    mavenLocal()
-    maven {
-    	url "http://conjars.org/repo/"
-    }
-}
-
 configurations {
     provided
 }
