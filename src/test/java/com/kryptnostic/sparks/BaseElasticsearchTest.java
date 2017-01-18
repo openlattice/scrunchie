@@ -2,9 +2,11 @@ package com.kryptnostic.sparks;
 
 import java.io.IOException;
 import java.util.UUID;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
-import org.junit.BeforeClass;
+import org.junit.AfterClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,11 +43,11 @@ public class BaseElasticsearchTest {
     
 	private static EmbeddedElastic elastic;
 	private static SearchConfiguration config;
+	private static final Lock lock = new ReentrantLock();
 	protected static ConductorElasticsearchImpl elasticsearchApi;
 	protected final Logger logger = LoggerFactory.getLogger( getClass() );
 	
-    @BeforeClass
-    public static void startElasticsearchCluster() {
+    static {
     	try {
 			elastic = EmbeddedElastic.builder()
 					.withElasticVersion( ELASTICSEARCH_VERSION )
@@ -58,6 +60,18 @@ public class BaseElasticsearchTest {
 			config = new SearchConfiguration( ELASTICSEARCH_URL, ELASTICSEARCH_CLUSTER, ELASTICSEARCH_PORT );
 			elasticsearchApi = new ConductorElasticsearchImpl( config );
 		} catch (IOException | InterruptedException e) {
+			e.printStackTrace();
+		}
+    }
+    
+    @AfterClass
+    public static void killTests() {
+    	try {
+    		if ( lock.tryLock() ) {
+    			Thread.sleep( 120000 );
+    			elastic.stop();
+    		}
+		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
     }
