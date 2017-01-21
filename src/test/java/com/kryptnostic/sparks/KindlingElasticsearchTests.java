@@ -28,7 +28,6 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
     public void testWriteEntitySetMetadata() {
     	EntitySet entitySet = new EntitySet(
     			ENTITY_SET_ID,
-    			ENTITY_TYPE,
     			ENTITY_TYPE_ID,
     			ENTITY_SET_NAME,
     			TITLE,
