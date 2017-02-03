@@ -6,6 +6,7 @@ import java.net.UnknownHostException;
 import java.security.SecureRandom;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -32,6 +33,7 @@ import com.datastax.spark.connector.cql.CassandraConnector;
 import com.datastax.spark.connector.japi.CassandraJavaUtil;
 import com.datastax.spark.connector.japi.SparkContextJavaFunctions;
 import com.google.common.base.Optional;
+import com.google.common.collect.SetMultimap;
 import com.hazelcast.core.HazelcastInstance;
 import com.kryptnostic.conductor.rpc.ConductorElasticsearchApi;
 import com.kryptnostic.conductor.rpc.ConductorSparkApi;
@@ -439,5 +441,10 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 	public Boolean deleteEntitySet( UUID entitySetId ) {
 		return elasticsearchApi.deleteEntitySet( entitySetId );
 	}
+
+    @Override
+    public Boolean createEntityData( UUID entitySetId, String entityId, Map<UUID, String> propertyValues ) {
+        return elasticsearchApi.createEntityData( entitySetId, entityId, propertyValues );
+    }
 
 }

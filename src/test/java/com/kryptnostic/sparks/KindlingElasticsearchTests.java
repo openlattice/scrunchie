@@ -18,13 +18,23 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 public class KindlingElasticsearchTests extends BaseElasticsearchTest {
+    
+    @Test
+    public void yes() {
+        
+    }
         
     @Test
-    public void initializeIndex() {
+    public void initializeDataModelIndex() {
 		elasticsearchApi.initializeEntitySetDataModelIndex();
     }
-
+    
     @Test
+    public void initializeDataIndex() {
+        elasticsearchApi.initializeEntitySetDataIndex();
+    }
+
+   // @Test
     public void testWriteEntitySetMetadata() {
     	EntitySet entitySet = new EntitySet(
     			ENTITY_SET_ID,
@@ -81,7 +91,7 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
 		elasticsearchApi.saveEntitySetToElasticsearch( entitySet, propertyTypes, owner );
     }
     
-    @Test
+   // @Test
     public void testAddEntitySetPermissions() {
     	Principal principal = new Principal( PrincipalType.ROLE, "user" );
     	Set<Permission> newPermissions = Sets.newHashSet();
@@ -91,7 +101,7 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
     }
     
     
-    @Test
+   // @Test
     public void testEntitySetKeywordSearch() {
     	Set<Principal> principals = Sets.newHashSet();
     //	principals.add( new Principal( PrincipalType.USER, "katherine" ) );
@@ -113,7 +123,7 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
 		);
     }
     
-    @Test
+    //@Test
     public void testUpdatePropertyTypes() {
     	PropertyType empId = new PropertyType(
         		UUID.randomUUID(),
@@ -161,7 +171,7 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
 		elasticsearchApi.updatePropertyTypesInEntitySet( ENTITY_SET_ID, propertyTypes);
     }
     
-    @Test
+  //  @Test
     public void testDeleteEntitySet() {
 		elasticsearchApi.deleteEntitySet( ENTITY_SET_ID );
     }
@@ -180,6 +190,11 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
 //        
 //    	
 //    }
+    
+    @Test
+    public void testExecuteEntityDataQuery() {
+        elasticsearchApi.executeEntityDataQuery( "police officer" );
+    }
     
     
     
