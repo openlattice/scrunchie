@@ -26,6 +26,7 @@ import com.dataloom.data.requests.LookupEntitiesRequest;
 import com.dataloom.edm.internal.EntitySet;
 import com.dataloom.edm.internal.EntityType;
 import com.dataloom.edm.internal.PropertyType;
+import com.dataloom.organization.Organization;
 import com.datastax.driver.core.DataType;
 import com.datastax.driver.core.Session;
 import com.datastax.spark.connector.cql.CassandraConnector;
@@ -439,5 +440,30 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 	public Boolean deleteEntitySet( UUID entitySetId ) {
 		return elasticsearchApi.deleteEntitySet( entitySetId );
 	}
+
+    @Override
+    public Boolean createOrganization( Organization organization, Principal principal ) {
+        return elasticsearchApi.createOrganization( organization, principal );
+    }
+
+    @Override
+    public List<Map<String, Object>> executeOrganizationKeywordSearch( String searchTerm, Set<Principal> principals ) {
+        return elasticsearchApi.executeOrganizationSearch( searchTerm, principals );
+    }
+
+    @Override
+    public Boolean updateOrganization( UUID id, Optional<String> optionalTitle, Optional<String> optionalDescription ) {
+        return elasticsearchApi.updateOrganization( id, optionalTitle, optionalDescription );
+    }
+
+    @Override
+    public Boolean deleteOrganization( UUID organizationId ) {
+        return elasticsearchApi.deleteOrganization( organizationId );
+    }
+
+    @Override
+    public Boolean updateOrganizationPermissions( UUID organizationId, Principal principal, Set<Permission> permissions ) {
+        return elasticsearchApi.updateOrganizationPermissions( organizationId, principal, permissions );
+    }
 
 }
