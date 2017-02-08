@@ -2,11 +2,9 @@ package com.kryptnostic.sparks;
 
 import java.io.Serializable;
 import java.math.BigInteger;
-import java.net.UnknownHostException;
 import java.security.SecureRandom;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -33,7 +31,6 @@ import com.datastax.spark.connector.cql.CassandraConnector;
 import com.datastax.spark.connector.japi.CassandraJavaUtil;
 import com.datastax.spark.connector.japi.SparkContextJavaFunctions;
 import com.google.common.base.Optional;
-import com.google.common.collect.SetMultimap;
 import com.hazelcast.core.HazelcastInstance;
 import com.kryptnostic.conductor.rpc.ConductorElasticsearchApi;
 import com.kryptnostic.conductor.rpc.ConductorSparkApi;
@@ -41,7 +38,6 @@ import com.kryptnostic.conductor.rpc.QueryResult;
 import com.kryptnostic.datastore.cassandra.CassandraEdmMapping;
 import com.kryptnostic.datastore.cassandra.CommonColumns;
 import com.kryptnostic.datastore.services.EdmManager;
-import com.kryptnostic.kindling.search.ConductorElasticsearchImpl;
 
 public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     private static final long               serialVersionUID = 825467486008335571L;
@@ -415,15 +411,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 
 	@Override
 	public Boolean submitEntitySetToElasticsearch(EntitySet entitySet, List<PropertyType> propertyTypes, Principal principal) {
-		elasticsearchApi.saveEntitySetToElasticsearch( entitySet, propertyTypes, principal );
-		// TODO Auto-generated method stub
-		return true;
-	}
-
-	@Override
-	public Boolean submitEntitySetDataToElasticsearch(EntitySet entitySet, Dataset<Row> entitySetData) {
-		// TODO Auto-generated method stub
-		return null;
+		return elasticsearchApi.saveEntitySetToElasticsearch( entitySet, propertyTypes, principal );
 	}
 
 	@Override
@@ -446,5 +434,11 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     public Boolean createEntityData( UUID entitySetId, String entityId, Map<UUID, String> propertyValues ) {
         return elasticsearchApi.createEntityData( entitySetId, entityId, propertyValues );
     }
+
+    @Override
+    public List<Map<String, Object>> executeEntitySetDataSearch( UUID entitySetId, String searchTerm, Set<UUID> authorizedPropertyTypes ) {
+        return elasticsearchApi.executeEntitySetDataSearch( entitySetId, searchTerm, authorizedPropertyTypes );
+    }
+    
 
 }

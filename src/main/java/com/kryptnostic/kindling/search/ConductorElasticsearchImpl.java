@@ -12,6 +12,7 @@ import java.util.concurrent.ExecutionException;
 import javax.inject.Inject;
 
 import org.apache.lucene.search.join.ScoreMode;
+import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.Client;
@@ -59,7 +60,6 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 		init( config );
 		client = factory.getClient();
 		initializeEntitySetDataModelIndex();
-		initializeEntitySetDataIndex();
 	}
 
 	@Inject
@@ -69,7 +69,6 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 		init( config );
 		client = someClient;
 		initializeEntitySetDataModelIndex();
-		initializeEntitySetDataIndex();
 	}
 	
 	private void init( SearchConfiguration config ) {
@@ -134,51 +133,44 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 		return true;
 	}
 	
-	@Override
-	public Boolean initializeEntitySetDataIndex() {
+	public Boolean createSecurableObjectIndex( UUID securableObjectId ) {
 	    try {
             if ( !verifyElasticsearchConnection() ) return false;
         } catch (UnknownHostException e) {
             e.printStackTrace();
         }
         
+        String indexName = SECURABLE_OBJECT_INDEX_PREFIX + securableObjectId.toString();
+	    
         boolean exists = client.admin().indices()
-                .prepareExists( ENTITY_SET_DATA ).execute().actionGet().isExists();
+                .prepareExists( indexName ).execute().actionGet().isExists();
         if ( exists ) {
             return true;
         }
-     // constant Map<String, String> type fields
+                
+        // constant Map<String, String> type fields
+        Map<String, String> objectField = Maps.newHashMap();
+        Map<String, String> nestedField = Maps.newHashMap();
         Map<String, String> keywordField = Maps.newHashMap();
-        Map<String, Object> entityDataParent = Maps.newHashMap();
+        objectField.put( TYPE, OBJECT );
+        nestedField.put( TYPE, NESTED );
         keywordField.put( TYPE, KEYWORD );
-        entityDataParent.put( TYPE, ENTITY_SET_TYPE );
         
-     // entity_set type mapping
-        Map<String, Object> entitySetProperties = Maps.newHashMap();
-        Map<String, Object> entitySetPropertiesHolder = Maps.newHashMap();
-        Map<String, Object> entitySetMapping = Maps.newHashMap();
-        entitySetProperties.put( ENTITY_SET_ID, keywordField );
-        entitySetPropertiesHolder.put( ES_PROPERTIES, entitySetProperties );
-        entitySetMapping.put( ENTITY_SET_TYPE, entitySetPropertiesHolder );
-        
-     // entity_data type mapping
-        Map<String, Object> entityDataProperties = Maps.newHashMap();
-        Map<String, Object> entityDataPropertiesHolder = Maps.newHashMap();
-        Map<String, Object> entityDataMapping = Maps.newHashMap();
-        entityDataPropertiesHolder.put( ES_PROPERTIES, entityDataProperties );
-        entityDataPropertiesHolder.put( PARENT, entityDataParent );
-        entityDataMapping.put( ENTITY_DATA_TYPE, entityDataPropertiesHolder );
+        // securable_object_row type mapping
+        Map<String, Object> securableObjectData = Maps.newHashMap();
+        Map<String, Object> securableObjectMapping = Maps.newHashMap();
+        securableObjectData.put( ES_PROPERTIES, Maps.newHashMap() );
+        securableObjectMapping.put( SECURABLE_OBJECT_ROW_TYPE, securableObjectData );
 
-        client.admin().indices().prepareCreate( ENTITY_SET_DATA )
+        client.admin().indices().prepareCreate( indexName )
         .setSettings( Settings.builder()
                 .put( NUM_SHARDS, 3 )
                 .put( NUM_REPLICAS, 2 ) )
-        .addMapping( ENTITY_SET_TYPE, entitySetMapping)
-        .addMapping( ENTITY_DATA_TYPE, entityDataMapping )
+        .addMapping( SECURABLE_OBJECT_ROW_TYPE, securableObjectMapping)
         .execute().actionGet();
-        return true;        
+        return true;
 	}
-	
+
 	@Override
 	public Boolean saveEntitySetToElasticsearch( EntitySet entitySet, List<PropertyType> propertyTypes, Principal principal ) {
 		try {
@@ -191,17 +183,16 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 	    entitySetDataModel.put( ENTITY_SET, entitySet );
 	    entitySetDataModel.put( PROPERTY_TYPES, propertyTypes );
 	    
-	    Map<String, String> idSource = Maps.newHashMap();
-	    idSource.put( ENTITY_SET_ID, entitySet.getId().toString() );
 		try {
+		    // add the entity set to the data model index and give principal permissions on it
 			String s = ObjectMappers.getJsonMapper().writeValueAsString( entitySetDataModel );
-			String idSourceString = ObjectMappers.getJsonMapper().writeValueAsString( idSource );
 			client.prepareIndex( ENTITY_SET_DATA_MODEL, ENTITY_SET_TYPE, entitySet.getId().toString() ).setSource( s ).execute().actionGet();
 			updateEntitySetPermissions(
 					entitySet.getId(),
 					principal,
 					Sets.newHashSet( Permission.OWNER, Permission.READ, Permission.WRITE, Permission.DISCOVER, Permission.LINK ) );
-			client.prepareIndex( ENTITY_SET_DATA, ENTITY_SET_TYPE, entitySet.getId().toString() ).setSource( idSourceString ).execute().actionGet();
+			
+			createSecurableObjectIndex( entitySet.getId() );
 			return true;
 		} catch (JsonProcessingException e) {
 			e.printStackTrace();
@@ -269,8 +260,10 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 					permissions.addAll( (List<String>) innerHit.getSource().get( ACLS ) );
 				}
 			}
-			match.put( ACLS, permissions );
-			hits.add( match );
+			if ( permissions.size() > 0 ) {
+			    match.put( ACLS, permissions );
+			    hits.add( match );
+			}
 		}
 		return hits;
 	}
@@ -363,15 +356,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 		.source( ENTITY_SET_DATA_MODEL )
 		.get();
 		
-		//entity set data
-		client.prepareDelete( ENTITY_SET_DATA, ENTITY_SET_TYPE, entitySetId.toString() ).get();
-
-        new DeleteByQueryRequestBuilder(client, DeleteByQueryAction.INSTANCE).filter(
-                QueryBuilders.boolQuery()
-                .must( QueryBuilders.matchQuery( TYPE_FIELD, ENTITY_DATA_TYPE ) )
-                .must( QueryBuilders.matchQuery( PARENT, entitySetId.toString() ) ) )
-        .source( ENTITY_SET_DATA )
-        .get();
+        String dataIndexName = SECURABLE_OBJECT_INDEX_PREFIX + entitySetId.toString();
+        client.admin().indices().delete( new DeleteIndexRequest( dataIndexName) ).actionGet();
 		
 		return true;
 	}
@@ -384,12 +370,12 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             logger.debug( "not connected to elasticsearch" );
             e.printStackTrace();
         }
+        String indexName = SECURABLE_OBJECT_INDEX_PREFIX + entitySetId.toString();
         
         try {
             String s = ObjectMappers.getJsonMapper().writeValueAsString( propertyValues );
             client
-                .prepareIndex( ENTITY_SET_DATA, ENTITY_DATA_TYPE, entityId )
-                .setParent( entitySetId.toString() )
+                .prepareIndex( indexName, SECURABLE_OBJECT_ROW_TYPE, entityId )
                 .setSource( s )
                 .execute()
                 .actionGet();
@@ -400,61 +386,39 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         
         return true;
     }
-    
+
     @Override
-    public List<Map<String, Object>> executeEntityDataQuery( String keywordSearchTerm ) {
+    public List<Map<String, Object>> executeEntitySetDataSearch( UUID entitySetId, String searchTerm, Set<UUID> authorizedPropertyTypes) {
         try {
             if ( !verifyElasticsearchConnection() ) return Lists.newArrayList();
         } catch (UnknownHostException e) {
             logger.debug( "not connected to elasticsearch" );
             e.printStackTrace();
         }
+        String indexName = SECURABLE_OBJECT_INDEX_PREFIX + entitySetId.toString();
         
         BoolQueryBuilder query = new BoolQueryBuilder();
-        query.must( QueryBuilders.matchQuery( "_all", keywordSearchTerm ).fuzziness( Fuzziness.AUTO ) );
-        
-        Set<Principal> principals = Sets.newHashSet();
-        BoolQueryBuilder permissionsQuery = new BoolQueryBuilder();
-        for ( Principal principal: principals) {
-            BoolQueryBuilder childQuery = new BoolQueryBuilder();
-            childQuery.must( QueryBuilders.matchQuery( NAME, principal.getId() ) );
-            childQuery.must( QueryBuilders.matchQuery( TYPE, principal.getType().toString() ) );
-            childQuery.must( QueryBuilders.regexpQuery( ACLS, ".*" ) );
-            String hitName = "acl_" + principal.getType().toString() + "_" + principal.getId();
-            permissionsQuery.should( QueryBuilders.hasChildQuery( ACLS, childQuery, ScoreMode.Avg )
-                    .innerHit( new InnerHitBuilder().setFetchSourceContext( new FetchSourceContext(true, new String[]{ACLS}, null)).setName( hitName ) ) );
+        for ( UUID propertyTypeId: authorizedPropertyTypes ) {
+            query.should( QueryBuilders.matchQuery( propertyTypeId.toString(), searchTerm ).fuzziness( Fuzziness.AUTO ) );
         }
-        permissionsQuery.minimumNumberShouldMatch( 1 );
-
-        query.must( QueryBuilders.hasParentQuery( ENTITY_SET_TYPE, permissionsQuery, false ) );
-
-//        BoolQueryBuilder query = new BoolQueryBuilder();
-//        query.should( QueryBuilders.matchQuery( ENTITY_SET + "." + NAME, searchTerm ).fuzziness( Fuzziness.AUTO ) )
-//        .should( QueryBuilders.matchQuery( ENTITY_SET + "." + TITLE, searchTerm).fuzziness( Fuzziness.AUTO ) )
-//               .should( QueryBuilders.matchQuery( ENTITY_SET + "." + DESCRIPTION, searchTerm ).fuzziness( Fuzziness.AUTO ) )
-//                .minimumNumberShouldMatch( 1 );
-//        }
-//        
-//        if ( optionalEntityType.isPresent() ) {
-//            UUID eid = optionalEntityType.get();
-//            query.must( QueryBuilders.matchQuery( ENTITY_SET + "." + ENTITY_TYPE_ID, eid.toString() ) );
-//        } else if ( optionalPropertyTypes.isPresent() ) {
-//            Set<UUID> propertyTypes = optionalPropertyTypes.get();
-//            for ( UUID pid: propertyTypes ) {
-//                query.must( QueryBuilders.nestedQuery( PROPERTY_TYPES, QueryBuilders.matchQuery( PROPERTY_TYPES + "." + ID, pid.toString() ), ScoreMode.Avg ) );
-//            }
-//        }
-        SearchResponse response = client.prepareSearch( ENTITY_SET_DATA )
-                .setTypes( ENTITY_DATA_TYPE )
-                .setQuery( QueryBuilders.matchQuery( "_all", keywordSearchTerm ).fuzziness( Fuzziness.AUTO ) )
+        query.minimumNumberShouldMatch( 1 );
+        
+        List<String> fetchSource = Lists.newArrayList();
+        for ( UUID id: authorizedPropertyTypes ) {
+            fetchSource.add( id.toString() );
+        }
+        
+        SearchResponse response = client.prepareSearch( indexName )
+                .setTypes( SECURABLE_OBJECT_ROW_TYPE )
+                .setQuery( query )
+                .setFetchSource( fetchSource.toArray( new String[fetchSource.size()] ), null )
                 .setFrom( 0 ).setSize( 50 ).setExplain( true )
                 .get();
-        
         List<Map<String, Object>> hits = Lists.newArrayList();
         for ( SearchHit hit: response.getHits() ) {
-            logger.debug(hit.getSourceAsString());
+            hits.add( hit.getSource() );
         }
         return hits;
     }
-
+    
 }

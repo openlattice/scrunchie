@@ -1,6 +1,7 @@
 package com.kryptnostic.sparks;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -17,6 +18,8 @@ import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
+import jersey.repackaged.com.google.common.collect.Maps;
+
 public class KindlingElasticsearchTests extends BaseElasticsearchTest {
     
     @Test
@@ -29,10 +32,10 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
 		elasticsearchApi.initializeEntitySetDataModelIndex();
     }
     
-    @Test
-    public void initializeDataIndex() {
-        elasticsearchApi.initializeEntitySetDataIndex();
-    }
+//    @Test
+//    public void initializeDataIndex() {
+//        elasticsearchApi.initializeEntitySetDataIndex();
+//    }
 
    // @Test
     public void testWriteEntitySetMetadata() {
@@ -175,25 +178,26 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
     public void testDeleteEntitySet() {
 		elasticsearchApi.deleteEntitySet( ENTITY_SET_ID );
     }
-//    
-//    @Test
-//    public void testWriteEntitySetData (EntitySet entitySet ) {
-//    	String entityTypeUnderscore = entitySet.getType().getName() + "_" + entitySet.getType().getNamespace();
-//    	Dataset<Row> entityDf = sparkSession
-//    			.read()
-//    			.format( "org.apache.spark.sql.cassandra" )
-//    			.option( "table", entitySet.getName() )
-//    			.option( "keyspace", "sparks" )
-//    			.load();
-//    	JavaEsSparkSQL.saveToEs( entityDf, "entity_set_data/" + entityTypeUnderscore );
-//        
-//        
-//    	
-//    }
+    @Test
+    public void testCreateEntityData() {
+        Map<UUID, String> propertyValues = Maps.newHashMap();
+        propertyValues.put( UUID.randomUUID(), "value 1" );
+        propertyValues.put( UUID.randomUUID(), "another one" );
+        propertyValues.put( UUID.randomUUID(), "the last one" );
+        elasticsearchApi.createEntityData( UUID.fromString( "4c767353-8fcc-4b37-9ff9-bb3ad0ab96e4" ), "entityIdakdjfaksjdnalks", propertyValues );
+    }
     
     @Test
-    public void testExecuteEntityDataQuery() {
-        elasticsearchApi.executeEntityDataQuery( "police officer" );
+    public void testSearchEntityData() {
+        Set<UUID> authorizedPropertyTypes = Sets.newHashSet();
+        authorizedPropertyTypes.add( UUID.fromString( "12926a46-7b2d-4b9c-98db-d6a8aff047f0" ) );
+        authorizedPropertyTypes.add( UUID.fromString( "65d76d13-0d91-4d78-8dbd-cf6ce6e6162f" ) );
+        authorizedPropertyTypes.add( UUID.fromString( "60de791c-df3e-462b-8299-ea36dc3beb16" ) );
+      //  authorizedPropertyTypes.add( UUID.fromString( "4328a8e7-16e1-42a3-ad5b-adf4b06921ec" ) );
+       // authorizedPropertyTypes.add( UUID.fromString( "4a6f084d-cd44-4d5b-9188-947d7151bf84" ) );
+      //  authorizedPropertyTypes.add( UUID.fromString( "f32ff812-2ba6-4933-8c05-5183d13fa82c" ) );
+        authorizedPropertyTypes.add( UUID.fromString( "93e64078-d1a4-4306-a66c-2448d2fd3504" ) );
+        elasticsearchApi.executeEntitySetDataSearch( UUID.fromString( "d93061ba-334a-46dd-bef0-070de71c8cf0" ), "fire", authorizedPropertyTypes );
     }
     
     
