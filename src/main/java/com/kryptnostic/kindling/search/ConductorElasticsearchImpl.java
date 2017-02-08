@@ -4,10 +4,10 @@ import java.io.IOException;
 import java.net.UnknownHostException;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
@@ -20,6 +20,8 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.Fuzziness;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.InnerHitBuilder;
+import org.elasticsearch.index.query.MultiMatchQueryBuilder;
+import org.elasticsearch.index.query.MultiMatchQueryBuilder.Type;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.reindex.DeleteByQueryAction;
 import org.elasticsearch.index.reindex.DeleteByQueryRequestBuilder;
@@ -38,7 +40,6 @@ import com.dataloom.edm.internal.PropertyType;
 import com.dataloom.mappers.ObjectMappers;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Optional;
-import com.google.common.collect.SetMultimap;
 import com.kryptnostic.conductor.rpc.ConductorElasticsearchApi;
 import com.kryptnostic.conductor.rpc.SearchConfiguration;
 
@@ -396,22 +397,22 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             e.printStackTrace();
         }
         String indexName = SECURABLE_OBJECT_INDEX_PREFIX + entitySetId.toString();
+        String[] authorizedPropertyTypeFields = authorizedPropertyTypes
+                .stream()
+                .map( uuid -> uuid.toString() )
+                .collect( Collectors.toList() )
+                .toArray( new String[authorizedPropertyTypes.size()] );
         
-        BoolQueryBuilder query = new BoolQueryBuilder();
-        for ( UUID propertyTypeId: authorizedPropertyTypes ) {
-            query.should( QueryBuilders.matchQuery( propertyTypeId.toString(), searchTerm ).fuzziness( Fuzziness.AUTO ) );
-        }
-        query.minimumNumberShouldMatch( 1 );
-        
-        List<String> fetchSource = Lists.newArrayList();
-        for ( UUID id: authorizedPropertyTypes ) {
-            fetchSource.add( id.toString() );
-        }
+        MultiMatchQueryBuilder query = QueryBuilders
+                .multiMatchQuery( searchTerm, authorizedPropertyTypeFields )
+                .type( Type.CROSS_FIELDS )
+                .fuzziness( Fuzziness.AUTO )
+                .minimumShouldMatch( "1" );
         
         SearchResponse response = client.prepareSearch( indexName )
                 .setTypes( SECURABLE_OBJECT_ROW_TYPE )
                 .setQuery( query )
-                .setFetchSource( fetchSource.toArray( new String[fetchSource.size()] ), null )
+                .setFetchSource( authorizedPropertyTypeFields, null )
                 .setFrom( 0 ).setSize( 50 ).setExplain( true )
                 .get();
         List<Map<String, Object>> hits = Lists.newArrayList();
