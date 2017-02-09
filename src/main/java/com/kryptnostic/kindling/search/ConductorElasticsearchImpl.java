@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
@@ -309,5 +310,32 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 		
 		return true;
 	}
+	
+	@Override
+    public List<Map<String, Object>> executeEntitySetDataSearchAcrossIndices( Set<UUID> entitySetIds, Map<UUID, String> fieldSearches, int size, boolean explain ) {
+        try {
+            if ( !verifyElasticsearchConnection() ) return null;
+        } catch (UnknownHostException e) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+        BoolQueryBuilder query = new BoolQueryBuilder();
+        fieldSearches.entrySet().stream().forEach( entry -> query.should( QueryBuilders.matchQuery( entry.getKey().toString(), entry.getValue() ) ) );
+        query.minimumNumberShouldMatch( 1 );
+        
+        List<String> indexNames = entitySetIds.stream().map( id -> SECURABLE_OBJECT_INDEX_PREFIX + id.toString() ).collect( Collectors.toList() );
+        SearchResponse response = client.prepareSearch( indexNames.toArray( new String[indexNames.size()] ) )
+                .setTypes( SECURABLE_OBJECT_ROW_TYPE )
+                .setQuery( query )
+                .setFrom( 0 )
+                .setSize( size )
+                .setExplain( explain )
+                .get();
+        List<Map<String, Object>> results = Lists.newArrayList();
+        for ( SearchHit hit: response.getHits() ) {
+            results.add( hit.getSource() );
+        }
+        return results;
+    }
 
 }

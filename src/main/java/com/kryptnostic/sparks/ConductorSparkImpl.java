@@ -439,5 +439,11 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 	public Boolean deleteEntitySet( UUID entitySetId ) {
 		return elasticsearchApi.deleteEntitySet( entitySetId );
 	}
+	
+	@Override
+	public List<Map<String, Object>> executeEntitySetDataSearchAcrossIndices( Set<UUID> entitySetIds, Map<UUID, String> fieldSearches, int size, boolean explain ) {
+	    return elasticsearchApi.executeEntitySetDataSearchAcrossIndices( entitySetIds, fieldSearches, size, explain );
+	}
+
 
 }
