@@ -246,7 +246,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 	}
 	
 	@Override
-	public Boolean updatePropertyTypesInEntitySet( UUID entitySetId, Set<PropertyType> newPropertyTypes ) {
+	public Boolean updatePropertyTypesInEntitySet( UUID entitySetId, List<PropertyType> newPropertyTypes ) {
 		try {
 			if ( !verifyElasticsearchConnection() ) return false;
 		} catch (UnknownHostException e) {
