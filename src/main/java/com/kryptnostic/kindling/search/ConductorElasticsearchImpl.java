@@ -310,4 +310,26 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 		return true;
 	}
 
+    @Override
+    public Boolean updateEntitySetMetadata( EntitySet entitySet ) {
+        try {
+            if ( !verifyElasticsearchConnection() ) return false;
+        } catch (UnknownHostException e) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+        
+        Map<String, Object> entitySetObj = Maps.newHashMap();
+        entitySetObj.put( ENTITY_SET, entitySet);
+        try {
+            String s = ObjectMappers.getJsonMapper().writeValueAsString( entitySetObj );
+            UpdateRequest updateRequest = new UpdateRequest( ENTITY_SET_DATA_MODEL, ENTITY_SET_TYPE, entitySet.getId().toString() ).doc( s );
+            client.update( updateRequest ).get();
+            return true;
+        } catch (IOException | InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
 }
