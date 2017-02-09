@@ -1,6 +1,7 @@
 package com.kryptnostic.sparks;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -16,6 +17,8 @@ import com.dataloom.edm.internal.PropertyType;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+
+import jersey.repackaged.com.google.common.collect.Maps;
 
 public class KindlingElasticsearchTests extends BaseElasticsearchTest {
         
@@ -180,6 +183,15 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
 //        
 //    	
 //    }
+    
+    @Test
+    public void testSearchAcrossIndices() {
+        Set<UUID> entitySetIds = Sets.newHashSet();
+        entitySetIds.add( UUID.fromString( "d93061ba-334a-46dd-bef0-070de71c8cf0" ) );
+        Map<UUID, String> fieldSearches = Maps.newHashMap();
+        fieldSearches.put( UUID.fromString( "12926a46-7b2d-4b9c-98db-d6a8aff047f0" ), "KOWALUK" );
+        elasticsearchApi.executeEntitySetDataSearchAcrossIndices( entitySetIds, fieldSearches, 50, true );
+    }
     
     
     
