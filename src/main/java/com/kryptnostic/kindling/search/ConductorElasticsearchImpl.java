@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 import javax.inject.Inject;
 
 import org.apache.lucene.search.join.ScoreMode;
+import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.Client;
@@ -19,6 +20,8 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.Fuzziness;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.InnerHitBuilder;
+import org.elasticsearch.index.query.MultiMatchQueryBuilder;
+import org.elasticsearch.index.query.MultiMatchQueryBuilder.Type;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.reindex.DeleteByQueryAction;
 import org.elasticsearch.index.reindex.DeleteByQueryRequestBuilder;
@@ -45,98 +48,98 @@ import jersey.repackaged.com.google.common.collect.Lists;
 import jersey.repackaged.com.google.common.collect.Sets;
 
 public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
+	
+	private Client client;
+	private ElasticsearchTransportClientFactory factory;
+	private boolean connected = true;
+	private String server;
+	private String cluster;
+	private int port;
+	private static final Logger logger = LoggerFactory.getLogger( ConductorElasticsearchImpl.class );
+	
+	@Inject
+	public ConductorElasticsearchImpl( SearchConfiguration config ) throws UnknownHostException {
+		init( config );
+		client = factory.getClient();
+		initializeIndices();
+	}
 
-    private Client                              client;
-    private ElasticsearchTransportClientFactory factory;
-    private boolean                             connected = true;
-    private String                              server;
-    private String                              cluster;
-    private int                                 port;
-    private static final Logger                 logger    = LoggerFactory.getLogger( ConductorElasticsearchImpl.class );
-
-    @Inject
-    public ConductorElasticsearchImpl( SearchConfiguration config ) throws UnknownHostException {
-        init( config );
-        client = factory.getClient();
-        initializeIndices();
-    }
-
-    @Inject
-    public ConductorElasticsearchImpl(
-            SearchConfiguration config,
-            Client someClient ) {
-        init( config );
-        client = someClient;
-        initializeIndices();
-    }
-
-    private void init( SearchConfiguration config ) {
-        server = config.getElasticsearchUrl();
-        cluster = config.getElasticsearchCluster();
-        port = config.getElasticsearchPort();
-        factory = new ElasticsearchTransportClientFactory( server, port, cluster );
-    }
-
-    public void initializeIndices() {
-        initializeEntitySetDataModelIndex();
-        initializeOrganizationIndex();
-    }
-
-    @Override
-    public Boolean initializeEntitySetDataModelIndex() {
-        try {
-            if ( !verifyElasticsearchConnection() ) return false;
-        } catch ( UnknownHostException e ) {
-            e.printStackTrace();
-        }
-
-        boolean exists = client.admin().indices()
-                .prepareExists( ENTITY_SET_DATA_MODEL ).execute().actionGet().isExists();
-        if ( exists ) {
-            return true;
-        }
-
-        // constant Map<String, String> type fields
-        Map<String, String> objectField = Maps.newHashMap();
-        Map<String, String> nestedField = Maps.newHashMap();
-        Map<String, String> keywordField = Maps.newHashMap();
-        Map<String, Object> aclParent = Maps.newHashMap();
-        objectField.put( TYPE, OBJECT );
-        nestedField.put( TYPE, NESTED );
-        keywordField.put( TYPE, KEYWORD );
-        aclParent.put( TYPE, ENTITY_SET_TYPE );
-
-        // entity_set type mapping
-        Map<String, Object> properties = Maps.newHashMap();
-        Map<String, Object> entitySetData = Maps.newHashMap();
-        Map<String, Object> mapping = Maps.newHashMap();
-        properties.put( PROPERTY_TYPES, nestedField );
-        properties.put( ENTITY_SET, objectField );
-        entitySetData.put( ES_PROPERTIES, properties );
-        mapping.put( ENTITY_SET_TYPE, entitySetData );
-
-        // acl type mapping
-        Map<String, Object> aclProperties = Maps.newHashMap();
-        Map<String, Object> aclData = Maps.newHashMap();
-        Map<String, Object> aclMapping = Maps.newHashMap();
-        aclProperties.put( ACLS, keywordField );
-        aclProperties.put( TYPE, keywordField );
-        aclProperties.put( NAME, keywordField );
-        aclProperties.put( ENTITY_SET_ID, keywordField );
-        aclData.put( ES_PROPERTIES, aclProperties );
-        aclData.put( PARENT, aclParent );
-        aclMapping.put( ACLS, aclData );
-
-        client.admin().indices().prepareCreate( ENTITY_SET_DATA_MODEL )
-                .setSettings( Settings.builder()
-                        .put( NUM_SHARDS, 3 )
-                        .put( NUM_REPLICAS, 2 ) )
-                .addMapping( ENTITY_SET_TYPE, mapping )
-                .addMapping( ACLS, aclMapping )
-                .execute().actionGet();
-        return true;
-    }
-
+	@Inject
+	public ConductorElasticsearchImpl(
+			SearchConfiguration config,
+			Client someClient ) {
+		init( config );
+		client = someClient;
+		initializeIndices();
+	}
+	
+	private void init( SearchConfiguration config ) {
+		server = config.getElasticsearchUrl();
+		cluster = config.getElasticsearchCluster();
+		port = config.getElasticsearchPort();
+		factory = new ElasticsearchTransportClientFactory( server, port, cluster );
+	}
+	
+	public void initializeIndices() {
+	    initializeEntitySetDataModelIndex();
+	    initializeOrganizationIndex();
+	}
+	
+	@Override
+	public Boolean initializeEntitySetDataModelIndex() {
+		try {
+			if ( !verifyElasticsearchConnection() ) return false;
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		}
+		
+		boolean exists = client.admin().indices()
+				.prepareExists( ENTITY_SET_DATA_MODEL ).execute().actionGet().isExists();
+		if ( exists ) {
+			return true;
+		}
+		
+		// constant Map<String, String> type fields
+		Map<String, String> objectField = Maps.newHashMap();
+		Map<String, String> nestedField = Maps.newHashMap();
+		Map<String, String> keywordField = Maps.newHashMap();
+		Map<String, Object> aclParent = Maps.newHashMap();
+		objectField.put( TYPE, OBJECT );
+		nestedField.put( TYPE, NESTED );
+		keywordField.put( TYPE, KEYWORD );
+		aclParent.put( TYPE, ENTITY_SET_TYPE );
+		
+		// entity_set type mapping
+		Map<String, Object> properties = Maps.newHashMap();
+		Map<String, Object> entitySetData = Maps.newHashMap();
+		Map<String, Object> mapping = Maps.newHashMap();
+		properties.put( PROPERTY_TYPES, nestedField );
+		properties.put( ENTITY_SET, objectField );
+		entitySetData.put( ES_PROPERTIES, properties );
+		mapping.put( ENTITY_SET_TYPE, entitySetData );
+		
+		// acl type mapping
+		Map<String, Object> aclProperties = Maps.newHashMap();
+		Map<String, Object> aclData = Maps.newHashMap();
+		Map<String, Object> aclMapping = Maps.newHashMap();
+		aclProperties.put( ACLS, keywordField );
+		aclProperties.put( TYPE, keywordField );
+		aclProperties.put( NAME, keywordField );
+		aclProperties.put( ENTITY_SET_ID, keywordField );
+		aclData.put( ES_PROPERTIES, aclProperties );
+		aclData.put( PARENT, aclParent );
+		aclMapping.put( ACLS, aclData );
+		
+		client.admin().indices().prepareCreate( ENTITY_SET_DATA_MODEL )
+		.setSettings( Settings.builder()
+				.put( NUM_SHARDS, 3 )
+				.put( NUM_REPLICAS, 2 ) )
+		.addMapping( ENTITY_SET_TYPE, mapping)
+		.addMapping( ACLS, aclMapping )
+		.execute().actionGet();
+		return true;
+	}
+                
     @Override
     public Boolean initializeOrganizationIndex() {
         try {
@@ -188,7 +191,45 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 .execute().actionGet();
         return true;
     }
+    
+    public Boolean createSecurableObjectIndex( UUID securableObjectId ) {
+        try {
+            if ( !verifyElasticsearchConnection() ) return false;
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
+        
+        String indexName = SECURABLE_OBJECT_INDEX_PREFIX + securableObjectId.toString();
+        
+        boolean exists = client.admin().indices()
+                .prepareExists( indexName ).execute().actionGet().isExists();
+        if ( exists ) {
+            return true;
+        }
+                
+        // constant Map<String, String> type fields
+        Map<String, String> objectField = Maps.newHashMap();
+        Map<String, String> nestedField = Maps.newHashMap();
+        Map<String, String> keywordField = Maps.newHashMap();
+        objectField.put( TYPE, OBJECT );
+        nestedField.put( TYPE, NESTED );
+        keywordField.put( TYPE, KEYWORD );
+        
+        // securable_object_row type mapping
+        Map<String, Object> securableObjectData = Maps.newHashMap();
+        Map<String, Object> securableObjectMapping = Maps.newHashMap();
+        securableObjectData.put( ES_PROPERTIES, Maps.newHashMap() );
+        securableObjectMapping.put( SECURABLE_OBJECT_ROW_TYPE, securableObjectData );
 
+        client.admin().indices().prepareCreate( indexName )
+        .setSettings( Settings.builder()
+                .put( NUM_SHARDS, 3 )
+                .put( NUM_REPLICAS, 2 ) )
+        .addMapping( SECURABLE_OBJECT_ROW_TYPE, securableObjectMapping)
+        .execute().actionGet();
+        return true;
+    }
+	
     @Override
     public Boolean saveEntitySetToElasticsearch(
             EntitySet entitySet,
@@ -307,17 +348,16 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         acl.put( TYPE, principal.getType().toString() );
         acl.put( NAME, principal.getId() );
         acl.put( ENTITY_SET_ID, entitySetId.toString() );
-        try {
-            String s = ObjectMappers.getJsonMapper().writeValueAsString( acl );
-            String id = entitySetId.toString() + "_" + principal.getType().toString() + "_" + principal.getId();
-            client.prepareIndex( ENTITY_SET_DATA_MODEL, ACLS, id ).setParent( entitySetId.toString() ).setSource( s )
-                    .execute().actionGet();
-            return true;
-        } catch ( JsonProcessingException e ) {
-            e.printStackTrace();
-        }
-        return false;
-    }
+		try {
+			String s = ObjectMappers.getJsonMapper().writeValueAsString( acl );
+			String id = entitySetId.toString() + "_" + principal.getType().toString() + "_" + principal.getId();
+			client.prepareIndex( ENTITY_SET_DATA_MODEL, ACLS, id ).setParent( entitySetId.toString() ).setSource( s ).execute().actionGet();
+			return true;
+		} catch (JsonProcessingException e) {
+			e.printStackTrace();
+		}
+		return false;
+	}
 
     @Override
     public Boolean updatePropertyTypesInEntitySet( UUID entitySetId, List<PropertyType> newPropertyTypes ) {
@@ -342,26 +382,6 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             e.printStackTrace();
         }
         return false;
-    }
-
-    public boolean verifyElasticsearchConnection() throws UnknownHostException {
-        if ( connected ) {
-            if ( !factory.isConnected( client ) ) {
-                connected = false;
-            }
-        } else {
-            client = factory.getClient();
-            if ( client != null ) {
-                connected = true;
-            }
-        }
-        return connected;
-    }
-
-    @Scheduled(
-        fixedRate = 1800000 )
-    public void verifyRunner() throws UnknownHostException {
-        verifyElasticsearchConnection();
     }
 
     @Override
@@ -442,7 +462,54 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         return false;
     }
 
-    @Override
+	@Override
+    public Boolean createEntityData( UUID entitySetId, String entityId, Map<UUID, String> propertyValues ) {
+        try {
+            if ( !verifyElasticsearchConnection() ) return false;
+        } catch (UnknownHostException e) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+        String indexName = SECURABLE_OBJECT_INDEX_PREFIX + entitySetId.toString();
+        
+        try {
+            String s = ObjectMappers.getJsonMapper().writeValueAsString( propertyValues );
+            client
+                .prepareIndex( indexName, SECURABLE_OBJECT_ROW_TYPE, entityId )
+                .setSource( s )
+                .execute()
+                .actionGet();
+        } catch ( JsonProcessingException e ) {
+            e.printStackTrace();
+            return false;
+        }
+        
+        return true;
+    }
+	
+	@Override
+    public Boolean updateEntitySetMetadata( EntitySet entitySet ) {
+        try {
+            if ( !verifyElasticsearchConnection() ) return false;
+        } catch (UnknownHostException e) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+        
+        Map<String, Object> entitySetObj = Maps.newHashMap();
+        entitySetObj.put( ENTITY_SET, entitySet);
+        try {
+            String s = ObjectMappers.getJsonMapper().writeValueAsString( entitySetObj );
+            UpdateRequest updateRequest = new UpdateRequest( ENTITY_SET_DATA_MODEL, ENTITY_SET_TYPE, entitySet.getId().toString() ).doc( s );
+            client.update( updateRequest ).get();
+            return true;
+        } catch (IOException | InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+	
+	@Override
     public Boolean createOrganization( Organization organization, Principal principal ) {
         try {
             if ( !verifyElasticsearchConnection() ) return false;
@@ -493,6 +560,40 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         return true;
     }
 
+    @Override
+    public List<Map<String, Object>> executeEntitySetDataSearch( UUID entitySetId, String searchTerm, Set<UUID> authorizedPropertyTypes) {
+        try {
+            if ( !verifyElasticsearchConnection() ) return Lists.newArrayList();
+        } catch (UnknownHostException e) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+        String indexName = SECURABLE_OBJECT_INDEX_PREFIX + entitySetId.toString();
+        String[] authorizedPropertyTypeFields = authorizedPropertyTypes
+                .stream()
+                .map( uuid -> uuid.toString() )
+                .collect( Collectors.toList() )
+                .toArray( new String[authorizedPropertyTypes.size()] );
+        
+        MultiMatchQueryBuilder query = QueryBuilders
+                .multiMatchQuery( searchTerm, authorizedPropertyTypeFields )
+                .type( Type.CROSS_FIELDS )
+                .fuzziness( Fuzziness.AUTO )
+                .minimumShouldMatch( "1" );
+        
+        SearchResponse response = client.prepareSearch( indexName )
+                .setTypes( SECURABLE_OBJECT_ROW_TYPE )
+                .setQuery( query )
+                .setFetchSource( authorizedPropertyTypeFields, null )
+                .setFrom( 0 ).setSize( 50 ).setExplain( true )
+                .get();
+        List<Map<String, Object>> hits = Lists.newArrayList();
+        for ( SearchHit hit: response.getHits() ) {
+            hits.add( hit.getSource() );
+        }
+        return hits;
+    }
+    
     @Override
     public List<Map<String, Object>> executeOrganizationSearch( String searchTerm, Set<Principal> principals ) {
         try {
@@ -568,6 +669,26 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             e.printStackTrace();
         }
         return false;
+    }
+    
+    public boolean verifyElasticsearchConnection() throws UnknownHostException {
+        if ( connected ) {
+            if ( !factory.isConnected( client ) ) {
+                connected = false;
+            }
+        } else {
+            client = factory.getClient();
+            if ( client != null ) {
+                connected = true;
+            }
+        }
+        return connected;
+    }
+
+    @Scheduled(
+        fixedRate = 1800000 )
+    public void verifyRunner() throws UnknownHostException {
+        verifyElasticsearchConnection();
     }
 
 }
