@@ -420,12 +420,6 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 	}
 
 	@Override
-	public Boolean submitEntitySetDataToElasticsearch(EntitySet entitySet, Dataset<Row> entitySetData) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
 	public List<Map<String, Object>> executeElasticsearchMetadataQuery(Optional<String> optionalQuery, Optional<UUID> optionalEntityType,
 			Optional<Set<UUID>> optionalPropertyTypes, Set<Principal> principals) {
 		return elasticsearchApi.executeEntitySetDataModelKeywordSearch( optionalQuery, optionalEntityType, optionalPropertyTypes, principals );
@@ -464,6 +458,16 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     @Override
     public Boolean updateOrganizationPermissions( UUID organizationId, Principal principal, Set<Permission> permissions ) {
         return elasticsearchApi.updateOrganizationPermissions( organizationId, principal, permissions );
+    }
+    
+    @Override
+    public Boolean updateEntitySetMetadata( EntitySet entitySet ) {
+        return elasticsearchApi.updateEntitySetMetadata( entitySet );
+    }
+
+    @Override
+    public Boolean updatePropertyTypesInEntitySet( UUID entitySetId, List<PropertyType> newPropertyTypes ) {
+        return elasticsearchApi.updatePropertyTypesInEntitySet( entitySetId, newPropertyTypes );
     }
 
 }
