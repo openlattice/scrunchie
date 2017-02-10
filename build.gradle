@@ -60,7 +60,7 @@ dependencies {
             exclude module: 'cassandra-driver-extras'
         }
 
-        compile( project(":kryptnostic-conductor-client") ) {
+        compile( project(":conductor-client") ) {
             exclude module: 'cassandra-driver-core'
             exclude module: 'cassandra-driver-mapping'
             exclude module: 'cassandra-driver-extras'
@@ -90,7 +90,7 @@ dependencies {
             exclude module: 'cassandra-driver-extras'
         }
 
-        compile ("com.kryptnostic:kryptnostic-conductor-client:${conductor_client_version}"){
+        compile ("com.kryptnostic:conductor-client:${conductor_client_version}"){
             exclude module: 'cassandra-driver-core'
             exclude module: 'cassandra-driver-mapping'
             exclude module: 'cassandra-driver-extras'
