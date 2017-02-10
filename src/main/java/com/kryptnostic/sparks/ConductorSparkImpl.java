@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
+import com.kryptnostic.conductor.rpc.odata.Tables;
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.sql.Dataset;
@@ -109,6 +110,15 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     //
     // }
 
+//    public void count() {
+//        Dataset<Row> entityDf = sparkSession
+//         .read()
+//         .format( "org.apache.spark.sql.cassandra" )
+//         .option( "table", Tables.AUDIT_EVENTS.getName().toLowerCase() )
+//         .option( "keyspace", keyspace )
+//         .load();
+//    }
+    
     @Override
     public QueryResult getAllEntitiesOfEntitySet( FullQualifiedName entityFqn, String entitySetName ) {
         EntityType entityType = dataModelService.getEntityType( entityFqn );
@@ -182,14 +192,14 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     }
 
     /**
-     * Return QueryResult of UUID's ONLY of all entities matching a Look Up Entities Request.
+     * Return QueryResult of UUID's ONLY of all entities linking a Look Up Entities Request.
      *
      * @param request A LookupEntitiesRequest object
-     * @return QueryResult of UUID's matching the lookup request
+     * @return QueryResult of UUID's linking the lookup request
      */
     @Override
     public QueryResult getFilterEntities( LookupEntitiesRequest request ) {
-        // Get set of JavaRDD of UUIDs matching the property value for each property type
+        // Get set of JavaRDD of UUIDs linking the property value for each property type
         // final Map<FullQualifiedName, QueryResult> dfs = Maps.newConcurrentMap();
         //
         // request.getEntityTypes().forEach( entityFqn -> {
@@ -233,7 +243,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         // ptv.getValue() ) )
         // .collect( Collectors.toSet() );
         //
-        // // Take intersection to get the JavaRDD of UUIDs matching all the property type values, but before filtering
+        // // Take intersection to get the JavaRDD of UUIDs linking all the property type values, but before filtering
         // // Entity Types
         // // TODO: repartitionbyCassandraReplica is not done, which means that intersection is potentially extremely
         // slow.
@@ -241,7 +251,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         // .reduce( ( leftRDD, rightRDD ) -> leftRDD.intersection( rightRDD ) )
         // .get();
         //
-        // // Get the RDD of UUIDs matching all the property type values, after filtering Entity Types
+        // // Get the RDD of UUIDs linking all the property type values, after filtering Entity Types
         // // TODO: once Hristo's entity type to entity id table is done, maybe faster to use that rather than do
         // multiple
         // // joinWithCassandraTable
