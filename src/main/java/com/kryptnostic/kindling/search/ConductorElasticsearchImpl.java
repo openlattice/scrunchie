@@ -294,7 +294,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 	}
 	
 	@Override
-	public Boolean updatePropertyTypesInEntitySet( UUID entitySetId, Set<PropertyType> newPropertyTypes ) {
+	public Boolean updatePropertyTypesInEntitySet( UUID entitySetId, List<PropertyType> newPropertyTypes ) {
 		try {
 			if ( !verifyElasticsearchConnection() ) return false;
 		} catch (UnknownHostException e) {
@@ -364,13 +364,18 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 	}
 
     @Override
+<<<<<<< HEAD
     public Boolean createEntityData( UUID entitySetId, String entityId, Map<UUID, String> propertyValues ) {
+=======
+    public Boolean updateEntitySetMetadata( EntitySet entitySet ) {
+>>>>>>> develop
         try {
             if ( !verifyElasticsearchConnection() ) return false;
         } catch (UnknownHostException e) {
             logger.debug( "not connected to elasticsearch" );
             e.printStackTrace();
         }
+<<<<<<< HEAD
         String indexName = SECURABLE_OBJECT_INDEX_PREFIX + entitySetId.toString();
         
         try {
@@ -422,4 +427,20 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         return hits;
     }
     
+=======
+        
+        Map<String, Object> entitySetObj = Maps.newHashMap();
+        entitySetObj.put( ENTITY_SET, entitySet);
+        try {
+            String s = ObjectMappers.getJsonMapper().writeValueAsString( entitySetObj );
+            UpdateRequest updateRequest = new UpdateRequest( ENTITY_SET_DATA_MODEL, ENTITY_SET_TYPE, entitySet.getId().toString() ).doc( s );
+            client.update( updateRequest ).get();
+            return true;
+        } catch (IOException | InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+>>>>>>> develop
 }

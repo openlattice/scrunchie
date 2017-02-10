@@ -440,5 +440,14 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         return elasticsearchApi.executeEntitySetDataSearch( entitySetId, searchTerm, authorizedPropertyTypes );
     }
     
+    @Override
+    public Boolean updateEntitySetMetadata( EntitySet entitySet ) {
+        return elasticsearchApi.updateEntitySetMetadata( entitySet );
+    }
+
+    @Override
+    public Boolean updatePropertyTypesInEntitySet( UUID entitySetId, List<PropertyType> newPropertyTypes ) {
+        return elasticsearchApi.updatePropertyTypesInEntitySet( entitySetId, newPropertyTypes );
+    }
 
 }

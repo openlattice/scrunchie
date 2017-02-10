@@ -178,6 +178,7 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
     public void testDeleteEntitySet() {
 		elasticsearchApi.deleteEntitySet( ENTITY_SET_ID );
     }
+
     @Test
     public void testCreateEntityData() {
         Map<UUID, String> propertyValues = Maps.newHashMap();
@@ -199,7 +200,6 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
         authorizedPropertyTypes.add( UUID.fromString( "93e64078-d1a4-4306-a66c-2448d2fd3504" ) );
         elasticsearchApi.executeEntitySetDataSearch( UUID.fromString( "d93061ba-334a-46dd-bef0-070de71c8cf0" ), "fire", authorizedPropertyTypes );
     }
-    
     
     
 }
