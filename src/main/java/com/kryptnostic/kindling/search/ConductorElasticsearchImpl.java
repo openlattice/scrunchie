@@ -277,7 +277,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 			BoolQueryBuilder childQuery = new BoolQueryBuilder();
 			childQuery.must( QueryBuilders.matchQuery( NAME, principal.getId() ) );
 			childQuery.must( QueryBuilders.matchQuery( TYPE, principal.getType().toString() ) );
-			childQuery.must( QueryBuilders.regexpQuery( ACLS, ".*" ) );
+			childQuery.must( QueryBuilders.termQuery( ACLS, Permission.READ.toString() ) );
 			String hitName = "acl_" + principal.getType().toString() + "_" + principal.getId();
 			permissionsQuery.should( QueryBuilders.hasChildQuery( ACLS, childQuery, ScoreMode.Avg )
 					.innerHit( new InnerHitBuilder().setFetchSourceContext( new FetchSourceContext(true, new String[]{ACLS}, null)).setName( hitName ) ) );
@@ -585,7 +585,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             BoolQueryBuilder childQuery = new BoolQueryBuilder();
             childQuery.must( QueryBuilders.matchQuery( NAME, principal.getId() ) );
             childQuery.must( QueryBuilders.matchQuery( TYPE, principal.getType().toString() ) );
-            childQuery.must( QueryBuilders.regexpQuery( ACLS, ".*" ) );
+            childQuery.must( QueryBuilders.termQuery( ACLS, Permission.READ.toString() ) );
             String hitName = "acl_" + principal.getType().toString() + "_" + principal.getId();
             permissionsQuery.should( QueryBuilders.hasChildQuery( ACLS, childQuery, ScoreMode.Avg )
                     .innerHit( new InnerHitBuilder().setFetchSourceContext( new FetchSourceContext(true, new String[]{ACLS}, null)).setName( hitName ) ) );
