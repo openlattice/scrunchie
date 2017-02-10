@@ -7,10 +7,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
 import org.apache.lucene.search.join.ScoreMode;
+import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.Client;
@@ -18,6 +20,8 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.Fuzziness;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.InnerHitBuilder;
+import org.elasticsearch.index.query.MultiMatchQueryBuilder;
+import org.elasticsearch.index.query.MultiMatchQueryBuilder.Type;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.reindex.DeleteByQueryAction;
 import org.elasticsearch.index.reindex.DeleteByQueryRequestBuilder;
@@ -34,6 +38,7 @@ import com.dataloom.authorization.Principal;
 import com.dataloom.edm.internal.EntitySet;
 import com.dataloom.edm.internal.PropertyType;
 import com.dataloom.mappers.ObjectMappers;
+import com.dataloom.organization.Organization;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Optional;
 import com.kryptnostic.conductor.rpc.ConductorElasticsearchApi;
@@ -56,7 +61,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 	public ConductorElasticsearchImpl( SearchConfiguration config ) throws UnknownHostException {
 		init( config );
 		client = factory.getClient();
-		initializeEntitySetDataModelIndex();
+		initializeIndices();
 	}
 
 	@Inject
@@ -65,7 +70,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 			Client someClient ) {
 		init( config );
 		client = someClient;
-		initializeEntitySetDataModelIndex();
+		initializeIndices();
 	}
 	
 	private void init( SearchConfiguration config ) {
@@ -73,6 +78,11 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 		cluster = config.getElasticsearchCluster();
 		port = config.getElasticsearchPort();
 		factory = new ElasticsearchTransportClientFactory( server, port, cluster );
+	}
+	
+	public void initializeIndices() {
+	    initializeEntitySetDataModelIndex();
+	    initializeOrganizationIndex();
 	}
 	
 	@Override
@@ -129,107 +139,211 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 		.execute().actionGet();
 		return true;
 	}
+                
+    @Override
+    public Boolean initializeOrganizationIndex() {
+        try {
+            if ( !verifyElasticsearchConnection() ) return false;
+        } catch ( UnknownHostException e ) {
+            e.printStackTrace();
+        }
+
+        boolean exists = client.admin().indices()
+                .prepareExists( ORGANIZATIONS ).execute().actionGet().isExists();
+        if ( exists ) {
+            return true;
+        }
+
+        // constant Map<String, String> type fields
+        Map<String, String> objectField = Maps.newHashMap();
+        Map<String, String> keywordField = Maps.newHashMap();
+        Map<String, Object> aclParent = Maps.newHashMap();
+        objectField.put( TYPE, OBJECT );
+        keywordField.put( TYPE, KEYWORD );
+        aclParent.put( TYPE, ORGANIZATION_TYPE );
+
+        // entity_set type mapping
+        Map<String, Object> properties = Maps.newHashMap();
+        Map<String, Object> organizationData = Maps.newHashMap();
+        Map<String, Object> organizationMapping = Maps.newHashMap();
+        properties.put( ORGANIZATION, objectField );
+        organizationData.put( ES_PROPERTIES, properties );
+        organizationMapping.put( ORGANIZATION_TYPE, organizationData );
+
+        // acl type mapping
+        Map<String, Object> aclProperties = Maps.newHashMap();
+        Map<String, Object> aclData = Maps.newHashMap();
+        Map<String, Object> aclMapping = Maps.newHashMap();
+        aclProperties.put( ACLS, keywordField );
+        aclProperties.put( TYPE, keywordField );
+        aclProperties.put( NAME, keywordField );
+        aclProperties.put( ORGANIZATION_ID, keywordField );
+        aclData.put( ES_PROPERTIES, aclProperties );
+        aclData.put( PARENT, aclParent );
+        aclMapping.put( ACLS, aclData );
+
+        client.admin().indices().prepareCreate( ORGANIZATIONS )
+                .setSettings( Settings.builder()
+                        .put( NUM_SHARDS, 3 )
+                        .put( NUM_REPLICAS, 2 ) )
+                .addMapping( ORGANIZATION_TYPE, organizationMapping )
+                .addMapping( ACLS, aclMapping )
+                .execute().actionGet();
+        return true;
+    }
+    
+    public Boolean createSecurableObjectIndex( UUID securableObjectId ) {
+        try {
+            if ( !verifyElasticsearchConnection() ) return false;
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
+        
+        String indexName = SECURABLE_OBJECT_INDEX_PREFIX + securableObjectId.toString();
+        
+        boolean exists = client.admin().indices()
+                .prepareExists( indexName ).execute().actionGet().isExists();
+        if ( exists ) {
+            return true;
+        }
+                
+        // constant Map<String, String> type fields
+        Map<String, String> objectField = Maps.newHashMap();
+        Map<String, String> nestedField = Maps.newHashMap();
+        Map<String, String> keywordField = Maps.newHashMap();
+        objectField.put( TYPE, OBJECT );
+        nestedField.put( TYPE, NESTED );
+        keywordField.put( TYPE, KEYWORD );
+        
+        // securable_object_row type mapping
+        Map<String, Object> securableObjectData = Maps.newHashMap();
+        Map<String, Object> securableObjectMapping = Maps.newHashMap();
+        securableObjectData.put( ES_PROPERTIES, Maps.newHashMap() );
+        securableObjectMapping.put( SECURABLE_OBJECT_ROW_TYPE, securableObjectData );
+
+        client.admin().indices().prepareCreate( indexName )
+        .setSettings( Settings.builder()
+                .put( NUM_SHARDS, 3 )
+                .put( NUM_REPLICAS, 2 ) )
+        .addMapping( SECURABLE_OBJECT_ROW_TYPE, securableObjectMapping)
+        .execute().actionGet();
+        return true;
+    }
 	
-	@Override
-	public Boolean saveEntitySetToElasticsearch( EntitySet entitySet, List<PropertyType> propertyTypes, Principal principal ) {
-		try {
-			if ( !verifyElasticsearchConnection() ) return false;
-		} catch (UnknownHostException e) {
-			logger.debug( "not connected to elasticsearch" );
-			e.printStackTrace();
-		}
-	    Map<String, Object> entitySetDataModel = Maps.newHashMap();
-	    entitySetDataModel.put( ENTITY_SET, entitySet );
-	    entitySetDataModel.put( PROPERTY_TYPES, propertyTypes );
-		try {
-			String s = ObjectMappers.getJsonMapper().writeValueAsString( entitySetDataModel );
-			client.prepareIndex( ENTITY_SET_DATA_MODEL, ENTITY_SET_TYPE, entitySet.getId().toString() ).setSource( s ).execute().actionGet();
-			updateEntitySetPermissions(
-					entitySet.getId(),
-					principal,
-					Sets.newHashSet( Permission.OWNER, Permission.READ, Permission.WRITE, Permission.DISCOVER, Permission.LINK ) );
-			return true;
-		} catch (JsonProcessingException e) {
-			e.printStackTrace();
-		}
-		return false;
-	}
-	
-	@SuppressWarnings("unchecked")
-	@Override
-	public List<Map<String, Object>> executeEntitySetDataModelKeywordSearch(
-			Optional<String> optionalSearchTerm,
-			Optional<UUID> optionalEntityType,
-			Optional<Set<UUID>> optionalPropertyTypes,
-			Set<Principal> principals ) {
-		try {
-			if ( !verifyElasticsearchConnection() ) return Lists.newArrayList();
-		} catch (UnknownHostException e) {
-			logger.debug( "not connected to elasticsearch" );
-			e.printStackTrace();
-		}
-		BoolQueryBuilder permissionsQuery = new BoolQueryBuilder();
-		for ( Principal principal: principals) {
-			BoolQueryBuilder childQuery = new BoolQueryBuilder();
-			childQuery.must( QueryBuilders.matchQuery( NAME, principal.getId() ) );
-			childQuery.must( QueryBuilders.matchQuery( TYPE, principal.getType().toString() ) );
-			childQuery.must( QueryBuilders.regexpQuery( ACLS, ".*" ) );
-			String hitName = "acl_" + principal.getType().toString() + "_" + principal.getId();
-			permissionsQuery.should( QueryBuilders.hasChildQuery( ACLS, childQuery, ScoreMode.Avg )
-					.innerHit( new InnerHitBuilder().setFetchSourceContext( new FetchSourceContext(true, new String[]{ACLS}, null)).setName( hitName ) ) );
-		}
-		permissionsQuery.minimumNumberShouldMatch( 1 );
-		
-		BoolQueryBuilder query = new BoolQueryBuilder().must( permissionsQuery );
-		
-		if ( optionalSearchTerm.isPresent() ) {
-			String searchTerm = optionalSearchTerm.get();
-			query.should( QueryBuilders.matchQuery( ENTITY_SET + "." + NAME, searchTerm ).fuzziness( Fuzziness.AUTO ) )
-				.should( QueryBuilders.matchQuery( ENTITY_SET + "." + TITLE, searchTerm).fuzziness( Fuzziness.AUTO ) )
-				.should( QueryBuilders.matchQuery( ENTITY_SET + "." + DESCRIPTION, searchTerm ).fuzziness( Fuzziness.AUTO ) )
-				.minimumNumberShouldMatch( 1 );
-		}
-		
-		if ( optionalEntityType.isPresent() ) {
-			UUID eid = optionalEntityType.get();
-			query.must( QueryBuilders.matchQuery( ENTITY_SET + "." + ENTITY_TYPE_ID, eid.toString() ) );
-		} else if ( optionalPropertyTypes.isPresent() ) {
-			Set<UUID> propertyTypes = optionalPropertyTypes.get();
-			for ( UUID pid: propertyTypes ) {
-				query.must( QueryBuilders.nestedQuery( PROPERTY_TYPES, QueryBuilders.matchQuery( PROPERTY_TYPES + "." + ID, pid.toString() ), ScoreMode.Avg ) );
-			}
-		}
-		SearchResponse response = client.prepareSearch( ENTITY_SET_DATA_MODEL )
-				.setTypes( ENTITY_SET_TYPE )
-				.setQuery( query )
-				.setFetchSource( new String[]{ ENTITY_SET, PROPERTY_TYPES }, null )
-				.setFrom( 0 ).setSize( 50 ).setExplain( true )
-				.get();
-		
-		List<Map<String, Object>> hits = Lists.newArrayList();
-		for ( SearchHit hit: response.getHits() ) {
-			Map<String, Object> match = hit.getSource();
-			Set<String> permissions = Sets.newHashSet();
-			for( SearchHits innerHits: hit.getInnerHits().values() ) {
-				for (SearchHit innerHit: innerHits.getHits() ) {
-					permissions.addAll( (List<String>) innerHit.getSource().get( ACLS ) );
-				}
-			}
-			match.put( ACLS, permissions );
-			hits.add( match );
-		}
-		return hits;
-	}
-	
-	@Override
-	public Boolean updateEntitySetPermissions( UUID entitySetId, Principal principal, Set<Permission> permissions ) {
-		try {
-			if ( !verifyElasticsearchConnection() ) return false;
-		} catch (UnknownHostException e) {
-			logger.debug( "not connected to elasticsearch" );
-			e.printStackTrace();
-		}
-		Map<String, Object> acl = Maps.newHashMap();
+    @Override
+    public Boolean saveEntitySetToElasticsearch(
+            EntitySet entitySet,
+            List<PropertyType> propertyTypes,
+            Principal principal ) {
+        try {
+            if ( !verifyElasticsearchConnection() ) return false;
+        } catch ( UnknownHostException e ) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+        Map<String, Object> entitySetDataModel = Maps.newHashMap();
+        entitySetDataModel.put( ENTITY_SET, entitySet );
+        entitySetDataModel.put( PROPERTY_TYPES, propertyTypes );
+        try {
+            String s = ObjectMappers.getJsonMapper().writeValueAsString( entitySetDataModel );
+            client.prepareIndex( ENTITY_SET_DATA_MODEL, ENTITY_SET_TYPE, entitySet.getId().toString() ).setSource( s )
+                    .execute().actionGet();
+            updateEntitySetPermissions(
+                    entitySet.getId(),
+                    principal,
+                    Sets.newHashSet( Permission.OWNER,
+                            Permission.READ,
+                            Permission.WRITE,
+                            Permission.DISCOVER,
+                            Permission.LINK ) );
+            return true;
+        } catch ( JsonProcessingException e ) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    @SuppressWarnings( "unchecked" )
+    @Override
+    public List<Map<String, Object>> executeEntitySetDataModelKeywordSearch(
+            Optional<String> optionalSearchTerm,
+            Optional<UUID> optionalEntityType,
+            Optional<Set<UUID>> optionalPropertyTypes,
+            Set<Principal> principals ) {
+        try {
+            if ( !verifyElasticsearchConnection() ) return Lists.newArrayList();
+        } catch ( UnknownHostException e ) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+        BoolQueryBuilder permissionsQuery = new BoolQueryBuilder();
+        for ( Principal principal : principals ) {
+            BoolQueryBuilder childQuery = new BoolQueryBuilder();
+            childQuery.must( QueryBuilders.matchQuery( NAME, principal.getId() ) );
+            childQuery.must( QueryBuilders.matchQuery( TYPE, principal.getType().toString() ) );
+            childQuery.must( QueryBuilders.termQuery( ACLS, Permission.READ.toString() ) );
+            String hitName = "acl_" + principal.getType().toString() + "_" + principal.getId();
+            permissionsQuery.should( QueryBuilders.hasChildQuery( ACLS, childQuery, ScoreMode.Avg )
+                    .innerHit( new InnerHitBuilder()
+                            .setFetchSourceContext( new FetchSourceContext( true, new String[] { ACLS }, null ) )
+                            .setName( hitName ) ) );
+        }
+        permissionsQuery.minimumNumberShouldMatch( 1 );
+
+        BoolQueryBuilder query = new BoolQueryBuilder().must( permissionsQuery );
+
+        if ( optionalSearchTerm.isPresent() ) {
+            String searchTerm = optionalSearchTerm.get();
+            query.should( QueryBuilders.matchQuery( ENTITY_SET + "." + NAME, searchTerm ).fuzziness( Fuzziness.AUTO ) )
+                    .should( QueryBuilders.matchQuery( ENTITY_SET + "." + TITLE, searchTerm )
+                            .fuzziness( Fuzziness.AUTO ) )
+                    .should( QueryBuilders.matchQuery( ENTITY_SET + "." + DESCRIPTION, searchTerm )
+                            .fuzziness( Fuzziness.AUTO ) )
+                    .minimumNumberShouldMatch( 1 );
+        }
+
+        if ( optionalEntityType.isPresent() ) {
+            UUID eid = optionalEntityType.get();
+            query.must( QueryBuilders.matchQuery( ENTITY_SET + "." + ENTITY_TYPE_ID, eid.toString() ) );
+        } else if ( optionalPropertyTypes.isPresent() ) {
+            Set<UUID> propertyTypes = optionalPropertyTypes.get();
+            for ( UUID pid : propertyTypes ) {
+                query.must( QueryBuilders.nestedQuery( PROPERTY_TYPES,
+                        QueryBuilders.matchQuery( PROPERTY_TYPES + "." + ID, pid.toString() ),
+                        ScoreMode.Avg ) );
+            }
+        }
+        SearchResponse response = client.prepareSearch( ENTITY_SET_DATA_MODEL )
+                .setTypes( ENTITY_SET_TYPE )
+                .setQuery( query )
+                .setFetchSource( new String[] { ENTITY_SET, PROPERTY_TYPES }, null )
+                .setFrom( 0 ).setSize( 50 ).setExplain( true )
+                .get();
+
+        List<Map<String, Object>> hits = Lists.newArrayList();
+        for ( SearchHit hit : response.getHits() ) {
+            Map<String, Object> match = hit.getSource();
+            Set<String> permissions = Sets.newHashSet();
+            for ( SearchHits innerHits : hit.getInnerHits().values() ) {
+                for ( SearchHit innerHit : innerHits.getHits() ) {
+                    permissions.addAll( (List<String>) innerHit.getSource().get( ACLS ) );
+                }
+            }
+            match.put( ACLS, permissions );
+            hits.add( match );
+        }
+        return hits;
+    }
+
+    @Override
+    public Boolean updateEntitySetPermissions( UUID entitySetId, Principal principal, Set<Permission> permissions ) {
+        try {
+            if ( !verifyElasticsearchConnection() ) return false;
+        } catch ( UnknownHostException e ) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+        Map<String, Object> acl = Maps.newHashMap();
         acl.put( ACLS, permissions );
         acl.put( TYPE, principal.getType().toString() );
         acl.put( NAME, principal.getId() );
@@ -244,70 +358,337 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 		}
 		return false;
 	}
-	
-	@Override
-	public Boolean updatePropertyTypesInEntitySet( UUID entitySetId, Set<PropertyType> newPropertyTypes ) {
-		try {
-			if ( !verifyElasticsearchConnection() ) return false;
-		} catch (UnknownHostException e) {
-			logger.debug( "not connected to elasticsearch" );
-			e.printStackTrace();
-		}
-		
-		Map<String, Object> propertyTypes = Maps.newHashMap();
-		propertyTypes.put( PROPERTY_TYPES, newPropertyTypes);
-		try {
-			String s = ObjectMappers.getJsonMapper().writeValueAsString( propertyTypes );
-			UpdateRequest updateRequest = new UpdateRequest( ENTITY_SET_DATA_MODEL, ENTITY_SET_TYPE, entitySetId.toString() ).doc( s );
-			client.update( updateRequest ).get();
-			return true;
-		} catch (IOException | InterruptedException | ExecutionException e) {
-			e.printStackTrace();
-		}
-		return false;
-	}
-	
-	
-	public boolean verifyElasticsearchConnection() throws UnknownHostException {
-		if ( connected ) {
-			if ( !factory.isConnected( client ) ) {
-				connected = false;
-			}
-		} else {
-			client = factory.getClient();
-			if ( client != null ) {
-				connected = true;
-			}
-		}
-		return connected;
-	}
-	
-	@Scheduled( fixedRate = 1800000 )
-	public void verifyRunner() throws UnknownHostException {
-		verifyElasticsearchConnection();
-	}
+
+    @Override
+    public Boolean updatePropertyTypesInEntitySet( UUID entitySetId, List<PropertyType> newPropertyTypes ) {
+        try {
+            if ( !verifyElasticsearchConnection() ) return false;
+        } catch ( UnknownHostException e ) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+
+        Map<String, Object> propertyTypes = Maps.newHashMap();
+        propertyTypes.put( PROPERTY_TYPES, newPropertyTypes );
+        try {
+            String s = ObjectMappers.getJsonMapper().writeValueAsString( propertyTypes );
+            UpdateRequest updateRequest = new UpdateRequest(
+                    ENTITY_SET_DATA_MODEL,
+                    ENTITY_SET_TYPE,
+                    entitySetId.toString() ).doc( s );
+            client.update( updateRequest ).get();
+            return true;
+        } catch ( IOException | InterruptedException | ExecutionException e ) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    @Override
+    public Boolean deleteEntitySet( UUID entitySetId ) {
+        try {
+            if ( !verifyElasticsearchConnection() ) return false;
+        } catch ( UnknownHostException e ) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+
+        client.prepareDelete( ENTITY_SET_DATA_MODEL, ENTITY_SET_TYPE, entitySetId.toString() ).get();
+
+        new DeleteByQueryRequestBuilder( client, DeleteByQueryAction.INSTANCE ).filter(
+                QueryBuilders.boolQuery()
+                        .must( QueryBuilders.matchQuery( TYPE_FIELD, ACLS ) )
+                        .must( QueryBuilders.matchQuery( ENTITY_SET_ID, entitySetId.toString() ) ) )
+                .source( ENTITY_SET_DATA_MODEL )
+                .get();
+
+        return true;
+    }
+
+    @Override
+    public List<Map<String, Object>> executeEntitySetDataSearchAcrossIndices(
+            Set<UUID> entitySetIds,
+            Map<UUID, String> fieldSearches,
+            int size,
+            boolean explain ) {
+        try {
+            if ( !verifyElasticsearchConnection() ) return null;
+        } catch ( UnknownHostException e ) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+        BoolQueryBuilder query = new BoolQueryBuilder();
+        fieldSearches.entrySet().stream().forEach( entry -> query.should(
+                QueryBuilders.matchQuery( entry.getKey().toString(), entry.getValue() ).fuzziness( Fuzziness.AUTO ) ) );
+        query.minimumNumberShouldMatch( 1 );
+
+        List<String> indexNames = entitySetIds.stream().map( id -> SECURABLE_OBJECT_INDEX_PREFIX + id.toString() )
+                .collect( Collectors.toList() );
+        SearchResponse response = client.prepareSearch( indexNames.toArray( new String[ indexNames.size() ] ) )
+                .setTypes( SECURABLE_OBJECT_ROW_TYPE )
+                .setQuery( query )
+                .setFrom( 0 )
+                .setSize( size )
+                .setExplain( explain )
+                .get();
+        List<Map<String, Object>> results = Lists.newArrayList();
+        for ( SearchHit hit : response.getHits() ) {
+            results.add( hit.getSource() );
+        }
+        return results;
+    }
+
+    @Override
+    public Boolean updateOrganizationPermissions( UUID organizationId, Principal principal, Set<Permission> permissions ) {
+        try {
+            if ( !verifyElasticsearchConnection() ) return false;
+        } catch (UnknownHostException e) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+        Map<String, Object> acl = Maps.newHashMap();
+        acl.put( ACLS, permissions );
+        acl.put( TYPE, principal.getType().toString() );
+        acl.put( NAME, principal.getId() );
+        acl.put( ORGANIZATION_ID, organizationId.toString() );
+        try {
+            String s = ObjectMappers.getJsonMapper().writeValueAsString( acl );
+            String id = organizationId.toString() + "_" + principal.getType().toString() + "_" + principal.getId();
+            client.prepareIndex( ORGANIZATIONS, ACLS, id ).setParent( organizationId.toString() ).setSource( s ).execute().actionGet();
+            return true;
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
 
 	@Override
-	public Boolean deleteEntitySet( UUID entitySetId ) {
-		try {
-			if ( !verifyElasticsearchConnection() ) return false;
-		} catch (UnknownHostException e) {
-			logger.debug( "not connected to elasticsearch" );
-			e.printStackTrace();
-		}
-		
-		Map<String, Object> idField = Maps.newHashMap();
-		idField.put( ENTITY_SET_ID, entitySetId.toString() );
-		client.prepareDelete( ENTITY_SET_DATA_MODEL, ENTITY_SET_TYPE, entitySetId.toString() ).get();
+    public Boolean createEntityData( UUID entitySetId, String entityId, Map<UUID, String> propertyValues ) {
+        try {
+            if ( !verifyElasticsearchConnection() ) return false;
+        } catch (UnknownHostException e) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+        String indexName = SECURABLE_OBJECT_INDEX_PREFIX + entitySetId.toString();
+        
+        try {
+            String s = ObjectMappers.getJsonMapper().writeValueAsString( propertyValues );
+            client
+                .prepareIndex( indexName, SECURABLE_OBJECT_ROW_TYPE, entityId )
+                .setSource( s )
+                .execute()
+                .actionGet();
+        } catch ( JsonProcessingException e ) {
+            e.printStackTrace();
+            return false;
+        }
+        
+        return true;
+    }
+	
+	@Override
+    public Boolean updateEntitySetMetadata( EntitySet entitySet ) {
+        try {
+            if ( !verifyElasticsearchConnection() ) return false;
+        } catch (UnknownHostException e) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+        
+        Map<String, Object> entitySetObj = Maps.newHashMap();
+        entitySetObj.put( ENTITY_SET, entitySet);
+        try {
+            String s = ObjectMappers.getJsonMapper().writeValueAsString( entitySetObj );
+            UpdateRequest updateRequest = new UpdateRequest( ENTITY_SET_DATA_MODEL, ENTITY_SET_TYPE, entitySet.getId().toString() ).doc( s );
+            client.update( updateRequest ).get();
+            return true;
+        } catch (IOException | InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+	
+	@Override
+    public Boolean createOrganization( Organization organization, Principal principal ) {
+        try {
+            if ( !verifyElasticsearchConnection() ) return false;
+        } catch ( UnknownHostException e ) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+        Map<String, Object> organizationObject = Maps.newHashMap();
+        organizationObject.put( TITLE, organization.getTitle() );
+        organizationObject.put( DESCRIPTION, organization.getDescription() );
+        try {
+            String s = ObjectMappers.getJsonMapper().writeValueAsString( organizationObject );
+            client.prepareIndex( ORGANIZATIONS, ORGANIZATION_TYPE, organization.getId().toString() ).setSource( s )
+                    .execute().actionGet();
+            updateOrganizationPermissions(
+                    organization.getId(),
+                    principal,
+                    Sets.newHashSet( Permission.OWNER,
+                            Permission.READ,
+                            Permission.WRITE,
+                            Permission.DISCOVER,
+                            Permission.LINK ) );
+            return true;
+        } catch ( JsonProcessingException e ) {
+            e.printStackTrace();
+        }
+        return false;
+    }
 
-		new DeleteByQueryRequestBuilder(client, DeleteByQueryAction.INSTANCE).filter(
-				QueryBuilders.boolQuery()
-				.must( QueryBuilders.matchQuery( TYPE_FIELD, ACLS ) )
-				.must( QueryBuilders.matchQuery(ENTITY_SET_ID, entitySetId.toString() ) ) )
-		.source( ENTITY_SET_DATA_MODEL )
-		.get();
-		
-		return true;
-	}
+    @Override
+    public Boolean deleteOrganization( UUID organizationId ) {
+        try {
+            if ( !verifyElasticsearchConnection() ) return false;
+        } catch ( UnknownHostException e ) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+
+        client.prepareDelete( ORGANIZATIONS, ORGANIZATION_TYPE, organizationId.toString() ).get();
+
+        new DeleteByQueryRequestBuilder( client, DeleteByQueryAction.INSTANCE ).filter(
+                QueryBuilders.boolQuery()
+                        .must( QueryBuilders.matchQuery( TYPE_FIELD, ACLS ) )
+                        .must( QueryBuilders.matchQuery( ORGANIZATION_ID, organizationId.toString() ) ) )
+                .source( ORGANIZATIONS )
+                .get();
+
+        return true;
+    }
+
+    @Override
+    public List<Map<String, Object>> executeEntitySetDataSearch( UUID entitySetId, String searchTerm, Set<UUID> authorizedPropertyTypes) {
+        try {
+            if ( !verifyElasticsearchConnection() ) return Lists.newArrayList();
+        } catch (UnknownHostException e) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+        String indexName = SECURABLE_OBJECT_INDEX_PREFIX + entitySetId.toString();
+        String[] authorizedPropertyTypeFields = authorizedPropertyTypes
+                .stream()
+                .map( uuid -> uuid.toString() )
+                .collect( Collectors.toList() )
+                .toArray( new String[authorizedPropertyTypes.size()] );
+        
+        MultiMatchQueryBuilder query = QueryBuilders
+                .multiMatchQuery( searchTerm, authorizedPropertyTypeFields )
+                .type( Type.CROSS_FIELDS )
+                .fuzziness( Fuzziness.AUTO )
+                .minimumShouldMatch( "1" );
+        
+        SearchResponse response = client.prepareSearch( indexName )
+                .setTypes( SECURABLE_OBJECT_ROW_TYPE )
+                .setQuery( query )
+                .setFetchSource( authorizedPropertyTypeFields, null )
+                .setFrom( 0 ).setSize( 50 ).setExplain( true )
+                .get();
+        List<Map<String, Object>> hits = Lists.newArrayList();
+        for ( SearchHit hit: response.getHits() ) {
+            hits.add( hit.getSource() );
+        }
+        return hits;
+    }
+    
+    @Override
+    public List<Map<String, Object>> executeOrganizationSearch( String searchTerm, Set<Principal> principals ) {
+        try {
+            if ( !verifyElasticsearchConnection() ) return Lists.newArrayList();
+        } catch ( UnknownHostException e ) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+
+        BoolQueryBuilder permissionsQuery = new BoolQueryBuilder();
+        for ( Principal principal : principals ) {
+            BoolQueryBuilder childQuery = new BoolQueryBuilder();
+            childQuery.must( QueryBuilders.matchQuery( NAME, principal.getId() ) );
+            childQuery.must( QueryBuilders.matchQuery( TYPE, principal.getType().toString() ) );
+            childQuery.must( QueryBuilders.termQuery( ACLS, Permission.READ.toString() ) );
+            String hitName = "acl_" + principal.getType().toString() + "_" + principal.getId();
+            permissionsQuery.should( QueryBuilders.hasChildQuery( ACLS, childQuery, ScoreMode.Avg )
+                    .innerHit( new InnerHitBuilder()
+                            .setFetchSourceContext( new FetchSourceContext( true, new String[] { ACLS }, null ) )
+                            .setName( hitName ) ) );
+        }
+        permissionsQuery.minimumNumberShouldMatch( 1 );
+
+        BoolQueryBuilder query = new BoolQueryBuilder().must( permissionsQuery )
+                .should( QueryBuilders.matchQuery( TITLE, searchTerm ).fuzziness( Fuzziness.AUTO ) )
+                .should( QueryBuilders.matchQuery( DESCRIPTION, searchTerm ).fuzziness( Fuzziness.AUTO ) )
+                .minimumNumberShouldMatch( 1 );
+
+        SearchResponse response = client.prepareSearch( ORGANIZATIONS )
+                .setTypes( ORGANIZATION_TYPE )
+                .setQuery( query )
+                .setFrom( 0 ).setSize( 50 ).setExplain( true )
+                .get();
+
+        List<Map<String, Object>> hits = Lists.newArrayList();
+        for ( SearchHit hit : response.getHits() ) {
+            Map<String, Object> match = hit.getSource();
+            match.put( ID, hit.getId() );
+            Set<String> permissions = Sets.newHashSet();
+            for ( SearchHits innerHits : hit.getInnerHits().values() ) {
+                for ( SearchHit innerHit : innerHits.getHits() ) {
+                    permissions.addAll( (List<String>) innerHit.getSource().get( ACLS ) );
+                }
+            }
+            match.put( ACLS, permissions );
+            hits.add( match );
+        }
+        return hits;
+    }
+
+    @Override
+    public Boolean updateOrganization( UUID id, Optional<String> optionalTitle, Optional<String> optionalDescription ) {
+        try {
+            if ( !verifyElasticsearchConnection() ) return false;
+        } catch ( UnknownHostException e ) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+
+        Map<String, Object> updatedFields = Maps.newHashMap();
+        if ( optionalTitle.isPresent() ) {
+            updatedFields.put( TITLE, optionalTitle.get() );
+        }
+        if ( optionalDescription.isPresent() ) {
+            updatedFields.put( DESCRIPTION, optionalDescription.get() );
+        }
+        try {
+            String s = ObjectMappers.getJsonMapper().writeValueAsString( updatedFields );
+            UpdateRequest updateRequest = new UpdateRequest( ORGANIZATIONS, ORGANIZATION_TYPE, id.toString() ).doc( s );
+            client.update( updateRequest ).get();
+            return true;
+        } catch ( IOException | InterruptedException | ExecutionException e ) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+    
+    public boolean verifyElasticsearchConnection() throws UnknownHostException {
+        if ( connected ) {
+            if ( !factory.isConnected( client ) ) {
+                connected = false;
+            }
+        } else {
+            client = factory.getClient();
+            if ( client != null ) {
+                connected = true;
+            }
+        }
+        return connected;
+    }
+
+    @Scheduled(
+        fixedRate = 1800000 )
+    public void verifyRunner() throws UnknownHostException {
+        verifyElasticsearchConnection();
+    }
 
 }

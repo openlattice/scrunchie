@@ -2,7 +2,6 @@ package com.kryptnostic.sparks;
 
 import java.io.Serializable;
 import java.math.BigInteger;
-import java.net.UnknownHostException;
 import java.security.SecureRandom;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +26,7 @@ import com.dataloom.data.requests.LookupEntitiesRequest;
 import com.dataloom.edm.internal.EntitySet;
 import com.dataloom.edm.internal.EntityType;
 import com.dataloom.edm.internal.PropertyType;
+import com.dataloom.organization.Organization;
 import com.datastax.driver.core.DataType;
 import com.datastax.driver.core.Session;
 import com.datastax.spark.connector.cql.CassandraConnector;
@@ -40,7 +40,6 @@ import com.kryptnostic.conductor.rpc.QueryResult;
 import com.kryptnostic.datastore.cassandra.CassandraEdmMapping;
 import com.kryptnostic.datastore.cassandra.CommonColumns;
 import com.kryptnostic.datastore.services.EdmManager;
-import com.kryptnostic.kindling.search.ConductorElasticsearchImpl;
 
 public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     private static final long               serialVersionUID = 825467486008335571L;
@@ -423,15 +422,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 
 	@Override
 	public Boolean submitEntitySetToElasticsearch(EntitySet entitySet, List<PropertyType> propertyTypes, Principal principal) {
-		elasticsearchApi.saveEntitySetToElasticsearch( entitySet, propertyTypes, principal );
-		// TODO Auto-generated method stub
-		return true;
-	}
-
-	@Override
-	public Boolean submitEntitySetDataToElasticsearch(EntitySet entitySet, Dataset<Row> entitySetData) {
-		// TODO Auto-generated method stub
-		return null;
+		return elasticsearchApi.saveEntitySetToElasticsearch( entitySet, propertyTypes, principal );
 	}
 
 	@Override
@@ -449,5 +440,56 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 	public Boolean deleteEntitySet( UUID entitySetId ) {
 		return elasticsearchApi.deleteEntitySet( entitySetId );
 	}
+	
+	@Override
+	public List<Map<String, Object>> executeEntitySetDataSearchAcrossIndices( Set<UUID> entitySetIds, Map<UUID, String> fieldSearches, int size, boolean explain ) {
+	    return elasticsearchApi.executeEntitySetDataSearchAcrossIndices( entitySetIds, fieldSearches, size, explain );
+	}
+
+
+    @Override
+    public Boolean createEntityData( UUID entitySetId, String entityId, Map<UUID, String> propertyValues ) {
+        return elasticsearchApi.createEntityData( entitySetId, entityId, propertyValues );
+    }
+
+    @Override
+    public List<Map<String, Object>> executeEntitySetDataSearch( UUID entitySetId, String searchTerm, Set<UUID> authorizedPropertyTypes ) {
+        return elasticsearchApi.executeEntitySetDataSearch( entitySetId, searchTerm, authorizedPropertyTypes );
+    }
+    
+    @Override
+    public Boolean createOrganization( Organization organization, Principal principal ) {
+        return elasticsearchApi.createOrganization( organization, principal );
+    }
+
+    @Override
+    public List<Map<String, Object>> executeOrganizationKeywordSearch( String searchTerm, Set<Principal> principals ) {
+        return elasticsearchApi.executeOrganizationSearch( searchTerm, principals );
+    }
+
+    @Override
+    public Boolean updateOrganization( UUID id, Optional<String> optionalTitle, Optional<String> optionalDescription ) {
+        return elasticsearchApi.updateOrganization( id, optionalTitle, optionalDescription );
+    }
+
+    @Override
+    public Boolean deleteOrganization( UUID organizationId ) {
+        return elasticsearchApi.deleteOrganization( organizationId );
+    }
+
+    @Override
+    public Boolean updateOrganizationPermissions( UUID organizationId, Principal principal, Set<Permission> permissions ) {
+        return elasticsearchApi.updateOrganizationPermissions( organizationId, principal, permissions );
+    }
+    
+    @Override
+    public Boolean updateEntitySetMetadata( EntitySet entitySet ) {
+        return elasticsearchApi.updateEntitySetMetadata( entitySet );
+    }
+
+    @Override
+    public Boolean updatePropertyTypesInEntitySet( UUID entitySetId, List<PropertyType> newPropertyTypes ) {
+        return elasticsearchApi.updatePropertyTypesInEntitySet( entitySetId, newPropertyTypes );
+    }
 
 }
