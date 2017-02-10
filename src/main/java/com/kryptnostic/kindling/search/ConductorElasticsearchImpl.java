@@ -277,7 +277,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                             Permission.LINK ) );
             return true;
         } catch ( JsonProcessingException e ) {
-            e.printStackTrace();
+            logger.debug( "error saving entity set to elasticsearch" );
         }
         return false;
     }
@@ -374,7 +374,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 			client.prepareIndex( ENTITY_SET_DATA_MODEL, ACLS, id ).setParent( entitySetId.toString() ).setSource( s ).execute().actionGet();
 			return true;
 		} catch (JsonProcessingException e) {
-			e.printStackTrace();
+			logger.debug( "error updating entity set permissions in elasticsearch" );
 		}
 		return false;
 	}
@@ -399,7 +399,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             client.update( updateRequest ).actionGet();
             return true;
         } catch ( IOException e ) {
-            e.printStackTrace();
+            logger.debug( "error updating property types of entity set in elasticsearch" );
         }
         return false;
     }
@@ -481,7 +481,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             client.prepareIndex( ORGANIZATIONS, ACLS, id ).setParent( organizationId.toString() ).setSource( s ).execute().actionGet();
             return true;
         } catch (JsonProcessingException e) {
-            e.printStackTrace();
+            logger.debug( "error updating organization permissions in elasticsearch" );
         }
         return false;
     }
@@ -504,7 +504,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 .execute()
                 .actionGet();
         } catch ( JsonProcessingException e ) {
-            e.printStackTrace();
+            logger.debug( "error creating entity data in elasticsearch" );
             return false;
         }
         
@@ -528,7 +528,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             client.update( updateRequest ).actionGet();
             return true;
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.debug( "error updating entity set metadata in elasticsearch" );
         }
         return false;
     }
@@ -558,7 +558,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                             Permission.LINK ) );
             return true;
         } catch ( JsonProcessingException e ) {
-            e.printStackTrace();
+            logger.debug( "error creating organization in elasticsearch" );
         }
         return false;
     }
@@ -693,7 +693,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             client.update( updateRequest ).actionGet();
             return true;
         } catch ( IOException e ) {
-            e.printStackTrace();
+            logger.debug( "error updating organization in elasticsearch" );
         }
         return false;
     }
