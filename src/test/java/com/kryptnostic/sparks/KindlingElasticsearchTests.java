@@ -1,14 +1,5 @@
 package com.kryptnostic.sparks;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-
-import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind;
-import org.apache.olingo.commons.api.edm.FullQualifiedName;
-import org.junit.Test;
-
 import com.dataloom.authorization.Permission;
 import com.dataloom.authorization.Principal;
 import com.dataloom.authorization.PrincipalType;
@@ -18,16 +9,19 @@ import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind;
+import org.apache.olingo.commons.api.edm.FullQualifiedName;
+import org.junit.Test;
 
-import jersey.repackaged.com.google.common.collect.Maps;
+import java.util.*;
 
 public class KindlingElasticsearchTests extends BaseElasticsearchTest {
-    
+
     @Test
     public void yes() {
-        
+
     }
-        
+
     @Test
     public void initializeDataModelIndex() {
 		elasticsearchApi.initializeEntitySetDataModelIndex();
@@ -81,7 +75,7 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
         		Optional.of("department of the employee"),
         		Sets.newHashSet(),
         		EdmPrimitiveTypeKind.String );
-    	
+
 
         List<PropertyType> propertyTypes = Lists.newArrayList();
         propertyTypes.add( empId );
@@ -89,12 +83,12 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
         propertyTypes.add( empTitle );
         propertyTypes.add( empSalary );
         propertyTypes.add( empDept );
-        
+
         Principal owner = new Principal( PrincipalType.USER, "support@kryptnostic.com" );
-        
+
 		elasticsearchApi.saveEntitySetToElasticsearch( entitySet, propertyTypes, owner );
     }
-    
+
    // @Test
     public void testAddEntitySetPermissions() {
     	Principal principal = new Principal( PrincipalType.ROLE, "user" );
@@ -103,15 +97,15 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
     	newPermissions.add( Permission.READ );
 		elasticsearchApi.updateEntitySetPermissions( ENTITY_SET_ID, principal, newPermissions );
     }
-    
-    
+
+
    // @Test
     public void testEntitySetKeywordSearch() {
     	Set<Principal> principals = Sets.newHashSet();
     //	principals.add( new Principal( PrincipalType.USER, "katherine" ) );
     	//principals.add( new Principal( PrincipalType.ROLE, "evil" ) );
     	principals.add( new Principal( PrincipalType.ROLE, "user" ) );
-    	
+
     	String query = "Employees";
     	FullQualifiedName entityTypeFqn = new FullQualifiedName("testcsv", "employee");
     	List<FullQualifiedName> propertyTypes = Lists.newArrayList();
@@ -126,7 +120,7 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
 		//		Optional.of( propertyTypes )
 		);
     }
-    
+
     //@Test
     public void testUpdatePropertyTypes() {
     	PropertyType empId = new PropertyType(
@@ -164,9 +158,9 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
         		Optional.of("department of the employee"),
         		Sets.newHashSet(),
         		EdmPrimitiveTypeKind.String );
-    	
 
-        Set<PropertyType> propertyTypes = Sets.newHashSet();
+
+        List<PropertyType> propertyTypes = new ArrayList<>( 5 );
         propertyTypes.add( empId );
         propertyTypes.add( empName );
         propertyTypes.add( empTitle );
@@ -174,7 +168,7 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
         propertyTypes.add( empDept );
 		elasticsearchApi.updatePropertyTypesInEntitySet( ENTITY_SET_ID, propertyTypes);
     }
-    
+
   //  @Test
     public void testDeleteEntitySet() {
 		elasticsearchApi.deleteEntitySet( ENTITY_SET_ID );
@@ -182,13 +176,13 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
 
     @Test
     public void testCreateEntityData() {
-        Map<UUID, String> propertyValues = Maps.newHashMap();
+        Map<UUID, String> propertyValues = com.google.common.collect.Maps.newHashMap();
         propertyValues.put( UUID.randomUUID(), "value 1" );
         propertyValues.put( UUID.randomUUID(), "another one" );
         propertyValues.put( UUID.randomUUID(), "the last one" );
         elasticsearchApi.createEntityData( UUID.fromString( "4c767353-8fcc-4b37-9ff9-bb3ad0ab96e4" ), "entityIdakdjfaksjdnalks", propertyValues );
     }
-    
+
     @Test
     public void testSearchEntityData() {
         Set<UUID> authorizedPropertyTypes = Sets.newHashSet();
@@ -201,7 +195,7 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
         authorizedPropertyTypes.add( UUID.fromString( "93e64078-d1a4-4306-a66c-2448d2fd3504" ) );
         elasticsearchApi.executeEntitySetDataSearch( UUID.fromString( "d93061ba-334a-46dd-bef0-070de71c8cf0" ), "fire", authorizedPropertyTypes );
     }
-    
+
     @Test
     public void testSearchAcrossIndices() {
         Set<UUID> entitySetIds = Sets.newHashSet();
@@ -218,7 +212,7 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
         principals.add( user );
         elasticsearchApi.executeOrganizationSearch( "katherine", principals );
     }
-    
+
     @Test
     public void testUpdateOrganization() {
         String newTitle = "New Title";
