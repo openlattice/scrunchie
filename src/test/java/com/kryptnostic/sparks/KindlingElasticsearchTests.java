@@ -16,6 +16,7 @@ import com.dataloom.edm.internal.EntitySet;
 import com.dataloom.edm.internal.PropertyType;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import jersey.repackaged.com.google.common.collect.Maps;
@@ -201,7 +202,15 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
         elasticsearchApi.executeEntitySetDataSearch( UUID.fromString( "d93061ba-334a-46dd-bef0-070de71c8cf0" ), "fire", authorizedPropertyTypes );
     }
     
-    
+    @Test
+    public void testSearchAcrossIndices() {
+        Set<UUID> entitySetIds = Sets.newHashSet();
+        entitySetIds.add( UUID.fromString( "d93061ba-334a-46dd-bef0-070de71c8cf0" ) );
+        Map<UUID, String> fieldSearches = Maps.newHashMap();
+        fieldSearches.put( UUID.fromString( "12926a46-7b2d-4b9c-98db-d6a8aff047f0" ), "KOWALUK" );
+        elasticsearchApi.executeEntitySetDataSearchAcrossIndices( entitySetIds, fieldSearches, 50, true );
+    }
+
     @Test
     public void testOrganizationKeywordSearch() {
         Set<Principal> principals = Sets.newHashSet();
@@ -216,20 +225,5 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
         String newDescription = "this is a new description";
         elasticsearchApi.updateOrganization( UUID.fromString( "417133c7-e4a5-4368-887c-98d6b50ac99b" ), Optional.absent(), Optional.absent() );
     }
-//    
-//    @Test
-//    public void testWriteEntitySetData (EntitySet entitySet ) {
-//    	String entityTypeUnderscore = entitySet.getType().getName() + "_" + entitySet.getType().getNamespace();
-//    	Dataset<Row> entityDf = sparkSession
-//    			.read()
-//    			.format( "org.apache.spark.sql.cassandra" )
-//    			.option( "table", entitySet.getName() )
-//    			.option( "keyspace", "sparks" )
-//    			.load();
-//    	JavaEsSparkSQL.saveToEs( entityDf, "entity_set_data/" + entityTypeUnderscore );
-//        
-//        
-//    	
-//    }
-    
+
 }
