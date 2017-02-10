@@ -1,6 +1,7 @@
 package com.kryptnostic.sparks;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -15,6 +16,7 @@ import com.dataloom.edm.internal.EntitySet;
 import com.dataloom.edm.internal.PropertyType;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 public class KindlingElasticsearchTests extends BaseElasticsearchTest {
@@ -170,7 +172,32 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
     public void testDeleteEntitySet() {
 		elasticsearchApi.deleteEntitySet( ENTITY_SET_ID );
     }
+
+//    
+//    @Test
+//    public void testWriteEntitySetData (EntitySet entitySet ) {
+//    	String entityTypeUnderscore = entitySet.getType().getName() + "_" + entitySet.getType().getNamespace();
+//    	Dataset<Row> entityDf = sparkSession
+//    			.read()
+//    			.format( "org.apache.spark.sql.cassandra" )
+//    			.option( "table", entitySet.getName() )
+//    			.option( "keyspace", "sparks" )
+//    			.load();
+//    	JavaEsSparkSQL.saveToEs( entityDf, "entity_set_data/" + entityTypeUnderscore );
+//        
+//        
+//    	
+//    }
     
+    @Test
+    public void testSearchAcrossIndices() {
+        Set<UUID> entitySetIds = Sets.newHashSet();
+        entitySetIds.add( UUID.fromString( "d93061ba-334a-46dd-bef0-070de71c8cf0" ) );
+        Map<UUID, String> fieldSearches = Maps.newHashMap();
+        fieldSearches.put( UUID.fromString( "12926a46-7b2d-4b9c-98db-d6a8aff047f0" ), "KOWALUK" );
+        elasticsearchApi.executeEntitySetDataSearchAcrossIndices( entitySetIds, fieldSearches, 50, true );
+    }
+
     @Test
     public void testOrganizationKeywordSearch() {
         Set<Principal> principals = Sets.newHashSet();
