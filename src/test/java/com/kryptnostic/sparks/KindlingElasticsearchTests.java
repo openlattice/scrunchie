@@ -165,22 +165,5 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
     public void testDeleteEntitySet() {
 		elasticsearchApi.deleteEntitySet( ENTITY_SET_ID );
     }
-//    
-//    @Test
-//    public void testWriteEntitySetData (EntitySet entitySet ) {
-//    	String entityTypeUnderscore = entitySet.getType().getName() + "_" + entitySet.getType().getNamespace();
-//    	Dataset<Row> entityDf = sparkSession
-//    			.read()
-//    			.format( "org.apache.spark.sql.cassandra" )
-//    			.option( "table", entitySet.getName() )
-//    			.option( "keyspace", "sparks" )
-//    			.load();
-//    	JavaEsSparkSQL.saveToEs( entityDf, "entity_set_data/" + entityTypeUnderscore );
-//        
-//        
-//    	
-//    }
-    
-    
     
 }
