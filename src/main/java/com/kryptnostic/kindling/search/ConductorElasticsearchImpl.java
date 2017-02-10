@@ -277,7 +277,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                             Permission.LINK ) );
             return true;
         } catch ( JsonProcessingException e ) {
-            e.printStackTrace();
+            logger.debug( "error saving entity set to elasticsearch" );
         }
         return false;
     }
@@ -337,7 +337,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 .setQuery( query )
                 .setFetchSource( new String[] { ENTITY_SET, PROPERTY_TYPES }, null )
                 .setFrom( 0 ).setSize( 50 ).setExplain( true )
-                .get();
+                .execute()
+                .actionGet();
 
         List<Map<String, Object>> hits = Lists.newArrayList();
         for ( SearchHit hit : response.getHits() ) {
@@ -373,7 +374,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 			client.prepareIndex( ENTITY_SET_DATA_MODEL, ACLS, id ).setParent( entitySetId.toString() ).setSource( s ).execute().actionGet();
 			return true;
 		} catch (JsonProcessingException e) {
-			e.printStackTrace();
+			logger.debug( "error updating entity set permissions in elasticsearch" );
 		}
 		return false;
 	}
@@ -395,10 +396,10 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                     ENTITY_SET_DATA_MODEL,
                     ENTITY_SET_TYPE,
                     entitySetId.toString() ).doc( s );
-            client.update( updateRequest ).get();
+            client.update( updateRequest ).actionGet();
             return true;
-        } catch ( IOException | InterruptedException | ExecutionException e ) {
-            e.printStackTrace();
+        } catch ( IOException e ) {
+            logger.debug( "error updating property types of entity set in elasticsearch" );
         }
         return false;
     }
@@ -412,14 +413,17 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             e.printStackTrace();
         }
 
-        client.prepareDelete( ENTITY_SET_DATA_MODEL, ENTITY_SET_TYPE, entitySetId.toString() ).get();
+        client.prepareDelete( ENTITY_SET_DATA_MODEL, ENTITY_SET_TYPE, entitySetId.toString() ).execute().actionGet();
 
         new DeleteByQueryRequestBuilder( client, DeleteByQueryAction.INSTANCE ).filter(
                 QueryBuilders.boolQuery()
                         .must( QueryBuilders.matchQuery( TYPE_FIELD, ACLS ) )
                         .must( QueryBuilders.matchQuery( ENTITY_SET_ID, entitySetId.toString() ) ) )
                 .source( ENTITY_SET_DATA_MODEL )
-                .get();
+                .execute()
+                .actionGet();
+        
+        client.admin().indices().delete( new DeleteIndexRequest( SECURABLE_OBJECT_INDEX_PREFIX + entitySetId.toString() ) );
 
         return true;
     }
@@ -449,7 +453,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 .setFrom( 0 )
                 .setSize( size )
                 .setExplain( explain )
-                .get();
+                .execute()
+                .actionGet();
         List<Map<String, Object>> results = Lists.newArrayList();
         for ( SearchHit hit : response.getHits() ) {
             results.add( hit.getSource() );
@@ -476,7 +481,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             client.prepareIndex( ORGANIZATIONS, ACLS, id ).setParent( organizationId.toString() ).setSource( s ).execute().actionGet();
             return true;
         } catch (JsonProcessingException e) {
-            e.printStackTrace();
+            logger.debug( "error updating organization permissions in elasticsearch" );
         }
         return false;
     }
@@ -499,7 +504,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 .execute()
                 .actionGet();
         } catch ( JsonProcessingException e ) {
-            e.printStackTrace();
+            logger.debug( "error creating entity data in elasticsearch" );
             return false;
         }
         
@@ -520,10 +525,10 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         try {
             String s = ObjectMappers.getJsonMapper().writeValueAsString( entitySetObj );
             UpdateRequest updateRequest = new UpdateRequest( ENTITY_SET_DATA_MODEL, ENTITY_SET_TYPE, entitySet.getId().toString() ).doc( s );
-            client.update( updateRequest ).get();
+            client.update( updateRequest ).actionGet();
             return true;
-        } catch (IOException | InterruptedException | ExecutionException e) {
-            e.printStackTrace();
+        } catch (IOException e) {
+            logger.debug( "error updating entity set metadata in elasticsearch" );
         }
         return false;
     }
@@ -553,7 +558,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                             Permission.LINK ) );
             return true;
         } catch ( JsonProcessingException e ) {
-            e.printStackTrace();
+            logger.debug( "error creating organization in elasticsearch" );
         }
         return false;
     }
@@ -567,14 +572,15 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             e.printStackTrace();
         }
 
-        client.prepareDelete( ORGANIZATIONS, ORGANIZATION_TYPE, organizationId.toString() ).get();
+        client.prepareDelete( ORGANIZATIONS, ORGANIZATION_TYPE, organizationId.toString() ).execute().actionGet();
 
         new DeleteByQueryRequestBuilder( client, DeleteByQueryAction.INSTANCE ).filter(
                 QueryBuilders.boolQuery()
                         .must( QueryBuilders.matchQuery( TYPE_FIELD, ACLS ) )
                         .must( QueryBuilders.matchQuery( ORGANIZATION_ID, organizationId.toString() ) ) )
                 .source( ORGANIZATIONS )
-                .get();
+                .execute()
+                .actionGet();
 
         return true;
     }
@@ -605,7 +611,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 .setQuery( query )
                 .setFetchSource( authorizedPropertyTypeFields, null )
                 .setFrom( 0 ).setSize( 50 ).setExplain( true )
-                .get();
+                .execute()
+                .actionGet();
         List<Map<String, Object>> hits = Lists.newArrayList();
         for ( SearchHit hit: response.getHits() ) {
             hits.add( hit.getSource() );
@@ -645,7 +652,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 .setTypes( ORGANIZATION_TYPE )
                 .setQuery( query )
                 .setFrom( 0 ).setSize( 50 ).setExplain( true )
-                .get();
+                .execute()
+                .actionGet();
 
         List<Map<String, Object>> hits = Lists.newArrayList();
         for ( SearchHit hit : response.getHits() ) {
@@ -682,10 +690,10 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         try {
             String s = ObjectMappers.getJsonMapper().writeValueAsString( updatedFields );
             UpdateRequest updateRequest = new UpdateRequest( ORGANIZATIONS, ORGANIZATION_TYPE, id.toString() ).doc( s );
-            client.update( updateRequest ).get();
+            client.update( updateRequest ).actionGet();
             return true;
-        } catch ( IOException | InterruptedException | ExecutionException e ) {
-            e.printStackTrace();
+        } catch ( IOException e ) {
+            logger.debug( "error updating organization in elasticsearch" );
         }
         return false;
     }
