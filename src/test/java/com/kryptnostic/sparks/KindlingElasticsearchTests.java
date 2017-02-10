@@ -168,6 +168,7 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
     public void testDeleteEntitySet() {
 		elasticsearchApi.deleteEntitySet( ENTITY_SET_ID );
     }
+
 //    
 //    @Test
 //    public void testWriteEntitySetData (EntitySet entitySet ) {
@@ -192,7 +193,5 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
         fieldSearches.put( UUID.fromString( "12926a46-7b2d-4b9c-98db-d6a8aff047f0" ), "KOWALUK" );
         elasticsearchApi.executeEntitySetDataSearchAcrossIndices( entitySetIds, fieldSearches, 50, true );
     }
-    
-    
-    
+
 }
