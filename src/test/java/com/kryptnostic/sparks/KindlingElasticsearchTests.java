@@ -31,11 +31,11 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
     public void initializeDataModelIndex() {
 		elasticsearchApi.initializeEntitySetDataModelIndex();
     }
-    
-//    @Test
-//    public void initializeDataIndex() {
-//        elasticsearchApi.initializeEntitySetDataIndex();
-//    }
+
+    @Test
+    public void initializeOrganizationsIndex() {
+        elasticsearchApi.initializeOrganizationIndex();
+    }
 
    // @Test
     public void testWriteEntitySetMetadata() {
@@ -201,5 +201,35 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
         elasticsearchApi.executeEntitySetDataSearch( UUID.fromString( "d93061ba-334a-46dd-bef0-070de71c8cf0" ), "fire", authorizedPropertyTypes );
     }
     
+    
+    @Test
+    public void testOrganizationKeywordSearch() {
+        Set<Principal> principals = Sets.newHashSet();
+        Principal user = new Principal( PrincipalType.USER, "auth0|57e4b2d8d9d1d194778fd5b6" );
+        principals.add( user );
+        elasticsearchApi.executeOrganizationSearch( "katherine", principals );
+    }
+    
+    @Test
+    public void testUpdateOrganization() {
+        String newTitle = "New Title";
+        String newDescription = "this is a new description";
+        elasticsearchApi.updateOrganization( UUID.fromString( "417133c7-e4a5-4368-887c-98d6b50ac99b" ), Optional.absent(), Optional.absent() );
+    }
+//    
+//    @Test
+//    public void testWriteEntitySetData (EntitySet entitySet ) {
+//    	String entityTypeUnderscore = entitySet.getType().getName() + "_" + entitySet.getType().getNamespace();
+//    	Dataset<Row> entityDf = sparkSession
+//    			.read()
+//    			.format( "org.apache.spark.sql.cassandra" )
+//    			.option( "table", entitySet.getName() )
+//    			.option( "keyspace", "sparks" )
+//    			.load();
+//    	JavaEsSparkSQL.saveToEs( entityDf, "entity_set_data/" + entityTypeUnderscore );
+//        
+//        
+//    	
+//    }
     
 }
