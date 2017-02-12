@@ -77,7 +77,7 @@ public class ElasticsearchTransportClientFactory {
 		}
 	}
 	
-	public boolean isConnected( Client someClient ) {
+	public static boolean isConnected( Client someClient ) {
 		if ( someClient == null ) {
 			logger.info( "not connected to elasticsearch" );
 			return false;
