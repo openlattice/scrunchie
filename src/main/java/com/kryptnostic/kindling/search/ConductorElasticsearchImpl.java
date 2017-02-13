@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
 import javax.inject.Inject;
 
 import org.apache.lucene.search.join.ScoreMode;
+import org.apache.tools.ant.taskdefs.Sync;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.update.UpdateRequest;
@@ -54,8 +55,11 @@ import org.springframework.scheduling.annotation.Scheduled;
 
 import com.dataloom.authorization.Permission;
 import com.dataloom.authorization.Principal;
-import com.dataloom.edm.internal.EntitySet;
-import com.dataloom.edm.internal.PropertyType;
+import com.dataloom.data.EntityKey;
+import com.dataloom.datasource.UUIDs.Syncs;
+import com.dataloom.edm.EntitySet;
+import com.dataloom.edm.type.PropertyType;
+import com.dataloom.linking.Entity;
 import com.dataloom.mappers.ObjectMappers;
 import com.dataloom.organization.Organization;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -429,7 +433,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     }
 
     @Override
-    public List<Map<String, Object>> executeEntitySetDataSearchAcrossIndices(
+    public List<Entity> executeEntitySetDataSearchAcrossIndices(
             Set<UUID> entitySetIds,
             Map<UUID, String> fieldSearches,
             int size,
@@ -455,9 +459,11 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 .setExplain( explain )
                 .execute()
                 .actionGet();
-        List<Map<String, Object>> results = Lists.newArrayList();
+        List<Entity> results = Lists.newArrayList();
         for ( SearchHit hit : response.getHits() ) {
-            results.add( hit.getSource() );
+        	UUID entitySetId = UUID.fromString( hit.getIndex().substring( SECURABLE_OBJECT_INDEX_PREFIX.length() ) );
+        	EntityKey key = new EntityKey( Syncs.BASE.getSyncId(), entitySetId, hit.getId() );
+            results.add( new Entity( key, hit.getSource() ) );
         }
         return results;
     }

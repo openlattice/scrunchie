@@ -42,9 +42,10 @@ import org.slf4j.LoggerFactory;
 import com.dataloom.authorization.Permission;
 import com.dataloom.authorization.Principal;
 import com.dataloom.data.requests.LookupEntitiesRequest;
-import com.dataloom.edm.internal.EntitySet;
-import com.dataloom.edm.internal.EntityType;
-import com.dataloom.edm.internal.PropertyType;
+import com.dataloom.edm.EntitySet;
+import com.dataloom.edm.type.EntityType;
+import com.dataloom.edm.type.PropertyType;
+import com.dataloom.linking.Entity;
 import com.dataloom.organization.Organization;
 import com.datastax.driver.core.DataType;
 import com.datastax.driver.core.Session;
@@ -461,7 +462,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 	}
 	
 	@Override
-	public List<Map<String, Object>> executeEntitySetDataSearchAcrossIndices( Set<UUID> entitySetIds, Map<UUID, String> fieldSearches, int size, boolean explain ) {
+	public List<Entity> executeEntitySetDataSearchAcrossIndices( Set<UUID> entitySetIds, Map<UUID, String> fieldSearches, int size, boolean explain ) {
 	    return elasticsearchApi.executeEntitySetDataSearchAcrossIndices( entitySetIds, fieldSearches, size, explain );
 	}
 
