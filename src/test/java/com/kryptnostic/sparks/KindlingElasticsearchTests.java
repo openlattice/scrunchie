@@ -114,8 +114,8 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
     @Test
     public void testSearchAcrossIndices() {
         Set<UUID> entitySetIds = Sets.newHashSet( chicagoEmployeesEntitySetId, entitySet2Id );
-        Map<UUID, String> fieldSearches = Maps.newHashMap();
-        fieldSearches.put( employeeIdPropertyId, "12347" );
+        Map<UUID, Set<String>> fieldSearches = Maps.newHashMap();
+        fieldSearches.put( employeeIdPropertyId, Sets.newHashSet( "12347" ) );
         elasticsearchApi.executeEntitySetDataSearchAcrossIndices( entitySetIds, fieldSearches, 50, true );
     }
 
