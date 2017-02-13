@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import javax.inject.Inject;
@@ -54,8 +53,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 
 import com.dataloom.authorization.Permission;
 import com.dataloom.authorization.Principal;
-import com.dataloom.edm.internal.EntitySet;
-import com.dataloom.edm.internal.PropertyType;
+import com.dataloom.edm.EntitySet;
+import com.dataloom.edm.type.PropertyType;
 import com.dataloom.mappers.ObjectMappers;
 import com.dataloom.organization.Organization;
 import com.fasterxml.jackson.core.JsonProcessingException;
