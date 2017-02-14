@@ -432,7 +432,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     @Override
     public List<Map<String, Object>> executeEntitySetDataSearchAcrossIndices(
             Set<UUID> entitySetIds,
-            Map<UUID, String> fieldSearches,
+            Map<UUID, Set<String>> fieldSearches,
             int size,
             boolean explain ) {
         try {

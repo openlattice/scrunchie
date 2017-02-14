@@ -461,7 +461,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 	}
 	
 	@Override
-	public List<Map<String, Object>> executeEntitySetDataSearchAcrossIndices( Set<UUID> entitySetIds, Map<UUID, String> fieldSearches, int size, boolean explain ) {
+	public List<Map<String, Object>> executeEntitySetDataSearchAcrossIndices( Set<UUID> entitySetIds, Map<UUID, Set<String>> fieldSearches, int size, boolean explain ) {
 	    return elasticsearchApi.executeEntitySetDataSearchAcrossIndices( entitySetIds, fieldSearches, size, explain );
 	}
 
