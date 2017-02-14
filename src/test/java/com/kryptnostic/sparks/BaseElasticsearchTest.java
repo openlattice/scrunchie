@@ -21,26 +21,26 @@ package com.kryptnostic.sparks;
 
 import java.net.UnknownHostException;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
+import com.dataloom.edm.EntitySet;
+import com.dataloom.edm.type.PropertyType;
 import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind;
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.clearspring.analytics.util.Lists;
 import com.dataloom.authorization.Principal;
 import com.dataloom.authorization.PrincipalType;
+
 import com.dataloom.edm.EntitySet;
 import com.dataloom.edm.type.PropertyType;
+
 import com.dataloom.organization.Organization;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.kryptnostic.conductor.rpc.ConductorConfiguration;
 import com.kryptnostic.conductor.rpc.SearchConfiguration;
@@ -49,13 +49,13 @@ import com.kryptnostic.rhizome.configuration.service.ConfigurationService.Static
 
 public class BaseElasticsearchTest {
     
-    protected static UUID namePropertyId = UUID.fromString( "12926a46-7b2d-4b9c-98db-d6a8aff047f0" );
-    protected static UUID employeeIdPropertyId = UUID.fromString( "65d76d13-0d91-4d78-8dbd-cf6ce6e6162f" );
-    protected static UUID salaryPropertyId = UUID.fromString( "60de791c-df3e-462b-8299-ea36dc3beb16" );
-    protected static UUID employeeDeptPropertyId = UUID.fromString( "4328a8e7-16e1-42a3-ad5b-adf4b06921ec" );
-    protected static UUID employeeTitlePropertyId = UUID.fromString( "4a6f084d-cd44-4d5b-9188-947d7151bf84" );
-    protected static List<PropertyType> propertyTypesList = Lists.newArrayList();
-    protected static List<PropertyType> allPropertyTypesList = Lists.newArrayList();
+    protected static UUID               namePropertyId          = UUID.fromString( "12926a46-7b2d-4b9c-98db-d6a8aff047f0" );
+    protected static UUID               employeeIdPropertyId    = UUID.fromString( "65d76d13-0d91-4d78-8dbd-cf6ce6e6162f" );
+    protected static UUID               salaryPropertyId        = UUID.fromString( "60de791c-df3e-462b-8299-ea36dc3beb16" );
+    protected static UUID               employeeDeptPropertyId  = UUID.fromString( "4328a8e7-16e1-42a3-ad5b-adf4b06921ec" );
+    protected static UUID               employeeTitlePropertyId = UUID.fromString( "4a6f084d-cd44-4d5b-9188-947d7151bf84" );
+    protected static List<PropertyType> propertyTypesList       = Lists.newArrayList();
+    protected static List<PropertyType> allPropertyTypesList    = Lists.newArrayList();
     
     protected static UUID chicagoEmployeesEntitySetId = UUID.fromString( "15d8f726-74eb-420f-b63e-9774ebc95c3f" );
     protected static UUID entitySet2Id = UUID.fromString( "4c767353-8fcc-4b37-9ff9-bb3ad0ab96e4" );

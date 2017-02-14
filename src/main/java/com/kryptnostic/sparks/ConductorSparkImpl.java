@@ -30,7 +30,6 @@ import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
-import com.kryptnostic.conductor.rpc.odata.Tables;
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.sql.Dataset;
@@ -133,7 +132,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 //        Dataset<Row> entityDf = sparkSession
 //         .read()
 //         .format( "org.apache.spark.sql.cassandra" )
-//         .option( "table", Tables.AUDIT_EVENTS.getName().toLowerCase() )
+//         .option( "table", Table.AUDIT_EVENTS.getName().toLowerCase() )
 //         .option( "keyspace", keyspace )
 //         .load();
 //    }
@@ -177,7 +176,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         // Dataset<Row> entityDf = sparkSession
         // .read()
         // .format( "org.apache.spark.sql.cassandra" )
-        // .option( "table", Tables.ENTITIES. )
+        // .option( "table", Table.SET. )
         // .option( "keyspace", keyspace )
         // .load();
         // List<String> columns = authorizedProperties.stream()
@@ -462,7 +461,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 	}
 	
 	@Override
-	public List<Entity> executeEntitySetDataSearchAcrossIndices( Set<UUID> entitySetIds, Map<UUID, String> fieldSearches, int size, boolean explain ) {
+	public List<Entity> executeEntitySetDataSearchAcrossIndices( Set<UUID> entitySetIds, Map<UUID, Set<String>> fieldSearches, int size, boolean explain ) {
 	    return elasticsearchApi.executeEntitySetDataSearchAcrossIndices( entitySetIds, fieldSearches, size, explain );
 	}
 
