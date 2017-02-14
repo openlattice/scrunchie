@@ -131,7 +131,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 //        Dataset<Row> entityDf = sparkSession
 //         .read()
 //         .format( "org.apache.spark.sql.cassandra" )
-//         .option( "table", Tables.AUDIT_EVENTS.getName().toLowerCase() )
+//         .option( "table", Table.AUDIT_EVENTS.getName().toLowerCase() )
 //         .option( "keyspace", keyspace )
 //         .load();
 //    }
@@ -175,7 +175,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         // Dataset<Row> entityDf = sparkSession
         // .read()
         // .format( "org.apache.spark.sql.cassandra" )
-        // .option( "table", Tables.ENTITIES. )
+        // .option( "table", Table.SET. )
         // .option( "keyspace", keyspace )
         // .load();
         // List<String> columns = authorizedProperties.stream()
