@@ -19,18 +19,15 @@
 
 package com.kryptnostic.kindling.search;
 
-import com.dataloom.authorization.Permission;
-import com.dataloom.authorization.Principal;
-import com.dataloom.edm.EntitySet;
-import com.dataloom.edm.type.PropertyType;
-import com.dataloom.mappers.ObjectMappers;
-import com.dataloom.organization.Organization;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import com.kryptnostic.conductor.rpc.ConductorElasticsearchApi;
-import com.kryptnostic.conductor.rpc.SearchConfiguration;
+import java.io.IOException;
+import java.net.UnknownHostException;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
 import org.apache.lucene.search.join.ScoreMode;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -53,23 +50,20 @@ import org.slf4j.LoggerFactory;
 import org.spark_project.guava.collect.Maps;
 import org.springframework.scheduling.annotation.Scheduled;
 
-
 import com.dataloom.authorization.Permission;
 import com.dataloom.authorization.Principal;
+import com.dataloom.data.EntityKey;
 import com.dataloom.edm.EntitySet;
 import com.dataloom.edm.type.PropertyType;
+import com.dataloom.linking.Entity;
 import com.dataloom.mappers.ObjectMappers;
 import com.dataloom.organization.Organization;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.kryptnostic.conductor.rpc.ConductorElasticsearchApi;
 import com.kryptnostic.conductor.rpc.SearchConfiguration;
-
-import java.io.IOException;
-import java.net.UnknownHostException;
-import java.util.*;
-import java.util.stream.Collectors;
-
 
 public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 
@@ -445,7 +439,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     }
 
     @Override
-    public List<Map<String, Object>> executeEntitySetDataSearchAcrossIndices(
+    public List<Entity> executeEntitySetDataSearchAcrossIndices(
             Set<UUID> entitySetIds,
             Map<UUID, Set<String>> fieldSearches,
             int size,
@@ -477,9 +471,11 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 .setExplain( explain )
                 .execute()
                 .actionGet();
-        List<Map<String, Object>> results = Lists.newArrayList();
+        List<Entity> results = Lists.newArrayList();
         for ( SearchHit hit : response.getHits() ) {
-            results.add( hit.getSource() );
+        	UUID entitySetId = UUID.fromString( hit.getIndex().substring( SECURABLE_OBJECT_INDEX_PREFIX.length() ) );
+        	EntityKey key = new EntityKey( entitySetId, hit.getId() );
+            results.add( new Entity( key, hit.getSource() ) );
         }
         return results;
     }
