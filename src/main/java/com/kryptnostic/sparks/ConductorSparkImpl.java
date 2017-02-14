@@ -44,6 +44,7 @@ import com.dataloom.data.requests.LookupEntitiesRequest;
 import com.dataloom.edm.EntitySet;
 import com.dataloom.edm.type.EntityType;
 import com.dataloom.edm.type.PropertyType;
+import com.dataloom.linking.components.Clusterer;
 import com.dataloom.organization.Organization;
 import com.datastax.driver.core.DataType;
 import com.datastax.driver.core.Session;
@@ -72,6 +73,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     private final String                    keyspace;
     private final EdmManager                dataModelService;
     private final ConductorElasticsearchApi elasticsearchApi;
+    private final Clusterer clusterer;
 
     // private final ConcurrentMap<FullQualifiedName, Dataset<Row>> entityDataframeMap;
     // private final ConcurrentMap<FullQualifiedName, Dataset<Row>> propertyDataframeMap;
@@ -84,7 +86,8 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
             SparkContextJavaFunctions cassandraJavaContext,
             EdmManager dataModelService,
             HazelcastInstance hazelcastInstance,
-            ConductorElasticsearchApi elasticsearchApi ) {
+            ConductorElasticsearchApi elasticsearchApi,
+            Clusterer clusterer ) {
         this.sparkSession = sparkSession;
         this.cassandraJavaContext = cassandraJavaContext;
         this.keyspace = keyspace;
@@ -99,6 +102,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         // // HazelcastNames.Maps.ENTITY_SET_DATAFRAMES );
         // //prepareDataframe();
         this.elasticsearchApi = elasticsearchApi;
+        this.clusterer = clusterer;
     }
 
     // private void prepareDataframe() {
@@ -510,4 +514,9 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         return elasticsearchApi.updatePropertyTypesInEntitySet( entitySetId, newPropertyTypes );
     }
 
+    @Override
+    public Void clustering( UUID linkedEntitySetId ){
+        clusterer.cluster();
+        return null;
+    }
 }
