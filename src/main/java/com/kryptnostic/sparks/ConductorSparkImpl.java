@@ -30,7 +30,6 @@ import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
-import com.kryptnostic.conductor.rpc.odata.Tables;
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.sql.Dataset;
