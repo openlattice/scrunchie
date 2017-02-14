@@ -462,7 +462,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         List<Entity> results = Lists.newArrayList();
         for ( SearchHit hit : response.getHits() ) {
         	UUID entitySetId = UUID.fromString( hit.getIndex().substring( SECURABLE_OBJECT_INDEX_PREFIX.length() ) );
-        	EntityKey key = new EntityKey( Syncs.BASE.getSyncId(), entitySetId, hit.getId() );
+        	EntityKey key = new EntityKey( entitySetId, hit.getId() );
             results.add( new Entity( key, hit.getSource() ) );
         }
         return results;
