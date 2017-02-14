@@ -461,8 +461,13 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             e.printStackTrace();
         }
         BoolQueryBuilder query = new BoolQueryBuilder();
-        fieldSearches.entrySet().stream().forEach( entry -> query.should(
-                QueryBuilders.matchQuery( entry.getKey().toString(), entry.getValue() ).fuzziness( Fuzziness.AUTO ) ) );
+        fieldSearches.entrySet().stream().forEach( entry -> {
+        	BoolQueryBuilder fieldQuery = new BoolQueryBuilder();
+        	entry.getValue().stream().forEach( searchTerm -> fieldQuery.should(
+        			QueryBuilders.matchQuery( entry.getKey().toString(), searchTerm ).fuzziness( Fuzziness.AUTO ) ) );
+        	fieldQuery.minimumNumberShouldMatch( 1 );
+        	query.should( fieldQuery );
+        });
         query.minimumNumberShouldMatch( 1 );
 
         List<String> indexNames = entitySetIds.stream().map( id -> SECURABLE_OBJECT_INDEX_PREFIX + id.toString() )
