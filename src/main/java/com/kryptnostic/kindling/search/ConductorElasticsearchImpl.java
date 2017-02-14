@@ -53,10 +53,26 @@ import org.slf4j.LoggerFactory;
 import org.spark_project.guava.collect.Maps;
 import org.springframework.scheduling.annotation.Scheduled;
 
+
+import com.dataloom.authorization.Permission;
+import com.dataloom.authorization.Principal;
+import com.dataloom.edm.EntitySet;
+import com.dataloom.edm.type.PropertyType;
+import com.dataloom.mappers.ObjectMappers;
+import com.dataloom.organization.Organization;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.base.Optional;
+import com.kryptnostic.conductor.rpc.ConductorElasticsearchApi;
+import com.kryptnostic.conductor.rpc.SearchConfiguration;
+
+import jersey.repackaged.com.google.common.collect.Lists;
+import jersey.repackaged.com.google.common.collect.Sets;
+
 import java.io.IOException;
 import java.net.UnknownHostException;
 import java.util.*;
 import java.util.stream.Collectors;
+
 
 public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 
@@ -273,6 +289,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                             Permission.WRITE,
                             Permission.DISCOVER,
                             Permission.LINK ) );
+            createSecurableObjectIndex( entitySet.getId() );
             return true;
         } catch ( JsonProcessingException e ) {
             logger.debug( "error saving entity set to elasticsearch" );

@@ -34,6 +34,10 @@ import org.slf4j.LoggerFactory;
 import com.clearspring.analytics.util.Lists;
 import com.dataloom.authorization.Principal;
 import com.dataloom.authorization.PrincipalType;
+
+import com.dataloom.edm.EntitySet;
+import com.dataloom.edm.type.PropertyType;
+
 import com.dataloom.organization.Organization;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableSet;
