@@ -52,8 +52,10 @@ import org.springframework.scheduling.annotation.Scheduled;
 
 import com.dataloom.authorization.Permission;
 import com.dataloom.authorization.Principal;
+import com.dataloom.data.EntityKey;
 import com.dataloom.edm.EntitySet;
 import com.dataloom.edm.type.PropertyType;
+import com.dataloom.linking.Entity;
 import com.dataloom.mappers.ObjectMappers;
 import com.dataloom.organization.Organization;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -438,7 +440,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     }
 
     @Override
-    public List<Map<String, Object>> executeEntitySetDataSearchAcrossIndices(
+    public List<Entity> executeEntitySetDataSearchAcrossIndices(
             Set<UUID> entitySetIds,
             Map<UUID, Set<String>> fieldSearches,
             int size,
@@ -470,9 +472,11 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 .setExplain( explain )
                 .execute()
                 .actionGet();
-        List<Map<String, Object>> results = Lists.newArrayList();
+        List<Entity> results = Lists.newArrayList();
         for ( SearchHit hit : response.getHits() ) {
-            results.add( hit.getSource() );
+        	UUID entitySetId = UUID.fromString( hit.getIndex().substring( SECURABLE_OBJECT_INDEX_PREFIX.length() ) );
+        	EntityKey key = new EntityKey( entitySetId, hit.getId() );
+            results.add( new Entity( key, hit.getSource() ) );
         }
         return results;
     }
