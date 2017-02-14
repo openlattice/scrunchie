@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
+import org.apache.commons.lang3.NotImplementedException;
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.sql.Dataset;
@@ -44,7 +45,6 @@ import com.dataloom.data.requests.LookupEntitiesRequest;
 import com.dataloom.edm.EntitySet;
 import com.dataloom.edm.type.EntityType;
 import com.dataloom.edm.type.PropertyType;
-import com.dataloom.linking.components.Clusterer;
 import com.dataloom.organization.Organization;
 import com.datastax.driver.core.DataType;
 import com.datastax.driver.core.Session;
@@ -73,7 +73,6 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     private final String                    keyspace;
     private final EdmManager                dataModelService;
     private final ConductorElasticsearchApi elasticsearchApi;
-    private final Clusterer clusterer;
 
     // private final ConcurrentMap<FullQualifiedName, Dataset<Row>> entityDataframeMap;
     // private final ConcurrentMap<FullQualifiedName, Dataset<Row>> propertyDataframeMap;
@@ -86,8 +85,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
             SparkContextJavaFunctions cassandraJavaContext,
             EdmManager dataModelService,
             HazelcastInstance hazelcastInstance,
-            ConductorElasticsearchApi elasticsearchApi,
-            Clusterer clusterer ) {
+            ConductorElasticsearchApi elasticsearchApi ) {
         this.sparkSession = sparkSession;
         this.cassandraJavaContext = cassandraJavaContext;
         this.keyspace = keyspace;
@@ -102,7 +100,6 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         // // HazelcastNames.Maps.ENTITY_SET_DATAFRAMES );
         // //prepareDataframe();
         this.elasticsearchApi = elasticsearchApi;
-        this.clusterer = clusterer;
     }
 
     // private void prepareDataframe() {
@@ -135,7 +132,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 //        Dataset<Row> entityDf = sparkSession
 //         .read()
 //         .format( "org.apache.spark.sql.cassandra" )
-//         .option( "table", Tables.AUDIT_EVENTS.getName().toLowerCase() )
+//         .option( "table", Table.AUDIT_EVENTS.getName().toLowerCase() )
 //         .option( "keyspace", keyspace )
 //         .load();
 //    }
@@ -179,7 +176,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         // Dataset<Row> entityDf = sparkSession
         // .read()
         // .format( "org.apache.spark.sql.cassandra" )
-        // .option( "table", Tables.ENTITIES. )
+        // .option( "table", Table.SET. )
         // .option( "keyspace", keyspace )
         // .load();
         // List<String> columns = authorizedProperties.stream()
@@ -464,7 +461,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 	}
 	
 	@Override
-	public List<Map<String, Object>> executeEntitySetDataSearchAcrossIndices( Set<UUID> entitySetIds, Map<UUID, String> fieldSearches, int size, boolean explain ) {
+	public List<Map<String, Object>> executeEntitySetDataSearchAcrossIndices( Set<UUID> entitySetIds, Map<UUID, Set<String>> fieldSearches, int size, boolean explain ) {
 	    return elasticsearchApi.executeEntitySetDataSearchAcrossIndices( entitySetIds, fieldSearches, size, explain );
 	}
 
@@ -516,7 +513,8 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 
     @Override
     public Void clustering( UUID linkedEntitySetId ){
-        clusterer.cluster();
-        return null;
+        throw new NotImplementedException("Ho Chung");
+//        clusterer.cluster();
+//        return null;
     }
 }
