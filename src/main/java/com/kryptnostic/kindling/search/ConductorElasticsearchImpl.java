@@ -28,6 +28,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.apache.commons.codec.language.Metaphone;
 import org.apache.lucene.search.join.ScoreMode;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.search.SearchResponse;
@@ -35,11 +36,12 @@ import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.Fuzziness;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.InnerHitBuilder;
-import org.elasticsearch.index.query.MultiMatchQueryBuilder;
-import org.elasticsearch.index.query.MultiMatchQueryBuilder.Type;
 import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.query.QueryStringQueryBuilder;
 import org.elasticsearch.index.reindex.DeleteByQueryAction;
 import org.elasticsearch.index.reindex.DeleteByQueryRequestBuilder;
 import org.elasticsearch.search.SearchHit;
@@ -104,6 +106,30 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     public void initializeIndices() {
         initializeEntitySetDataModelIndex();
         initializeOrganizationIndex();
+    }
+    
+    private XContentBuilder getMetaphoneSettings() throws IOException {
+    	XContentBuilder settings = XContentFactory.jsonBuilder()
+    	        .startObject()
+        	        .startObject( ANALYSIS )
+                        .startObject( FILTER )
+                            .startObject( METAPHONE_FILTER )
+                                .field( TYPE, PHONETIC )
+                                .field( ENCODER, METAPHONE )
+                                .field( REPLACE, false )
+                            .endObject()
+                        .endObject()
+            	        .startObject( ANALYZER )
+                	        .startObject( METAPHONE_ANALYZER )
+                	            .field( TOKENIZER, STANDARD )
+                	            .field( FILTER, Lists.newArrayList( STANDARD, LOWERCASE, METAPHONE_FILTER ) )
+                	        .endObject()
+                	    .endObject()
+        	        .endObject()
+        	        .field( NUM_SHARDS, 3 )
+        	        .field( NUM_REPLICAS, 3 )
+    	        .endObject();
+    	return settings;
     }
 
     @Override
@@ -215,7 +241,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         return true;
     }
 
-    public Boolean createSecurableObjectIndex( UUID securableObjectId ) {
+    public Boolean createSecurableObjectIndex( UUID securableObjectId, List<PropertyType> propertyTypes ) {
         try {
             if ( !verifyElasticsearchConnection() )
                 return false;
@@ -239,18 +265,32 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         nestedField.put( TYPE, NESTED );
         keywordField.put( TYPE, KEYWORD );
 
-        // securable_object_row type mapping
+      //   securable_object_row type mapping
         Map<String, Object> securableObjectData = Maps.newHashMap();
         Map<String, Object> securableObjectMapping = Maps.newHashMap();
-        securableObjectData.put( ES_PROPERTIES, Maps.newHashMap() );
+        Map<String, Object> properties = Maps.newHashMap();
+        
+        Map<String, String> metaphoneTypeAndAnalyzer = Maps.newHashMap();        
+        metaphoneTypeAndAnalyzer.put( TYPE, STRING );
+        metaphoneTypeAndAnalyzer.put( ANALYZER, METAPHONE_ANALYZER );
+        
+        // TODO: once property type phonetic field exists, add analyzer if it's set to true
+        
+//        for ( PropertyType propertyType: propertyTypes ) {
+//            properties.put( propertyType.getId().toString(), metaphoneTypeAndAnalyzer );
+//        }
+//        
+        securableObjectData.put( ES_PROPERTIES, properties );
         securableObjectMapping.put( SECURABLE_OBJECT_ROW_TYPE, securableObjectData );
 
-        client.admin().indices().prepareCreate( indexName )
-                .setSettings( Settings.builder()
-                        .put( NUM_SHARDS, 3 )
-                        .put( NUM_REPLICAS, 2 ) )
-                .addMapping( SECURABLE_OBJECT_ROW_TYPE, securableObjectMapping )
-                .execute().actionGet();
+        try {
+            client.admin().indices().prepareCreate( indexName )
+                    .setSettings( getMetaphoneSettings() )
+                    .addMapping( SECURABLE_OBJECT_ROW_TYPE, securableObjectMapping )
+                    .execute().actionGet();
+        } catch ( IOException e ) {
+            logger.debug( "unable to create securable object index" );
+        }
         return true;
     }
 
@@ -281,7 +321,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                             Permission.WRITE,
                             Permission.DISCOVER,
                             Permission.LINK ) );
-            createSecurableObjectIndex( entitySet.getId() );
+            createSecurableObjectIndex( entitySet.getId(), propertyTypes );
             return true;
         } catch ( JsonProcessingException e ) {
             logger.debug( "error saving entity set to elasticsearch" );
@@ -626,23 +666,23 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             e.printStackTrace();
         }
         String indexName = SECURABLE_OBJECT_INDEX_PREFIX + entitySetId.toString();
+        Map<String, Float> fieldsMap = Maps.newHashMap();
         String[] authorizedPropertyTypeFields = authorizedPropertyTypes
                 .stream()
-                .map( uuid -> uuid.toString() )
+                .map( uuid -> {
+                    fieldsMap.put( uuid.toString(), Float.valueOf( "1" ) );
+                    return uuid.toString();
+                })
                 .collect( Collectors.toList() )
                 .toArray( new String[ authorizedPropertyTypes.size() ] );
 
-        MultiMatchQueryBuilder query = QueryBuilders
-                .multiMatchQuery( searchTerm, authorizedPropertyTypeFields )
-                .type( Type.CROSS_FIELDS )
-                .fuzziness( Fuzziness.AUTO )
-                .minimumShouldMatch( "1" );
-
+        QueryStringQueryBuilder query = QueryBuilders.queryStringQuery( searchTerm ).fields( fieldsMap );
         SearchResponse response = client.prepareSearch( indexName )
                 .setTypes( SECURABLE_OBJECT_ROW_TYPE )
                 .setQuery( query )
                 .setFetchSource( authorizedPropertyTypeFields, null )
-                .setFrom( 0 ).setSize( 50 ).setExplain( true )
+                .setFrom( 0 )
+                .setSize( 50 )
                 .execute()
                 .actionGet();
         List<Map<String, Object>> hits = Lists.newArrayList();
