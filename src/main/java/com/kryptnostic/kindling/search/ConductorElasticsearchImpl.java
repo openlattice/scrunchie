@@ -58,6 +58,7 @@ import com.dataloom.edm.type.PropertyType;
 import com.dataloom.linking.Entity;
 import com.dataloom.mappers.ObjectMappers;
 import com.dataloom.organization.Organization;
+import com.dataloom.search.requests.SearchResult;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
@@ -614,13 +615,15 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     }
 
     @Override
-    public List<Map<String, Object>> executeEntitySetDataSearch(
+    public SearchResult executeEntitySetDataSearch(
             UUID entitySetId,
             String searchTerm,
+            int start,
+            int maxHits,
             Set<UUID> authorizedPropertyTypes ) {
         try {
             if ( !verifyElasticsearchConnection() )
-                return Lists.newArrayList();
+                return new SearchResult( 0, Lists.newArrayList() );
         } catch ( UnknownHostException e ) {
             logger.debug( "not connected to elasticsearch" );
             e.printStackTrace();
@@ -642,14 +645,16 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 .setTypes( SECURABLE_OBJECT_ROW_TYPE )
                 .setQuery( query )
                 .setFetchSource( authorizedPropertyTypeFields, null )
-                .setFrom( 0 ).setSize( 50 ).setExplain( true )
+                .setFrom( start )
+                .setSize( maxHits )
                 .execute()
                 .actionGet();
         List<Map<String, Object>> hits = Lists.newArrayList();
         for ( SearchHit hit : response.getHits() ) {
             hits.add( hit.getSource() );
         }
-        return hits;
+        SearchResult result = new SearchResult( response.getHits().totalHits(), hits );
+        return result;
     }
 
     @Override
