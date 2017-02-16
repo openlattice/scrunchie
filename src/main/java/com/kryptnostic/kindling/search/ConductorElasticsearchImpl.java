@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.codec.language.Metaphone;
 import org.apache.lucene.search.join.ScoreMode;
+import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.update.UpdateRequest;
@@ -56,6 +57,7 @@ import com.dataloom.authorization.Permission;
 import com.dataloom.authorization.Principal;
 import com.dataloom.data.EntityKey;
 import com.dataloom.edm.EntitySet;
+import com.dataloom.edm.type.Analyzer;
 import com.dataloom.edm.type.PropertyType;
 import com.dataloom.linking.Entity;
 import com.dataloom.mappers.ObjectMappers;
@@ -240,6 +242,74 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 .execute().actionGet();
         return true;
     }
+    
+    private Map<String, String> getFieldMapping( PropertyType propertyType ) {
+        Map<String, String> fieldMapping = Maps.newHashMap();
+        switch ( propertyType.getDatatype() ) {
+            case Binary: {
+                fieldMapping.put( TYPE, BINARY );
+                break;
+            }
+            case Boolean: {
+                fieldMapping.put( TYPE, BOOLEAN );
+                break;
+            }
+            case Byte: {
+                fieldMapping.put( TYPE, BYTE );
+                break;
+            }
+            case SByte: {
+                fieldMapping.put( TYPE, BYTE );
+                break;
+            }
+            case Date: {
+                fieldMapping.put( TYPE, DATE );
+                break;
+            }
+            case Decimal: {
+                fieldMapping.put( TYPE, FLOAT );
+                break;
+            }
+            case Single: {
+                fieldMapping.put( TYPE, DOUBLE );
+                break;
+            }
+            case Double: {
+                fieldMapping.put( TYPE, DOUBLE );
+                break;
+            }
+            case Guid: {
+                fieldMapping.put( TYPE, KEYWORD );
+                break;
+            }
+            case Int16: {
+                fieldMapping.put( TYPE, SHORT );
+                break;
+            }
+            case Int32: {
+                fieldMapping.put( TYPE, INTEGER );
+                break;
+            }
+            case Int64: {
+                fieldMapping.put( TYPE, LONG );
+                break;
+            }
+            case String: {
+                String analyzer = ( propertyType.getAnalyzer().equals( Analyzer.METAPHONE ) ) ? METAPHONE_ANALYZER : STANDARD;
+                fieldMapping.put( TYPE, TEXT );
+                fieldMapping.put( ANALYZER, analyzer );
+                break;
+            }
+            case GeographyPoint: {
+                fieldMapping.put( TYPE, GEO_POINT );
+                break;
+            }
+            default: {
+                fieldMapping.put( INDEX, "false" );
+            }
+        }
+        return fieldMapping;
+    }
 
     public Boolean createSecurableObjectIndex( UUID securableObjectId, List<PropertyType> propertyTypes ) {
         try {
@@ -250,6 +320,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         }
 
         String indexName = SECURABLE_OBJECT_INDEX_PREFIX + securableObjectId.toString();
+        String typeName = SECURABLE_OBJECT_TYPE_PREFIX + securableObjectId.toString();
 
         boolean exists = client.admin().indices()
                 .prepareExists( indexName ).execute().actionGet().isExists();
@@ -269,24 +340,18 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         Map<String, Object> securableObjectData = Maps.newHashMap();
         Map<String, Object> securableObjectMapping = Maps.newHashMap();
         Map<String, Object> properties = Maps.newHashMap();
+                
+        for ( PropertyType propertyType: propertyTypes ) {   
+            properties.put( propertyType.getId().toString(), getFieldMapping( propertyType ) );
+        }
         
-        Map<String, String> metaphoneTypeAndAnalyzer = Maps.newHashMap();        
-        metaphoneTypeAndAnalyzer.put( TYPE, STRING );
-        metaphoneTypeAndAnalyzer.put( ANALYZER, METAPHONE_ANALYZER );
-        
-        // TODO: once property type phonetic field exists, add analyzer if it's set to true
-        
-//        for ( PropertyType propertyType: propertyTypes ) {
-//            properties.put( propertyType.getId().toString(), metaphoneTypeAndAnalyzer );
-//        }
-//        
         securableObjectData.put( ES_PROPERTIES, properties );
-        securableObjectMapping.put( SECURABLE_OBJECT_ROW_TYPE, securableObjectData );
+        securableObjectMapping.put( typeName, securableObjectData );
 
         try {
             client.admin().indices().prepareCreate( indexName )
                     .setSettings( getMetaphoneSettings() )
-                    .addMapping( SECURABLE_OBJECT_ROW_TYPE, securableObjectMapping )
+                    .addMapping( typeName, securableObjectMapping )
                     .execute().actionGet();
         } catch ( IOException e ) {
             logger.debug( "unable to create securable object index" );
@@ -505,7 +570,6 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         List<String> indexNames = entitySetIds.stream().map( id -> SECURABLE_OBJECT_INDEX_PREFIX + id.toString() )
                 .collect( Collectors.toList() );
         SearchResponse response = client.prepareSearch( indexNames.toArray( new String[ indexNames.size() ] ) )
-                .setTypes( SECURABLE_OBJECT_ROW_TYPE )
                 .setQuery( query )
                 .setFrom( 0 )
                 .setSize( size )
@@ -560,11 +624,12 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             e.printStackTrace();
         }
         String indexName = SECURABLE_OBJECT_INDEX_PREFIX + entitySetId.toString();
+        String typeName = SECURABLE_OBJECT_TYPE_PREFIX + entitySetId.toString();
 
         try {
             String s = ObjectMappers.getJsonMapper().writeValueAsString( propertyValues );
             client
-                    .prepareIndex( indexName, SECURABLE_OBJECT_ROW_TYPE, entityId )
+                    .prepareIndex( indexName, typeName, entityId )
                     .setSource( s )
                     .execute()
                     .actionGet();
@@ -678,7 +743,6 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 
         QueryStringQueryBuilder query = QueryBuilders.queryStringQuery( searchTerm ).fields( fieldsMap );
         SearchResponse response = client.prepareSearch( indexName )
-                .setTypes( SECURABLE_OBJECT_ROW_TYPE )
                 .setQuery( query )
                 .setFetchSource( authorizedPropertyTypeFields, null )
                 .setFrom( 0 )
