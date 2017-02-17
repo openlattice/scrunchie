@@ -561,7 +561,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         fieldSearches.entrySet().stream().forEach( entry -> {
         	BoolQueryBuilder fieldQuery = new BoolQueryBuilder();
         	entry.getValue().stream().forEach( searchTerm -> fieldQuery.should(
-        			QueryBuilders.matchQuery( entry.getKey().toString(), searchTerm ).fuzziness( Fuzziness.AUTO ) ) );
+        			QueryBuilders.matchQuery( entry.getKey().toString(), searchTerm ).fuzziness( Fuzziness.AUTO ).lenient( true ) ) );
         	fieldQuery.minimumNumberShouldMatch( 1 );
         	query.should( fieldQuery );
         });
@@ -741,7 +741,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 .collect( Collectors.toList() )
                 .toArray( new String[ authorizedPropertyTypes.size() ] );
 
-        QueryStringQueryBuilder query = QueryBuilders.queryStringQuery( searchTerm ).fields( fieldsMap );
+        QueryStringQueryBuilder query = QueryBuilders.queryStringQuery( searchTerm ).fields( fieldsMap ).lenient( true );
         SearchResponse response = client.prepareSearch( indexName )
                 .setQuery( query )
                 .setFetchSource( authorizedPropertyTypeFields, null )
