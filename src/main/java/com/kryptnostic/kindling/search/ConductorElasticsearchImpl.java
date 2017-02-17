@@ -260,10 +260,6 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 fieldMapping.put( TYPE, BYTE );
                 break;
             }
-            case Date: {
-                fieldMapping.put( TYPE, DATE );
-                break;
-            }
             case Decimal: {
                 fieldMapping.put( TYPE, FLOAT );
                 break;
@@ -296,10 +292,6 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 String analyzer = ( propertyType.getAnalyzer().equals( Analyzer.METAPHONE ) ) ? METAPHONE_ANALYZER : STANDARD;
                 fieldMapping.put( TYPE, TEXT );
                 fieldMapping.put( ANALYZER, analyzer );
-                break;
-            }
-            case GeographyPoint: {
-                fieldMapping.put( TYPE, GEO_POINT );
                 break;
             }
             default: {
