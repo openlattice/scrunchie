@@ -68,7 +68,6 @@ import com.google.common.collect.Sets;
 import com.kryptnostic.conductor.rpc.ConductorElasticsearchApi;
 import com.kryptnostic.conductor.rpc.SearchConfiguration;
 
-
 public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 
     private static final Logger logger = LoggerFactory.getLogger( ConductorElasticsearchImpl.class );

@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
+import org.apache.commons.lang3.NotImplementedException;
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.sql.Dataset;
@@ -512,4 +513,10 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         return elasticsearchApi.updatePropertyTypesInEntitySet( entitySetId, newPropertyTypes );
     }
 
+    @Override
+    public Void clustering( UUID linkedEntitySetId ){
+        throw new NotImplementedException("Ho Chung");
+//        clusterer.cluster();
+//        return null;
+    }
 }
