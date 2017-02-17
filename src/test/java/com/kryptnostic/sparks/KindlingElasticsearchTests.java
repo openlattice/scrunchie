@@ -45,20 +45,21 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
         createEntityData();
     }
     
-    public static void createEntityData() {
-        Map<UUID, String> propertyValues1 = Maps.newHashMap();
+    @Test
+    public void createEntityData() {
+        Map<UUID, Object> propertyValues1 = Maps.newHashMap();
         propertyValues1.put( namePropertyId, "APOSTOLOS,  DIMITRIOS M" );
         propertyValues1.put( employeeTitlePropertyId, "ASST CHIEF OPERATING ENGINEER" );
         propertyValues1.put( employeeDeptPropertyId, "AVIATION" );
         propertyValues1.put( salaryPropertyId, "108534" );
         propertyValues1.put( employeeIdPropertyId, "12345" );
-        Map<UUID, String> propertyValues2 = Maps.newHashMap();
+        Map<UUID, Object> propertyValues2 = Maps.newHashMap();
         propertyValues2.put( namePropertyId, "ALVAREZ,  ROBERT" );
         propertyValues2.put( employeeTitlePropertyId, "POLICE OFFICER" );
         propertyValues2.put( employeeDeptPropertyId, "POLICE" );
         propertyValues2.put( salaryPropertyId, "81550" );
         propertyValues2.put( employeeIdPropertyId, "12346" );
-        Map<UUID, String> propertyValues3 = Maps.newHashMap();
+        Map<UUID, Object> propertyValues3 = Maps.newHashMap();
         propertyValues3.put( namePropertyId, "ALTMAN,  PATRICIA A" );
         propertyValues3.put( employeeTitlePropertyId, "POLICE OFFICER" );
         propertyValues3.put( employeeDeptPropertyId, "POLICE" );
@@ -68,7 +69,7 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
         elasticsearchApi.createEntityData( chicagoEmployeesEntitySetId, UUID.randomUUID().toString(), propertyValues2 );
         elasticsearchApi.createEntityData( chicagoEmployeesEntitySetId, UUID.randomUUID().toString(), propertyValues3 );
 
-        Map<UUID, String> entitySet2PropertyValues = Maps.newHashMap();
+        Map<UUID, Object> entitySet2PropertyValues = Maps.newHashMap();
         entitySet2PropertyValues.put( employeeDeptPropertyId, "POLICE" );
         entitySet2PropertyValues.put( employeeIdPropertyId, "12347" );
         elasticsearchApi.createEntityData( entitySet2Id, UUID.randomUUID().toString(), entitySet2PropertyValues );

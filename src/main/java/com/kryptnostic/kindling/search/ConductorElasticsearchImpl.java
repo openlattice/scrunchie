@@ -511,7 +511,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     }
 
     @Override
-    public Boolean createEntityData( UUID entitySetId, String entityId, Map<UUID, String> propertyValues ) {
+    public Boolean createEntityData( UUID entitySetId, String entityId, Map<UUID, Object> propertyValues ) {
         try {
             if ( !verifyElasticsearchConnection() )
                 return false;
