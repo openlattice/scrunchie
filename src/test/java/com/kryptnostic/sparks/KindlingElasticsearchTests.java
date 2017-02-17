@@ -45,8 +45,7 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
         createEntityData();
     }
     
-    @Test
-    public void createEntityData() {
+    public static void createEntityData() {
         Map<UUID, Object> propertyValues1 = Maps.newHashMap();
         propertyValues1.put( namePropertyId, "APOSTOLOS,  DIMITRIOS M" );
         propertyValues1.put( employeeTitlePropertyId, "ASST CHIEF OPERATING ENGINEER" );
