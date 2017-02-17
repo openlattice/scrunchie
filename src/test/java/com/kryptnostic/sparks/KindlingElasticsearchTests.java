@@ -109,7 +109,7 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
         authorizedPropertyTypes.add( employeeDeptPropertyId );
         authorizedPropertyTypes.add( salaryPropertyId );
         authorizedPropertyTypes.add( employeeIdPropertyId );
-        elasticsearchApi.executeEntitySetDataSearch( chicagoEmployeesEntitySetId, "police", authorizedPropertyTypes );
+        elasticsearchApi.executeEntitySetDataSearch( chicagoEmployeesEntitySetId, "police", 0, 50, authorizedPropertyTypes );
     }
 
     @Test

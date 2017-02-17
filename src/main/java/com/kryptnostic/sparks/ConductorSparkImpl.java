@@ -46,6 +46,7 @@ import com.dataloom.edm.type.EntityType;
 import com.dataloom.edm.type.PropertyType;
 import com.dataloom.linking.Entity;
 import com.dataloom.organization.Organization;
+import com.dataloom.search.requests.SearchResult;
 import com.datastax.driver.core.DataType;
 import com.datastax.driver.core.Session;
 import com.datastax.spark.connector.cql.CassandraConnector;
@@ -472,8 +473,8 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     }
 
     @Override
-    public List<Map<String, Object>> executeEntitySetDataSearch( UUID entitySetId, String searchTerm, Set<UUID> authorizedPropertyTypes ) {
-        return elasticsearchApi.executeEntitySetDataSearch( entitySetId, searchTerm, authorizedPropertyTypes );
+    public SearchResult executeEntitySetDataSearch( UUID entitySetId, String searchTerm, int start, int maxHits, Set<UUID> authorizedPropertyTypes ) {
+        return elasticsearchApi.executeEntitySetDataSearch( entitySetId, searchTerm, start, maxHits, authorizedPropertyTypes );
     }
     
     @Override
