@@ -92,7 +92,9 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
                 Optional.of( query ),
                 Optional.of( ENTITY_TYPE_ID ),
                 Optional.absent(),
-                principals );
+                principals,
+                0,
+                50 );
     }
 
     @Test
@@ -123,7 +125,7 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
     public void testOrganizationKeywordSearch() {
         Set<Principal> principals = Sets.newHashSet();
         principals.add( owner );
-        elasticsearchApi.executeOrganizationSearch( "loom", principals );
+        elasticsearchApi.executeOrganizationSearch( "loom", principals, 0, 50 );
     }
 
     @Test

@@ -447,9 +447,9 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 	}
 
 	@Override
-	public List<Map<String, Object>> executeElasticsearchMetadataQuery(Optional<String> optionalQuery, Optional<UUID> optionalEntityType,
-			Optional<Set<UUID>> optionalPropertyTypes, Set<Principal> principals) {
-		return elasticsearchApi.executeEntitySetDataModelKeywordSearch( optionalQuery, optionalEntityType, optionalPropertyTypes, principals );
+	public SearchResult executeElasticsearchMetadataQuery(Optional<String> optionalQuery, Optional<UUID> optionalEntityType,
+			Optional<Set<UUID>> optionalPropertyTypes, Set<Principal> principals, int start, int maxHits) {
+		return elasticsearchApi.executeEntitySetDataModelKeywordSearch( optionalQuery, optionalEntityType, optionalPropertyTypes, principals, start, maxHits );
 	}
 	
 	@Override
@@ -484,8 +484,8 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     }
 
     @Override
-    public List<Map<String, Object>> executeOrganizationKeywordSearch( String searchTerm, Set<Principal> principals ) {
-        return elasticsearchApi.executeOrganizationSearch( searchTerm, principals );
+    public SearchResult executeOrganizationKeywordSearch( String searchTerm, Set<Principal> principals, int start, int maxHits ) {
+        return elasticsearchApi.executeOrganizationSearch( searchTerm, principals, start, maxHits );
     }
 
     @Override

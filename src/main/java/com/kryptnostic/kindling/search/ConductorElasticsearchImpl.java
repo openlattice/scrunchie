@@ -386,14 +386,16 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 
     @SuppressWarnings( "unchecked" )
     @Override
-    public List<Map<String, Object>> executeEntitySetDataModelKeywordSearch(
+    public SearchResult executeEntitySetDataModelKeywordSearch(
             Optional<String> optionalSearchTerm,
             Optional<UUID> optionalEntityType,
             Optional<Set<UUID>> optionalPropertyTypes,
-            Set<Principal> principals ) {
+            Set<Principal> principals,
+            int start,
+            int maxHits ) {
         try {
             if ( !verifyElasticsearchConnection() )
-                return Lists.newArrayList();
+                return new SearchResult( 0, Lists.newArrayList() );
         } catch ( UnknownHostException e ) {
             logger.debug( "not connected to elasticsearch" );
             e.printStackTrace();
@@ -439,7 +441,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 .setTypes( ENTITY_SET_TYPE )
                 .setQuery( query )
                 .setFetchSource( new String[] { ENTITY_SET, PROPERTY_TYPES }, null )
-                .setFrom( 0 ).setSize( 50 ).setExplain( true )
+                .setFrom( start )
+                .setSize( maxHits )
                 .execute()
                 .actionGet();
 
@@ -455,7 +458,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             match.put( ACLS, permissions );
             hits.add( match );
         }
-        return hits;
+        return new SearchResult( response.getHits().getTotalHits(), hits );
     }
 
     @Override
@@ -750,10 +753,10 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     }
 
     @Override
-    public List<Map<String, Object>> executeOrganizationSearch( String searchTerm, Set<Principal> principals ) {
+    public SearchResult executeOrganizationSearch( String searchTerm, Set<Principal> principals, int start, int maxHits ) {
         try {
             if ( !verifyElasticsearchConnection() )
-                return Lists.newArrayList();
+                return new SearchResult( 0, Lists.newArrayList() );
         } catch ( UnknownHostException e ) {
             logger.debug( "not connected to elasticsearch" );
             e.printStackTrace();
@@ -781,7 +784,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         SearchResponse response = client.prepareSearch( ORGANIZATIONS )
                 .setTypes( ORGANIZATION_TYPE )
                 .setQuery( query )
-                .setFrom( 0 ).setSize( 50 ).setExplain( true )
+                .setFrom( start )
+                .setSize( maxHits )
                 .execute()
                 .actionGet();
 
@@ -798,7 +802,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             match.put( ACLS, permissions );
             hits.add( match );
         }
-        return hits;
+        return new SearchResult( response.getHits().getTotalHits(), hits );
     }
 
     @Override
