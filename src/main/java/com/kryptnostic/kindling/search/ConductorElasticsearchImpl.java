@@ -296,6 +296,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             }
             default: {
                 fieldMapping.put( INDEX, "false" );
+                fieldMapping.put( TYPE, KEYWORD );
             }
         }
         return fieldMapping;
