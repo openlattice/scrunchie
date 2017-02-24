@@ -854,4 +854,50 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         verifyElasticsearchConnection();
     }
 
+    @Override
+    public SearchResult executeAdvancedEntitySetDataSearch(
+            UUID entitySetId,
+            Map<UUID, String> searches,
+            int start,
+            int maxHits,
+            Set<UUID> authorizedPropertyTypes ) {
+        try {
+            if ( !verifyElasticsearchConnection() )
+                return new SearchResult( 0, Lists.newArrayList() );
+        } catch ( UnknownHostException e ) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+        String indexName = SECURABLE_OBJECT_INDEX_PREFIX + entitySetId.toString();
+        Map<String, Float> fieldsMap = Maps.newHashMap();
+        String[] authorizedPropertyTypeFields = authorizedPropertyTypes
+                .stream()
+                .map( uuid -> {
+                    fieldsMap.put( uuid.toString(), Float.valueOf( "1" ) );
+                    return uuid.toString();
+                })
+                .collect( Collectors.toList() )
+                .toArray( new String[ authorizedPropertyTypes.size() ] );
+        
+        BoolQueryBuilder query = QueryBuilders.boolQuery();
+        searches.entrySet().forEach( entry -> {
+            query.should( QueryBuilders.queryStringQuery( entry.getValue() ).field( entry.getKey().toString(), Float.valueOf( "1" ) ).lenient( true ) );
+        });
+        query.minimumNumberShouldMatch( 1 );
+
+        SearchResponse response = client.prepareSearch( indexName )
+                .setQuery( query )
+                .setFetchSource( authorizedPropertyTypeFields, null )
+                .setFrom( start )
+                .setSize( maxHits )
+                .execute()
+                .actionGet();
+        List<Map<String, Object>> hits = Lists.newArrayList();
+        for ( SearchHit hit : response.getHits() ) {
+            hits.add( hit.getSource() );
+        }
+        SearchResult result = new SearchResult( response.getHits().totalHits(), hits );
+        return result;
+    }
+
 }
