@@ -387,7 +387,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 
     @SuppressWarnings( "unchecked" )
     @Override
-    public SearchResult executeEntitySetDataModelKeywordSearch(
+    public SearchResult executeEntitySetMetadataSearch(
             Optional<String> optionalSearchTerm,
             Optional<UUID> optionalEntityType,
             Optional<Set<UUID>> optionalPropertyTypes,
