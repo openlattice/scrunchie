@@ -519,4 +519,14 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
 //        clusterer.cluster();
 //        return null;
     }
+
+    @Override
+    public SearchResult executeAdvancedEntitySetDataSearch(
+            UUID entitySetId,
+            Map<UUID, String> searches,
+            int start,
+            int maxHits,
+            Set<UUID> authorizedPropertyTypes ) {
+        return elasticsearchApi.executeAdvancedEntitySetDataSearch( entitySetId, searches, start, maxHits, authorizedPropertyTypes );
+    }
 }
