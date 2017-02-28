@@ -23,8 +23,6 @@ import java.io.Serializable;
 import java.math.BigInteger;
 import java.security.SecureRandom;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -39,23 +37,15 @@ import org.apache.spark.sql.SparkSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.dataloom.authorization.Permission;
-import com.dataloom.authorization.Principal;
 import com.dataloom.data.requests.LookupEntitiesRequest;
-import com.dataloom.edm.EntitySet;
 import com.dataloom.edm.type.EntityType;
 import com.dataloom.edm.type.PropertyType;
-import com.dataloom.linking.Entity;
-import com.dataloom.organization.Organization;
-import com.dataloom.search.requests.SearchResult;
 import com.datastax.driver.core.DataType;
 import com.datastax.driver.core.Session;
 import com.datastax.spark.connector.cql.CassandraConnector;
 import com.datastax.spark.connector.japi.CassandraJavaUtil;
 import com.datastax.spark.connector.japi.SparkContextJavaFunctions;
-import com.google.common.base.Optional;
 import com.hazelcast.core.HazelcastInstance;
-import com.kryptnostic.conductor.rpc.ConductorElasticsearchApi;
 import com.kryptnostic.conductor.rpc.ConductorSparkApi;
 import com.kryptnostic.conductor.rpc.QueryResult;
 import com.kryptnostic.datastore.cassandra.CassandraEdmMapping;
@@ -74,7 +64,6 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     private final SparkContextJavaFunctions cassandraJavaContext;
     private final String                    keyspace;
     private final EdmManager                dataModelService;
-    private final ConductorElasticsearchApi elasticsearchApi;
 
     // private final ConcurrentMap<FullQualifiedName, Dataset<Row>> entityDataframeMap;
     // private final ConcurrentMap<FullQualifiedName, Dataset<Row>> propertyDataframeMap;
@@ -86,8 +75,7 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
             SparkSession sparkSession,
             SparkContextJavaFunctions cassandraJavaContext,
             EdmManager dataModelService,
-            HazelcastInstance hazelcastInstance,
-            ConductorElasticsearchApi elasticsearchApi ) {
+            HazelcastInstance hazelcastInstance ) {
         this.sparkSession = sparkSession;
         this.cassandraJavaContext = cassandraJavaContext;
         this.keyspace = keyspace;
@@ -101,7 +89,6 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         // this.entitySetDataframes = Maps.newConcurrentMap();// hazelcastInstance.getMap(
         // // HazelcastNames.Maps.ENTITY_SET_DATAFRAMES );
         // //prepareDataframe();
-        this.elasticsearchApi = elasticsearchApi;
     }
 
     // private void prepareDataframe() {
@@ -130,15 +117,15 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     //
     // }
 
-//    public void count() {
-//        Dataset<Row> entityDf = sparkSession
-//         .read()
-//         .format( "org.apache.spark.sql.cassandra" )
-//         .option( "table", Table.AUDIT_EVENTS.getName().toLowerCase() )
-//         .option( "keyspace", keyspace )
-//         .load();
-//    }
-    
+    // public void count() {
+    // Dataset<Row> entityDf = sparkSession
+    // .read()
+    // .format( "org.apache.spark.sql.cassandra" )
+    // .option( "table", Table.AUDIT_EVENTS.getName().toLowerCase() )
+    // .option( "keyspace", keyspace )
+    // .load();
+    // }
+
     @Override
     public QueryResult getAllEntitiesOfEntitySet( FullQualifiedName entityFqn, String entitySetName ) {
         EntityType entityType = dataModelService.getEntityType( entityFqn );
@@ -441,92 +428,10 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         return "cache_" + rdm;
     }
 
-	@Override
-	public Boolean submitEntitySetToElasticsearch(EntitySet entitySet, List<PropertyType> propertyTypes, Principal principal) {
-		return elasticsearchApi.saveEntitySetToElasticsearch( entitySet, propertyTypes, principal );
-	}
-
-	@Override
-	public SearchResult executeElasticsearchMetadataQuery(Optional<String> optionalQuery, Optional<UUID> optionalEntityType,
-			Optional<Set<UUID>> optionalPropertyTypes, Set<Principal> principals, int start, int maxHits) {
-		return elasticsearchApi.executeEntitySetDataModelKeywordSearch( optionalQuery, optionalEntityType, optionalPropertyTypes, principals, start, maxHits );
-	}
-	
-	@Override
-	public Boolean updateEntitySetPermissions( UUID entitySetId, Principal principal, Set<Permission> permissions ) {
-		return elasticsearchApi.updateEntitySetPermissions( entitySetId, principal, permissions );
-	}
-
-	@Override
-	public Boolean deleteEntitySet( UUID entitySetId ) {
-		return elasticsearchApi.deleteEntitySet( entitySetId );
-	}
-	
-	@Override
-	public List<Entity> executeEntitySetDataSearchAcrossIndices( Set<UUID> entitySetIds, Map<UUID, Set<String>> fieldSearches, int size, boolean explain ) {
-	    return elasticsearchApi.executeEntitySetDataSearchAcrossIndices( entitySetIds, fieldSearches, size, explain );
-	}
-
-
     @Override
-    public Boolean createEntityData( UUID entitySetId, String entityId, Map<UUID, Object> propertyValues ) {
-        return elasticsearchApi.createEntityData( entitySetId, entityId, propertyValues );
-    }
-
-    @Override
-    public SearchResult executeEntitySetDataSearch( UUID entitySetId, String searchTerm, int start, int maxHits, Set<UUID> authorizedPropertyTypes ) {
-        return elasticsearchApi.executeEntitySetDataSearch( entitySetId, searchTerm, start, maxHits, authorizedPropertyTypes );
-    }
-    
-    @Override
-    public Boolean createOrganization( Organization organization, Principal principal ) {
-        return elasticsearchApi.createOrganization( organization, principal );
-    }
-
-    @Override
-    public SearchResult executeOrganizationKeywordSearch( String searchTerm, Set<Principal> principals, int start, int maxHits ) {
-        return elasticsearchApi.executeOrganizationSearch( searchTerm, principals, start, maxHits );
-    }
-
-    @Override
-    public Boolean updateOrganization( UUID id, Optional<String> optionalTitle, Optional<String> optionalDescription ) {
-        return elasticsearchApi.updateOrganization( id, optionalTitle, optionalDescription );
-    }
-
-    @Override
-    public Boolean deleteOrganization( UUID organizationId ) {
-        return elasticsearchApi.deleteOrganization( organizationId );
-    }
-
-    @Override
-    public Boolean updateOrganizationPermissions( UUID organizationId, Principal principal, Set<Permission> permissions ) {
-        return elasticsearchApi.updateOrganizationPermissions( organizationId, principal, permissions );
-    }
-    
-    @Override
-    public Boolean updateEntitySetMetadata( EntitySet entitySet ) {
-        return elasticsearchApi.updateEntitySetMetadata( entitySet );
-    }
-
-    @Override
-    public Boolean updatePropertyTypesInEntitySet( UUID entitySetId, List<PropertyType> newPropertyTypes ) {
-        return elasticsearchApi.updatePropertyTypesInEntitySet( entitySetId, newPropertyTypes );
-    }
-
-    @Override
-    public Void clustering( UUID linkedEntitySetId ){
-        throw new NotImplementedException("Ho Chung");
-//        clusterer.cluster();
-//        return null;
-    }
-
-    @Override
-    public SearchResult executeAdvancedEntitySetDataSearch(
-            UUID entitySetId,
-            Map<UUID, String> searches,
-            int start,
-            int maxHits,
-            Set<UUID> authorizedPropertyTypes ) {
-        return elasticsearchApi.executeAdvancedEntitySetDataSearch( entitySetId, searches, start, maxHits, authorizedPropertyTypes );
+    public Void clustering( UUID linkedEntitySetId ) {
+        throw new NotImplementedException( "Ho Chung" );
+        // clusterer.cluster();
+        // return null;
     }
 }

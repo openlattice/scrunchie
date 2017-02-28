@@ -88,7 +88,7 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
         principals.add( loomUser );
 
         String query = "Employees";
-        elasticsearchApi.executeEntitySetDataModelKeywordSearch(
+        elasticsearchApi.executeEntitySetMetadataSearch(
                 Optional.of( query ),
                 Optional.of( ENTITY_TYPE_ID ),
                 Optional.absent(),
