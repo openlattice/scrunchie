@@ -132,8 +132,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     	return settings;
     }
 
-    @Override
-    public Boolean initializeEntitySetDataModelIndex() {
+    private boolean initializeEntitySetDataModelIndex() {
         try {
             if ( !verifyElasticsearchConnection() )
                 return false;
@@ -188,8 +187,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         return true;
     }
 
-    @Override
-    public Boolean initializeOrganizationIndex() {
+    private boolean initializeOrganizationIndex() {
         try {
             if ( !verifyElasticsearchConnection() )
                 return false;
