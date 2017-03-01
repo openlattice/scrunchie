@@ -172,14 +172,14 @@ public class BaseElasticsearchTest {
                 "chicago_employees",
                 "Chicago Employees",
                 Optional.of( "employees that are in chicago" ),
-                Optional.of( ImmutableSet.of( "foo@bar.com", "foobar@foo.net" ) ) );
+                ImmutableSet.of( "foo@bar.com", "foobar@foo.net" ) );
         entitySet2 = new EntitySet(
                 Optional.of( entitySet2Id ),
                 ENTITY_TYPE_ID,
                 "entity_set2",
                 "EntitySet2",
                 Optional.of( "this is the second entity set" ),
-                Optional.of( ImmutableSet.of( "foo@bar.com", "foobar@foo.net" ) ) );
+                ImmutableSet.of( "foo@bar.com", "foobar@foo.net" ) );
 
         owner = new Principal( PrincipalType.USER, "support@kryptnostic.com" );
         loomUser = new Principal( PrincipalType.ROLE, "loomUser" );
