@@ -296,6 +296,10 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 fieldMapping.put( INDEX, "false" );
                 fieldMapping.put( TYPE, KEYWORD );
             }
+            case Date: {
+                fieldMapping.put( TYPE, DATE );
+                break;
+            }
         }
         return fieldMapping;
     }
