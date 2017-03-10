@@ -13,6 +13,7 @@ import com.dataloom.hazelcast.HazelcastMap;
 import com.dataloom.mappers.ObjectMappers;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.SetMultimap;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IMap;
@@ -20,9 +21,9 @@ import com.kryptnostic.conductor.rpc.OrderedRPCKey;
 import com.kryptnostic.rhizome.core.Cutting;
 
 public final class SparkTransforms implements Serializable {
-    private static final long serialVersionUID = 3936793086983156958L;
+    private static final long   serialVersionUID = 3936793086983156958L;
 
-    private static final Logger logger = LoggerFactory.getLogger( SparkTransforms.class );
+    private static final Logger logger           = LoggerFactory.getLogger( SparkTransforms.class );
 
     private SparkTransforms() {}
 
@@ -39,7 +40,11 @@ public final class SparkTransforms implements Serializable {
                         .getMap( HazelcastMap.RPC_DATA_ORDERED.name() );
                 SetMultimap<UUID, Object> results = HashMultimap.create();
                 for ( int i = 0; i < columnIdsOrdered.size(); i++ ) {
-                    results.putAll( columnIdsOrdered.get( i ), row.getList( i ) );
+                    if ( row.isNullAt( i ) ) {
+                        results.put( columnIdsOrdered.get( i ), Lists.newArrayList() );
+                    } else {
+                        results.putAll( columnIdsOrdered.get( i ), row.getList( i ) );
+                    }
                 }
                 rpcMap
                         .set( new OrderedRPCKey(
