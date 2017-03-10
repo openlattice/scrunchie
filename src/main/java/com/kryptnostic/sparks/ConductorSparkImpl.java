@@ -23,6 +23,7 @@ import java.math.BigInteger;
 import java.security.SecureRandom;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -446,7 +447,7 @@ public class ConductorSparkImpl implements ConductorSparkApi {
     @Override
     public UUID getTopUtilizers(
             UUID entitySetId,
-            UUID propertyTypeId,
+            Set<UUID> propertyTypeIds,
             Map<UUID, PropertyType> propertyTypes ) {
         String indexName = "securable_object_" + entitySetId.toString();
         String typeName = "type_" + entitySetId.toString();
@@ -465,9 +466,9 @@ public class ConductorSparkImpl implements ConductorSparkApi {
             columnsOrdered.add( col );
             columnIdsOrdered.add( entry.getKey() );
         } );
-        table.select( columnsOrdered.toArray( new Column[]{} ) )
-                .javaRDD().foreach( SparkTransforms.saveTopUtilizers( cutting, columnIdsOrdered, requestId, propertyTypeId ) );
+        table.select( columnsOrdered.toArray( new Column[] {} ) )
+                .javaRDD()
+                .foreach( SparkTransforms.saveTopUtilizers( cutting, columnIdsOrdered, requestId, propertyTypeIds ) );
         return requestId;
     }
-
 }
