@@ -292,6 +292,14 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 fieldMapping.put( ANALYZER, analyzer );
                 break;
             }
+            case Date: {
+                fieldMapping.put( TYPE, DATE );
+                break;
+            }
+            case GeographyPoint: {
+                fieldMapping.put( TYPE, GEO_POINT );
+                break;
+            }
             default: {
                 fieldMapping.put( INDEX, "false" );
                 fieldMapping.put( TYPE, KEYWORD );
