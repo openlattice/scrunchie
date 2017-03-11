@@ -136,7 +136,7 @@ dependencies {
      compile ("org.elasticsearch:elasticsearch:5.1.1") {
      	exclude module: 'slf4j-log4j12'
      }
-     compile ("org.elasticsearch:elasticsearch-hadoop:5.1.1") {
+     compile ("org.elasticsearch:elasticsearch-spark-20_2.11:5.1.1") {
      	exclude module: 'apache-curator'
      	exclude module: 'slf4j-log4j12'
      }
