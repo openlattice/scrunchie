@@ -626,13 +626,27 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         String indexName = SECURABLE_OBJECT_INDEX_PREFIX + entitySetId.toString();
         String typeName = SECURABLE_OBJECT_TYPE_PREFIX + entitySetId.toString();
 
+        String scriptStr = "";
+        Map<String, Object> paramValues = Maps.newHashMap();
+
+        for ( Entry<UUID, Object> entry : propertyValues.entrySet() ) {
+            List<Object> values = Lists.newArrayList( (Set<Object>) entry.getValue() );
+            String id = entry.getKey().toString();
+            paramValues.put( id, values );
+            for ( int i = 0; i < values.size(); i++ ) {
+                String paramName = id + "_" + String.valueOf( i );
+                scriptStr += "if (!ctx._source['" + id + "'].contains(params['" + paramName + "'])) ctx._source['"
+                        + id
+                        + "'].add(params['" + paramName + "']);";
+                paramValues.put( paramName, values.get( i ) );
+            }
+        }
+
+        Script script = new Script( ScriptType.INLINE, "painless", scriptStr, paramValues );
         try {
-            String s = ObjectMappers.getJsonMapper().writeValueAsString( propertyValues );
-            client
-                    .prepareIndex( indexName, typeName, entityId )
-                    .setSource( s )
-                    .execute()
-                    .actionGet();
+            UpdateRequest request = new UpdateRequest( indexName, typeName, entityId ).script( script )
+                    .upsert( ObjectMappers.getJsonMapper().writeValueAsString( propertyValues ) );
+            client.update( request ).actionGet();
         } catch ( JsonProcessingException e ) {
             logger.debug( "error creating entity data in elasticsearch" );
             return false;
