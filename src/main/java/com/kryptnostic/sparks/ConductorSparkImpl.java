@@ -19,10 +19,11 @@
 
 package com.kryptnostic.sparks;
 
-import java.io.Serializable;
 import java.math.BigInteger;
 import java.security.SecureRandom;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -31,6 +32,7 @@ import javax.inject.Inject;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.olingo.commons.api.edm.FullQualifiedName;
 import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.sql.Column;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
@@ -45,14 +47,16 @@ import com.datastax.driver.core.Session;
 import com.datastax.spark.connector.cql.CassandraConnector;
 import com.datastax.spark.connector.japi.CassandraJavaUtil;
 import com.datastax.spark.connector.japi.SparkContextJavaFunctions;
+import com.google.common.collect.Lists;
 import com.hazelcast.core.HazelcastInstance;
 import com.kryptnostic.conductor.rpc.ConductorSparkApi;
 import com.kryptnostic.conductor.rpc.QueryResult;
 import com.kryptnostic.datastore.cassandra.CassandraEdmMapping;
 import com.kryptnostic.datastore.cassandra.CommonColumns;
 import com.kryptnostic.datastore.services.EdmManager;
+import com.kryptnostic.rhizome.core.Cutting;
 
-public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
+public class ConductorSparkImpl implements ConductorSparkApi {
     private static final long               serialVersionUID = 825467486008335571L;
     private static final Logger             logger           = LoggerFactory
             .getLogger( ConductorSparkImpl.class );
@@ -64,6 +68,8 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
     private final SparkContextJavaFunctions cassandraJavaContext;
     private final String                    keyspace;
     private final EdmManager                dataModelService;
+    private final HazelcastInstance         hazelcast;
+    private final Cutting                   cutting;
 
     // private final ConcurrentMap<FullQualifiedName, Dataset<Row>> entityDataframeMap;
     // private final ConcurrentMap<FullQualifiedName, Dataset<Row>> propertyDataframeMap;
@@ -75,13 +81,16 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
             SparkSession sparkSession,
             SparkContextJavaFunctions cassandraJavaContext,
             EdmManager dataModelService,
-            HazelcastInstance hazelcastInstance ) {
+            HazelcastInstance hazelcastInstance,
+            Cutting cutting ) {
         this.sparkSession = sparkSession;
         this.cassandraJavaContext = cassandraJavaContext;
         this.keyspace = keyspace;
         this.dataModelService = dataModelService;
 
         this.sparkSession.sql( "set spark.sql.caseSensitive=false" );
+        this.hazelcast = hazelcastInstance;
+        this.cutting = cutting;
         // this.entityDataframeMap = Maps.newConcurrentMap();// hazelcastInstance.getMap(
         // // HazelcastNames.Maps.ENTITY_DATAFRAMES );
         // this.propertyDataframeMap = Maps.newConcurrentMap(); // hazelcastInstance.getMap(
@@ -433,5 +442,33 @@ public class ConductorSparkImpl implements ConductorSparkApi, Serializable {
         throw new NotImplementedException( "Ho Chung" );
         // clusterer.cluster();
         // return null;
+    }
+
+    @Override
+    public UUID getTopUtilizers(
+            UUID entitySetId,
+            Set<UUID> propertyTypeIds,
+            Map<UUID, PropertyType> propertyTypes ) {
+        String indexName = "securable_object_" + entitySetId.toString();
+        String typeName = "type_" + entitySetId.toString();
+        UUID requestId = UUID.randomUUID();
+
+        Dataset<Row> table = sparkSession
+                .read()
+                .format( "org.elasticsearch.spark.sql" )
+                .option( "es.read.field.as.array.include", "*" )
+                .load( indexName + "/" + typeName );
+
+        List<UUID> columnIdsOrdered = Lists.newArrayList();
+        List<Column> columnsOrdered = Lists.newArrayList();
+        propertyTypes.entrySet().forEach( entry -> {
+            Column col = table.col( entry.getKey().toString() );
+            columnsOrdered.add( col );
+            columnIdsOrdered.add( entry.getKey() );
+        } );
+        table.select( columnsOrdered.toArray( new Column[] {} ) )
+                .javaRDD()
+                .foreach( SparkTransforms.saveTopUtilizers( cutting, columnIdsOrdered, requestId, propertyTypeIds ) );
+        return requestId;
     }
 }
