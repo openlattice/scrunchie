@@ -1089,6 +1089,35 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         }
         return new SearchResult( response.getHits().getTotalHits(), hits );
     }
+    
+    @Override
+    public SearchResult executeFQNEntityTypeSearch( String namespace, String name, int start, int maxHits ) {
+        try {
+            if ( !verifyElasticsearchConnection() )
+                return new SearchResult( 0, Lists.newArrayList() );
+        } catch ( UnknownHostException e ) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+
+        BoolQueryBuilder query = new BoolQueryBuilder();
+        query.must( QueryBuilders.regexpQuery( NAMESPACE, ".*" + namespace + ".*" ) )
+                .must( QueryBuilders.matchQuery( NAME, ".*" + name + ".*" ) );
+
+        SearchResponse response = client.prepareSearch( ENTITY_TYPE_INDEX )
+                .setTypes( ENTITY_TYPE )
+                .setQuery( query )
+                .setFrom( start )
+                .setSize( maxHits )
+                .execute()
+                .actionGet();
+
+        List<Map<String, Object>> hits = Lists.newArrayList();
+        for ( SearchHit hit : response.getHits() ) {
+            hits.add( hit.getSource() );
+        }
+        return new SearchResult( response.getHits().getTotalHits(), hits );
+    }
 
     @Override
     public SearchResult executePropertyTypeSearch( String searchTerm, int start, int maxHits ) {
