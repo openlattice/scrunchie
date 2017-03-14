@@ -1068,7 +1068,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         }
 
         BoolQueryBuilder query = new BoolQueryBuilder();
-        query.should( QueryBuilders.matchQuery( NAME, searchTerm ).fuzziness( Fuzziness.AUTO ) )
+        query.should( QueryBuilders.matchQuery( TYPE + "." + NAME, searchTerm ).fuzziness( Fuzziness.AUTO ) )
+                .should( QueryBuilders.matchQuery( TYPE + "." + NAMESPACE, searchTerm ) )
                 .should( QueryBuilders.matchQuery( TITLE, searchTerm )
                         .fuzziness( Fuzziness.AUTO ) )
                 .should( QueryBuilders.matchQuery( DESCRIPTION, searchTerm )
@@ -1101,8 +1102,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         }
 
         BoolQueryBuilder query = new BoolQueryBuilder();
-        query.must( QueryBuilders.regexpQuery( NAMESPACE, ".*" + namespace + ".*" ) )
-                .must( QueryBuilders.matchQuery( NAME, ".*" + name + ".*" ) );
+        query.must( QueryBuilders.regexpQuery( TYPE + "." + NAMESPACE, ".*" + namespace + ".*" ) )
+                .must( QueryBuilders.regexpQuery( TYPE + "." + NAME, ".*" + name + ".*" ) );
 
         SearchResponse response = client.prepareSearch( ENTITY_TYPE_INDEX )
                 .setTypes( ENTITY_TYPE )
@@ -1130,7 +1131,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         }
 
         BoolQueryBuilder query = new BoolQueryBuilder();
-        query.should( QueryBuilders.matchQuery( NAME, searchTerm ).fuzziness( Fuzziness.AUTO ) )
+        query.should( QueryBuilders.matchQuery( TYPE + "." + NAME, searchTerm ).fuzziness( Fuzziness.AUTO ) )
+                .should( QueryBuilders.matchQuery( TYPE + "." + NAMESPACE, searchTerm ) )
                 .should( QueryBuilders.matchQuery( TITLE, searchTerm )
                         .fuzziness( Fuzziness.AUTO ) )
                 .should( QueryBuilders.matchQuery( DESCRIPTION, searchTerm )
@@ -1163,8 +1165,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         }
 
         BoolQueryBuilder query = new BoolQueryBuilder();
-        query.must( QueryBuilders.regexpQuery( NAMESPACE, ".*" + namespace + ".*" ) )
-                .must( QueryBuilders.matchQuery( NAME, ".*" + name + ".*" ) );
+        query.must( QueryBuilders.regexpQuery( TYPE + "." + NAMESPACE, ".*" + namespace + ".*" ) )
+                .must( QueryBuilders.regexpQuery( TYPE + "." + NAME, ".*" + name + ".*" ) );
 
         SearchResponse response = client.prepareSearch( PROPERTY_TYPE_INDEX )
                 .setTypes( PROPERTY_TYPE )
