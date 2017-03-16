@@ -311,7 +311,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         return fieldMapping;
     }
 
-    public Boolean createSecurableObjectIndex( UUID securableObjectId, List<PropertyType> propertyTypes ) {
+    public boolean createSecurableObjectIndex( UUID securableObjectId, List<PropertyType> propertyTypes ) {
         try {
             if ( !verifyElasticsearchConnection() )
                 return false;
@@ -360,7 +360,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     }
 
     @Override
-    public Boolean saveEntitySetToElasticsearch(
+    public boolean saveEntitySetToElasticsearch(
             EntitySet entitySet,
             List<PropertyType> propertyTypes,
             Principal principal ) {
@@ -472,7 +472,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     }
 
     @Override
-    public Boolean updateEntitySetPermissions( UUID entitySetId, Principal principal, Set<Permission> permissions ) {
+    public boolean updateEntitySetPermissions( UUID entitySetId, Principal principal, Set<Permission> permissions ) {
         try {
             if ( !verifyElasticsearchConnection() )
                 return false;
@@ -497,7 +497,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 	}
 
     @Override
-    public Boolean updatePropertyTypesInEntitySet( UUID entitySetId, List<PropertyType> newPropertyTypes ) {
+    public boolean updatePropertyTypesInEntitySet( UUID entitySetId, List<PropertyType> newPropertyTypes ) {
         try {
             if ( !verifyElasticsearchConnection() )
                 return false;
@@ -523,7 +523,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     }
 
     @Override
-    public Boolean deleteEntitySet( UUID entitySetId ) {
+    public boolean deleteEntitySet( UUID entitySetId ) {
         try {
             if ( !verifyElasticsearchConnection() )
                 return false;
@@ -589,7 +589,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     }
 
     @Override
-    public Boolean updateOrganizationPermissions(
+    public boolean updateOrganizationPermissions(
             UUID organizationId,
             Principal principal,
             Set<Permission> permissions ) {
@@ -618,7 +618,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     }
 
     @Override
-    public Boolean createEntityData( UUID entitySetId, String entityId, Map<UUID, Object> propertyValues ) {
+    public boolean createEntityData( UUID entitySetId, String entityId, Map<UUID, Object> propertyValues ) {
         try {
             if ( !verifyElasticsearchConnection() )
                 return false;
@@ -659,7 +659,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     }
 
     @Override
-    public Boolean updateEntitySetMetadata( EntitySet entitySet ) {
+    public boolean updateEntitySetMetadata( EntitySet entitySet ) {
         try {
             if ( !verifyElasticsearchConnection() )
                 return false;
@@ -682,7 +682,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     }
 
     @Override
-    public Boolean createOrganization( Organization organization, Principal principal ) {
+    public boolean createOrganization( Organization organization, Principal principal ) {
         try {
             if ( !verifyElasticsearchConnection() )
                 return false;
@@ -713,7 +713,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     }
 
     @Override
-    public Boolean deleteOrganization( UUID organizationId ) {
+    public boolean deleteOrganization( UUID organizationId ) {
         try {
             if ( !verifyElasticsearchConnection() )
                 return false;
@@ -830,7 +830,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     }
 
     @Override
-    public Boolean updateOrganization( UUID id, Optional<String> optionalTitle, Optional<String> optionalDescription ) {
+    public boolean updateOrganization( UUID id, Optional<String> optionalTitle, Optional<String> optionalDescription ) {
         try {
             if ( !verifyElasticsearchConnection() )
                 return false;
