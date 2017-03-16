@@ -990,7 +990,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     }
 
     @Override
-    public Boolean saveEntityTypeToElasticsearch( EntityType entityType ) {
+    public boolean saveEntityTypeToElasticsearch( EntityType entityType ) {
         try {
             if ( !verifyElasticsearchConnection() )
                 return false;
@@ -1010,7 +1010,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     }
 
     @Override
-    public Boolean savePropertyTypeToElasticsearch( PropertyType propertyType ) {
+    public boolean savePropertyTypeToElasticsearch( PropertyType propertyType ) {
         try {
             if ( !verifyElasticsearchConnection() )
                 return false;
@@ -1030,7 +1030,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     }
 
     @Override
-    public Boolean deleteEntityType( UUID entityTypeId ) {
+    public boolean deleteEntityType( UUID entityTypeId ) {
         try {
             if ( !verifyElasticsearchConnection() )
                 return false;
@@ -1044,7 +1044,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     }
 
     @Override
-    public Boolean deletePropertyType( UUID propertyTypeId ) {
+    public boolean deletePropertyType( UUID propertyTypeId ) {
         try {
             if ( !verifyElasticsearchConnection() )
                 return false;
