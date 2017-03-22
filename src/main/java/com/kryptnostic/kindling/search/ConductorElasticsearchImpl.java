@@ -59,7 +59,6 @@ import com.dataloom.authorization.Principal;
 import com.dataloom.data.EntityKey;
 import com.dataloom.edm.EntitySet;
 import com.dataloom.edm.type.Analyzer;
-import com.dataloom.edm.type.LinkingType;
 import com.dataloom.edm.type.PropertyType;
 import com.dataloom.linking.Entity;
 import com.dataloom.mappers.ObjectMappers;
@@ -110,7 +109,6 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     public void initializeIndices() {
         initializeEntitySetDataModelIndex();
         initializeOrganizationIndex();
-        initializeLinkingTypeIndex();
     }
     
     private XContentBuilder getMetaphoneSettings() throws IOException {
@@ -240,31 +238,6 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                         .put( NUM_REPLICAS, 2 ) )
                 .addMapping( ORGANIZATION_TYPE, organizationMapping )
                 .addMapping( ACLS, aclMapping )
-                .execute().actionGet();
-        return true;
-    }
-
-    private boolean initializeLinkingTypeIndex() {
-        try {
-            if ( !verifyElasticsearchConnection() )
-                return false;
-        } catch ( UnknownHostException e ) {
-            e.printStackTrace();
-        }
-
-        boolean exists = client.admin().indices()
-                .prepareExists( LINKING_TYPE_INDEX ).execute().actionGet().isExists();
-        if ( exists ) {
-            return true;
-        }
-
-        Map<String, Object> mapping = Maps.newHashMap();
-        mapping.put( LINKING_TYPE, Maps.newHashMap() );
-        client.admin().indices().prepareCreate( LINKING_TYPE_INDEX )
-                .setSettings( Settings.builder()
-                        .put( NUM_SHARDS, 3 )
-                        .put( NUM_REPLICAS, 2 ) )
-                .addMapping( LINKING_TYPE, mapping )
                 .execute().actionGet();
         return true;
     }
@@ -948,111 +921,6 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         }
         SearchResult result = new SearchResult( response.getHits().totalHits(), hits );
         return result;
-    }
-
-    @Override
-    public boolean saveLinkingTypeToElasticsearch( LinkingType linkingType ) {
-        try {
-            if ( !verifyElasticsearchConnection() )
-                return false;
-        } catch ( UnknownHostException e ) {
-            logger.debug( "not connected to elasticsearch" );
-            e.printStackTrace();
-        }
-        try {
-            String s = ObjectMappers.getJsonMapper().writeValueAsString( linkingType );
-            client.prepareIndex( LINKING_TYPE_INDEX, LINKING_TYPE, linkingType.getId().toString() ).setSource( s )
-                    .execute().actionGet();
-            return true;
-        } catch ( JsonProcessingException e ) {
-            logger.debug( "error saving entity set to elasticsearch" );
-        }
-        return false;
-    }
-
-    @Override
-    public boolean deleteLinkingType( UUID linkingTypeId ) {
-        try {
-            if ( !verifyElasticsearchConnection() )
-                return false;
-        } catch ( UnknownHostException e ) {
-            logger.debug( "not connected to elasticsearch" );
-            e.printStackTrace();
-        }
-
-        client.prepareDelete( LINKING_TYPE_INDEX, LINKING_TYPE, linkingTypeId.toString() ).execute().actionGet();
-        return true;
-    }
-
-    @Override
-    public SearchResult executeLinkingTypeSearch(
-            Optional<String> optionalSearchTerm,
-            Optional<UUID> optionalProperty,
-            Optional<UUID> optionalSrcId,
-            Optional<UUID> optionalDestId,
-            int start,
-            int maxHits ) {
-        try {
-            if ( !verifyElasticsearchConnection() )
-                return new SearchResult( 0, Lists.newArrayList() );
-        } catch ( UnknownHostException e ) {
-            logger.debug( "not connected to elasticsearch" );
-            e.printStackTrace();
-        }
-
-        BoolQueryBuilder query = new BoolQueryBuilder();
-        if ( optionalSrcId.isPresent() ) {
-            BoolQueryBuilder srcQuery = new BoolQueryBuilder()
-                    .should( QueryBuilders.matchQuery( SRC, optionalSrcId.get().toString() ) )
-                    .should( new BoolQueryBuilder()
-                            .must( QueryBuilders.matchQuery( DEST, optionalSrcId.get().toString() ) )
-                            .must( QueryBuilders.matchQuery( BIDIRECTIONAL, true ) ) )
-                    .minimumNumberShouldMatch( 1 );
-            query.must( srcQuery );
-        }
-        if ( optionalDestId.isPresent() ) {
-            BoolQueryBuilder destQuery = new BoolQueryBuilder()
-                    .should( QueryBuilders.matchQuery( DEST, optionalDestId.get().toString() ) )
-                    .should( new BoolQueryBuilder()
-                            .must( QueryBuilders.matchQuery( SRC, optionalDestId.get().toString() ) )
-                            .must( QueryBuilders.matchQuery( BIDIRECTIONAL, true ) ) )
-                    .minimumNumberShouldMatch( 1 );
-            query.must( destQuery );
-        }
-        if ( optionalSearchTerm.isPresent() ) {
-            String searchTerm = optionalSearchTerm.get();
-            BoolQueryBuilder searchTermQuery = new BoolQueryBuilder()
-                    .should( QueryBuilders.matchQuery( TYPE + "." + NAME, searchTerm ).fuzziness( Fuzziness.AUTO ) )
-                    .should( QueryBuilders.matchQuery( TYPE + "." + NAMESPACE, searchTerm ) )
-                    .should( QueryBuilders.matchQuery( TITLE, searchTerm )
-                            .fuzziness( Fuzziness.AUTO ) )
-                    .should( QueryBuilders.matchQuery( DESCRIPTION, searchTerm )
-                            .fuzziness( Fuzziness.AUTO ) )
-                    .minimumNumberShouldMatch( 1 );
-            query.must( searchTermQuery );
-        }
-
-        if ( !optionalSrcId.isPresent() && !optionalDestId.isPresent() && optionalProperty.isPresent() ) {
-            BoolQueryBuilder propertyQuery = new BoolQueryBuilder()
-                    .should( QueryBuilders.matchQuery( SRC, optionalProperty.get().toString() ) )
-                    .should( QueryBuilders.matchQuery( DEST, optionalProperty.get().toString() ) )
-                    .minimumNumberShouldMatch( 1 );
-            query.must( propertyQuery );
-        }
-
-        SearchResponse response = client.prepareSearch( LINKING_TYPE_INDEX )
-                .setTypes( LINKING_TYPE )
-                .setQuery( query )
-                .setFrom( start )
-                .setSize( maxHits )
-                .execute()
-                .actionGet();
-
-        List<Map<String, Object>> hits = Lists.newArrayList();
-        for ( SearchHit hit : response.getHits() ) {
-            hits.add( hit.getSource() );
-        }
-        return new SearchResult( response.getHits().getTotalHits(), hits );
     }
 
 }
