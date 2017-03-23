@@ -59,6 +59,7 @@ import com.dataloom.authorization.Principal;
 import com.dataloom.data.EntityKey;
 import com.dataloom.edm.EntitySet;
 import com.dataloom.edm.type.Analyzer;
+import com.dataloom.edm.type.EntityType;
 import com.dataloom.edm.type.PropertyType;
 import com.dataloom.linking.Entity;
 import com.dataloom.mappers.ObjectMappers;
@@ -72,6 +73,7 @@ import com.kryptnostic.conductor.rpc.ConductorElasticsearchApi;
 import com.kryptnostic.conductor.rpc.SearchConfiguration;
 
 public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
+
 
     private static final Logger logger = LoggerFactory.getLogger( ConductorElasticsearchImpl.class );
 
@@ -111,6 +113,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     public void initializeIndices() {
         initializeEntitySetDataModelIndex();
         initializeOrganizationIndex();
+        initializeEntityTypeIndex();
+        initializePropertyTypeIndex();
     }
 
     private XContentBuilder getMetaphoneSettings() throws IOException {
@@ -248,6 +252,56 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         return true;
     }
 
+    private boolean initializeEntityTypeIndex() {
+        try {
+            if ( !verifyElasticsearchConnection() )
+                return false;
+        } catch ( UnknownHostException e ) {
+            e.printStackTrace();
+        }
+
+        boolean exists = client.admin().indices()
+                .prepareExists( ENTITY_TYPE_INDEX ).execute().actionGet().isExists();
+        if ( exists ) {
+            return true;
+        }
+
+        Map<String, Object> mapping = Maps.newHashMap();
+        mapping.put( ENTITY_TYPE, Maps.newHashMap() );
+        client.admin().indices().prepareCreate( ENTITY_TYPE_INDEX )
+                .setSettings( Settings.builder()
+                        .put( NUM_SHARDS, 3 )
+                        .put( NUM_REPLICAS, 2 ) )
+                .addMapping( ENTITY_TYPE, mapping )
+                .execute().actionGet();
+        return true;
+    }
+
+    private boolean initializePropertyTypeIndex() {
+        try {
+            if ( !verifyElasticsearchConnection() )
+                return false;
+        } catch ( UnknownHostException e ) {
+            e.printStackTrace();
+        }
+
+        boolean exists = client.admin().indices()
+                .prepareExists( PROPERTY_TYPE_INDEX ).execute().actionGet().isExists();
+        if ( exists ) {
+            return true;
+        }
+
+        Map<String, Object> mapping = Maps.newHashMap();
+        mapping.put( PROPERTY_TYPE, Maps.newHashMap() );
+        client.admin().indices().prepareCreate( PROPERTY_TYPE_INDEX )
+                .setSettings( Settings.builder()
+                        .put( NUM_SHARDS, 3 )
+                        .put( NUM_REPLICAS, 2 ) )
+                .addMapping( PROPERTY_TYPE, mapping )
+                .execute().actionGet();
+        return true;
+    }
+
     private Map<String, String> getFieldMapping( PropertyType propertyType ) {
         Map<String, String> fieldMapping = Maps.newHashMap();
         switch ( propertyType.getDatatype() ) {
@@ -319,7 +373,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         return fieldMapping;
     }
 
-    public Boolean createSecurableObjectIndex( UUID securableObjectId, List<PropertyType> propertyTypes ) {
+    public boolean createSecurableObjectIndex( UUID securableObjectId, List<PropertyType> propertyTypes ) {
         try {
             if ( !verifyElasticsearchConnection() )
                 return false;
@@ -344,7 +398,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         nestedField.put( TYPE, NESTED );
         keywordField.put( TYPE, KEYWORD );
 
-        //   securable_object_row type mapping
+        // securable_object_row type mapping
         Map<String, Object> securableObjectData = Maps.newHashMap();
         Map<String, Object> securableObjectMapping = Maps.newHashMap();
         Map<String, Object> properties = Maps.newHashMap();
@@ -894,7 +948,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     }
 
     @Scheduled(
-            fixedRate = 1800000 )
+        fixedRate = 1800000 )
     public void verifyRunner() throws UnknownHostException {
         verifyElasticsearchConnection();
     }
@@ -944,6 +998,200 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         }
         SearchResult result = new SearchResult( response.getHits().totalHits(), hits );
         return result;
+    }
+
+    @Override
+    public boolean saveEntityTypeToElasticsearch( EntityType entityType ) {
+        try {
+            if ( !verifyElasticsearchConnection() )
+                return false;
+        } catch ( UnknownHostException e ) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+        try {
+            String s = ObjectMappers.getJsonMapper().writeValueAsString( entityType );
+            client.prepareIndex( ENTITY_TYPE_INDEX, ENTITY_TYPE, entityType.getId().toString() ).setSource( s )
+                    .execute().actionGet();
+            return true;
+        } catch ( JsonProcessingException e ) {
+            logger.debug( "error saving entity set to elasticsearch" );
+        }
+        return false;
+    }
+
+    @Override
+    public boolean savePropertyTypeToElasticsearch( PropertyType propertyType ) {
+        try {
+            if ( !verifyElasticsearchConnection() )
+                return false;
+        } catch ( UnknownHostException e ) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+        try {
+            String s = ObjectMappers.getJsonMapper().writeValueAsString( propertyType );
+            client.prepareIndex( PROPERTY_TYPE_INDEX, PROPERTY_TYPE, propertyType.getId().toString() ).setSource( s )
+                    .execute().actionGet();
+            return true;
+        } catch ( JsonProcessingException e ) {
+            logger.debug( "error saving entity set to elasticsearch" );
+        }
+        return false;
+    }
+
+    @Override
+    public boolean deleteEntityType( UUID entityTypeId ) {
+        try {
+            if ( !verifyElasticsearchConnection() )
+                return false;
+        } catch ( UnknownHostException e ) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+
+        client.prepareDelete( ENTITY_TYPE_INDEX, ENTITY_TYPE, entityTypeId.toString() ).execute().actionGet();
+        return true;
+    }
+
+    @Override
+    public boolean deletePropertyType( UUID propertyTypeId ) {
+        try {
+            if ( !verifyElasticsearchConnection() )
+                return false;
+        } catch ( UnknownHostException e ) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+
+        client.prepareDelete( PROPERTY_TYPE_INDEX, PROPERTY_TYPE, propertyTypeId.toString() ).execute().actionGet();
+        return true;
+    }
+
+    @Override
+    public SearchResult executeEntityTypeSearch( String searchTerm, int start, int maxHits ) {
+        try {
+            if ( !verifyElasticsearchConnection() )
+                return new SearchResult( 0, Lists.newArrayList() );
+        } catch ( UnknownHostException e ) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+
+        BoolQueryBuilder query = new BoolQueryBuilder();
+        query.should( QueryBuilders.matchQuery( TYPE + "." + NAME, searchTerm ).fuzziness( Fuzziness.AUTO ) )
+                .should( QueryBuilders.matchQuery( TYPE + "." + NAMESPACE, searchTerm ) )
+                .should( QueryBuilders.matchQuery( TITLE, searchTerm )
+                        .fuzziness( Fuzziness.AUTO ) )
+                .should( QueryBuilders.matchQuery( DESCRIPTION, searchTerm )
+                        .fuzziness( Fuzziness.AUTO ) )
+                .minimumNumberShouldMatch( 1 );
+
+        SearchResponse response = client.prepareSearch( ENTITY_TYPE_INDEX )
+                .setTypes( ENTITY_TYPE )
+                .setQuery( query )
+                .setFrom( start )
+                .setSize( maxHits )
+                .execute()
+                .actionGet();
+
+        List<Map<String, Object>> hits = Lists.newArrayList();
+        for ( SearchHit hit : response.getHits() ) {
+            hits.add( hit.getSource() );
+        }
+        return new SearchResult( response.getHits().getTotalHits(), hits );
+    }
+    
+    @Override
+    public SearchResult executeFQNEntityTypeSearch( String namespace, String name, int start, int maxHits ) {
+        try {
+            if ( !verifyElasticsearchConnection() )
+                return new SearchResult( 0, Lists.newArrayList() );
+        } catch ( UnknownHostException e ) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+
+        BoolQueryBuilder query = new BoolQueryBuilder();
+        query.must( QueryBuilders.regexpQuery( TYPE + "." + NAMESPACE, ".*" + namespace + ".*" ) )
+                .must( QueryBuilders.regexpQuery( TYPE + "." + NAME, ".*" + name + ".*" ) );
+
+        SearchResponse response = client.prepareSearch( ENTITY_TYPE_INDEX )
+                .setTypes( ENTITY_TYPE )
+                .setQuery( query )
+                .setFrom( start )
+                .setSize( maxHits )
+                .execute()
+                .actionGet();
+
+        List<Map<String, Object>> hits = Lists.newArrayList();
+        for ( SearchHit hit : response.getHits() ) {
+            hits.add( hit.getSource() );
+        }
+        return new SearchResult( response.getHits().getTotalHits(), hits );
+    }
+
+    @Override
+    public SearchResult executePropertyTypeSearch( String searchTerm, int start, int maxHits ) {
+        try {
+            if ( !verifyElasticsearchConnection() )
+                return new SearchResult( 0, Lists.newArrayList() );
+        } catch ( UnknownHostException e ) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+
+        BoolQueryBuilder query = new BoolQueryBuilder();
+        query.should( QueryBuilders.matchQuery( TYPE + "." + NAME, searchTerm ).fuzziness( Fuzziness.AUTO ) )
+                .should( QueryBuilders.matchQuery( TYPE + "." + NAMESPACE, searchTerm ) )
+                .should( QueryBuilders.matchQuery( TITLE, searchTerm )
+                        .fuzziness( Fuzziness.AUTO ) )
+                .should( QueryBuilders.matchQuery( DESCRIPTION, searchTerm )
+                        .fuzziness( Fuzziness.AUTO ) )
+                .minimumNumberShouldMatch( 1 );
+
+        SearchResponse response = client.prepareSearch( PROPERTY_TYPE_INDEX )
+                .setTypes( PROPERTY_TYPE )
+                .setQuery( query )
+                .setFrom( start )
+                .setSize( maxHits )
+                .execute()
+                .actionGet();
+
+        List<Map<String, Object>> hits = Lists.newArrayList();
+        for ( SearchHit hit : response.getHits() ) {
+            hits.add( hit.getSource() );
+        }
+        return new SearchResult( response.getHits().getTotalHits(), hits );
+    }
+
+    @Override
+    public SearchResult executeFQNPropertyTypeSearch( String namespace, String name, int start, int maxHits ) {
+        try {
+            if ( !verifyElasticsearchConnection() )
+                return new SearchResult( 0, Lists.newArrayList() );
+        } catch ( UnknownHostException e ) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+
+        BoolQueryBuilder query = new BoolQueryBuilder();
+        query.must( QueryBuilders.regexpQuery( TYPE + "." + NAMESPACE, ".*" + namespace + ".*" ) )
+                .must( QueryBuilders.regexpQuery( TYPE + "." + NAME, ".*" + name + ".*" ) );
+
+        SearchResponse response = client.prepareSearch( PROPERTY_TYPE_INDEX )
+                .setTypes( PROPERTY_TYPE )
+                .setQuery( query )
+                .setFrom( start )
+                .setSize( maxHits )
+                .execute()
+                .actionGet();
+
+        List<Map<String, Object>> hits = Lists.newArrayList();
+        for ( SearchHit hit : response.getHits() ) {
+            hits.add( hit.getSource() );
+        }
+        return new SearchResult( response.getHits().getTotalHits(), hits );
     }
 
 }
