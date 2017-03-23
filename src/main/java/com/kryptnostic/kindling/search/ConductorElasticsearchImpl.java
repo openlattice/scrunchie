@@ -688,14 +688,15 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 
         String scriptStr = "";
         Map<String, Object> paramValues = Maps.newHashMap();
-
         for ( Entry<UUID, Object> entry : propertyValues.entrySet() ) {
             List<Object> values = Lists.newArrayList( (Set<Object>) entry.getValue() );
             String id = entry.getKey().toString();
             paramValues.put( id, values );
             for ( int i = 0; i < values.size(); i++ ) {
                 String paramName = id + "_" + String.valueOf( i );
-                scriptStr += "if (!ctx._source['" + id + "'].contains(params['" + paramName + "'])) ctx._source['"
+                scriptStr += "if (ctx._source['" + id + "'] == null) ctx._source['" + id + "'] = [params['" + paramName
+                        + "']]; else if (!ctx._source['" + id + "'].contains(params['" + paramName
+                        + "'])) ctx._source['"
                         + id
                         + "'].add(params['" + paramName + "']);";
                 paramValues.put( paramName, values.get( i ) );
