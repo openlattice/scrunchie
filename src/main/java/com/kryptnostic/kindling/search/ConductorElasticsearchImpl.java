@@ -694,19 +694,19 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             paramValues.put( id, values );
             for ( int i = 0; i < values.size(); i++ ) {
                 String paramName = id + "_" + String.valueOf( i );
-                builder.append( "if (ctx._source['" ); 
-                builder.append( id );
-                builder.append( "'] == null) ctx._source['" );
-                builder.append( id );
-                builder.append( "'] = [params['" );
-                builder.append( paramName );
-                builder.append( "']]; else if (!ctx._source['" );
-                builder.append( id );
-                builder.append( "'].contains(params['" );
-                builder.append( paramName );
-                builder.append( "'])) ctx._source['" );
-                builder.append( id );
-                builder.append( "'].add(params['" + paramName + "']);" );
+                builder.append( "if (ctx._source['" )
+                .append( id )
+                .append( "'] == null) ctx._source['" )
+                .append( id )
+                .append( "'] = [params['" )
+                .append( paramName )
+                .append( "']]; else if (!ctx._source['" )
+                .append( id )
+                .append( "'].contains(params['" )
+                .append( paramName )
+                .append( "'])) ctx._source['" )
+                .append( id )
+                .append( "'].add(params['" + paramName + "']);" );
                 paramValues.put( paramName, values.get( i ) );
                 paramValues.put( paramName, values.get( i ) );
             }
