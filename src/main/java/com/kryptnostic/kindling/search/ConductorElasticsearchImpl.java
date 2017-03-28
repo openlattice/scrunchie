@@ -686,7 +686,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         String indexName = SECURABLE_OBJECT_INDEX_PREFIX + entitySetId.toString();
         String typeName = SECURABLE_OBJECT_TYPE_PREFIX + entitySetId.toString();
 
-        String scriptStr = "";
+        StringBuilder builder = new StringBuilder();
         Map<String, Object> paramValues = Maps.newHashMap();
         for ( Entry<UUID, Object> entry : propertyValues.entrySet() ) {
             List<Object> values = Lists.newArrayList( (Set<Object>) entry.getValue() );
@@ -694,16 +694,25 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             paramValues.put( id, values );
             for ( int i = 0; i < values.size(); i++ ) {
                 String paramName = id + "_" + String.valueOf( i );
-                scriptStr += "if (ctx._source['" + id + "'] == null) ctx._source['" + id + "'] = [params['" + paramName
-                        + "']]; else if (!ctx._source['" + id + "'].contains(params['" + paramName
-                        + "'])) ctx._source['"
-                        + id
-                        + "'].add(params['" + paramName + "']);";
+                builder.append( "if (ctx._source['" ); 
+                builder.append( id );
+                builder.append( "'] == null) ctx._source['" );
+                builder.append( id );
+                builder.append( "'] = [params['" );
+                builder.append( paramName );
+                builder.append( "']]; else if (!ctx._source['" );
+                builder.append( id );
+                builder.append( "'].contains(params['" );
+                builder.append( paramName );
+                builder.append( "'])) ctx._source['" );
+                builder.append( id );
+                builder.append( "'].add(params['" + paramName + "']);" );
+                paramValues.put( paramName, values.get( i ) );
                 paramValues.put( paramName, values.get( i ) );
             }
         }
 
-        Script script = new Script( ScriptType.INLINE, "painless", scriptStr, paramValues );
+        Script script = new Script( ScriptType.INLINE, "painless", builder.toString(), paramValues );
         try {
             UpdateRequest request = new UpdateRequest( indexName, typeName, entityId ).script( script )
                     .upsert( ObjectMappers.getJsonMapper().writeValueAsString( propertyValues ) );
