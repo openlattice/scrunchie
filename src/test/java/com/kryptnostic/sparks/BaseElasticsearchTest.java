@@ -188,7 +188,6 @@ public class BaseElasticsearchTest {
                 Optional.of( organizationId ),
                 "Loom Employees",
                 Optional.of( "people that work at loom" ),
-                Optional.absent(),
                 Sets.newHashSet(),
                 Sets.newHashSet(),
                 Sets.newHashSet() );
