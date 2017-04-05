@@ -365,7 +365,16 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         return fieldMapping;
     }
 
-    public boolean createSecurableObjectIndex( UUID securableObjectId, List<PropertyType> propertyTypes ) {
+    private String getIndexName( UUID securableObjectId, UUID syncId ) {
+        return SECURABLE_OBJECT_INDEX_PREFIX + securableObjectId.toString() + "_" + syncId.toString();
+    }
+
+    private String getTypeName( UUID securableObjectId ) {
+        return SECURABLE_OBJECT_TYPE_PREFIX + securableObjectId.toString();
+    }
+
+    @Override
+    public boolean createSecurableObjectIndex( UUID securableObjectId, UUID syncId, List<PropertyType> propertyTypes ) {
         try {
             if ( !verifyElasticsearchConnection() )
                 return false;
@@ -373,8 +382,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             e.printStackTrace();
         }
 
-        String indexName = SECURABLE_OBJECT_INDEX_PREFIX + securableObjectId.toString();
-        String typeName = SECURABLE_OBJECT_TYPE_PREFIX + securableObjectId.toString();
+        String indexName = getIndexName( securableObjectId, syncId );
+        String typeName = getTypeName( securableObjectId );
 
         boolean exists = client.admin().indices()
                 .prepareExists( indexName ).execute().actionGet().isExists();
@@ -440,7 +449,6 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                             Permission.WRITE,
                             Permission.DISCOVER,
                             Permission.LINK ) );
-            createSecurableObjectIndex( entitySet.getId(), propertyTypes );
             return true;
         } catch ( JsonProcessingException e ) {
             logger.debug( "error saving entity set to elasticsearch" );
@@ -598,14 +606,30 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 .actionGet();
 
         client.admin().indices()
-                .delete( new DeleteIndexRequest( SECURABLE_OBJECT_INDEX_PREFIX + entitySetId.toString() ) );
+                .delete( new DeleteIndexRequest( SECURABLE_OBJECT_INDEX_PREFIX + entitySetId.toString() + "_*" ) );
+
+        return true;
+    }
+
+    @Override
+    public boolean deleteEntitySetForSyncId( UUID entitySetId, UUID syncId ) {
+        try {
+            if ( !verifyElasticsearchConnection() )
+                return false;
+        } catch ( UnknownHostException e ) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+
+        client.admin().indices()
+                .delete( new DeleteIndexRequest( getIndexName( entitySetId, syncId ) ) );
 
         return true;
     }
 
     @Override
     public List<Entity> executeEntitySetDataSearchAcrossIndices(
-            Set<UUID> entitySetIds,
+            Map<UUID, UUID> entitySetAndSyncIds,
             Map<UUID, Set<String>> fieldSearches,
             int size,
             boolean explain ) {
@@ -627,7 +651,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         } );
         query.minimumNumberShouldMatch( 1 );
 
-        List<String> indexNames = entitySetIds.stream().map( id -> SECURABLE_OBJECT_INDEX_PREFIX + id.toString() )
+        List<String> indexNames = entitySetAndSyncIds.entrySet().stream()
+                .map( entry -> getIndexName( entry.getKey(), entry.getValue() ) )
                 .collect( Collectors.toList() );
         SearchResponse response = client.prepareSearch( indexNames.toArray( new String[ indexNames.size() ] ) )
                 .setQuery( query )
@@ -675,7 +700,11 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     }
 
     @Override
-    public boolean createEntityData( UUID entitySetId, String entityId, Map<UUID, Object> propertyValues ) {
+    public boolean createEntityData(
+            UUID entitySetId,
+            UUID syncId,
+            String entityId,
+            Map<UUID, Object> propertyValues ) {
         try {
             if ( !verifyElasticsearchConnection() )
                 return false;
@@ -683,8 +712,6 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             logger.debug( "not connected to elasticsearch" );
             e.printStackTrace();
         }
-        String indexName = SECURABLE_OBJECT_INDEX_PREFIX + entitySetId.toString();
-        String typeName = SECURABLE_OBJECT_TYPE_PREFIX + entitySetId.toString();
 
         StringBuilder builder = new StringBuilder();
         Map<String, Object> paramValues = Maps.newHashMap();
@@ -695,18 +722,18 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             for ( int i = 0; i < values.size(); i++ ) {
                 String paramName = id + "_" + String.valueOf( i );
                 builder.append( "if (ctx._source['" )
-                .append( id )
-                .append( "'] == null) ctx._source['" )
-                .append( id )
-                .append( "'] = [params['" )
-                .append( paramName )
-                .append( "']]; else if (!ctx._source['" )
-                .append( id )
-                .append( "'].contains(params['" )
-                .append( paramName )
-                .append( "'])) ctx._source['" )
-                .append( id )
-                .append( "'].add(params['" + paramName + "']);" );
+                        .append( id )
+                        .append( "'] == null) ctx._source['" )
+                        .append( id )
+                        .append( "'] = [params['" )
+                        .append( paramName )
+                        .append( "']]; else if (!ctx._source['" )
+                        .append( id )
+                        .append( "'].contains(params['" )
+                        .append( paramName )
+                        .append( "'])) ctx._source['" )
+                        .append( id )
+                        .append( "'].add(params['" + paramName + "']);" );
                 paramValues.put( paramName, values.get( i ) );
                 paramValues.put( paramName, values.get( i ) );
             }
@@ -714,8 +741,11 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 
         Script script = new Script( ScriptType.INLINE, "painless", builder.toString(), paramValues );
         try {
-            UpdateRequest request = new UpdateRequest( indexName, typeName, entityId ).script( script )
-                    .upsert( ObjectMappers.getJsonMapper().writeValueAsString( propertyValues ) );
+            UpdateRequest request = new UpdateRequest(
+                    getIndexName( entitySetId, syncId ),
+                    getTypeName( entitySetId ),
+                    entityId ).script( script )
+                            .upsert( ObjectMappers.getJsonMapper().writeValueAsString( propertyValues ) );
             client.update( request ).actionGet();
         } catch ( JsonProcessingException e ) {
             logger.debug( "error creating entity data in elasticsearch" );
@@ -808,6 +838,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     @Override
     public SearchResult executeEntitySetDataSearch(
             UUID entitySetId,
+            UUID syncId,
             String searchTerm,
             int start,
             int maxHits,
@@ -819,7 +850,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             logger.debug( "not connected to elasticsearch" );
             e.printStackTrace();
         }
-        String indexName = SECURABLE_OBJECT_INDEX_PREFIX + entitySetId.toString();
+
         Map<String, Float> fieldsMap = Maps.newHashMap();
         String[] authorizedPropertyTypeFields = authorizedPropertyTypes
                 .stream()
@@ -832,7 +863,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 
         QueryStringQueryBuilder query = QueryBuilders.queryStringQuery( searchTerm ).fields( fieldsMap )
                 .lenient( true );
-        SearchResponse response = client.prepareSearch( indexName )
+        SearchResponse response = client.prepareSearch( getIndexName( entitySetId, syncId ) )
                 .setQuery( query )
                 .setFetchSource( authorizedPropertyTypeFields, null )
                 .setFrom( start )
@@ -955,6 +986,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     @Override
     public SearchResult executeAdvancedEntitySetDataSearch(
             UUID entitySetId,
+            UUID syncId,
             Map<UUID, String> searches,
             int start,
             int maxHits,
@@ -966,7 +998,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             logger.debug( "not connected to elasticsearch" );
             e.printStackTrace();
         }
-        String indexName = SECURABLE_OBJECT_INDEX_PREFIX + entitySetId.toString();
+
         Map<String, Float> fieldsMap = Maps.newHashMap();
         String[] authorizedPropertyTypeFields = authorizedPropertyTypes
                 .stream()
@@ -984,7 +1016,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         } );
         query.minimumNumberShouldMatch( 1 );
 
-        SearchResponse response = client.prepareSearch( indexName )
+        SearchResponse response = client.prepareSearch( getIndexName( entitySetId, syncId ) )
                 .setQuery( query )
                 .setFetchSource( authorizedPropertyTypeFields, null )
                 .setFrom( start )
@@ -1100,7 +1132,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         }
         return new SearchResult( response.getHits().getTotalHits(), hits );
     }
-    
+
     @Override
     public SearchResult executeFQNEntityTypeSearch( String namespace, String name, int start, int maxHits ) {
         try {
