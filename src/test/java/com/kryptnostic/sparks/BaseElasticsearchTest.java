@@ -88,6 +88,9 @@ public class BaseElasticsearchTest {
             .fromString( "0a648f39-5e41-46b5-a928-ec44cdeeae13" );
     protected static final UUID                 ENTITY_TYPE_ID              = UUID
             .fromString( "c271a300-ea05-420b-b33b-8ecb18de5ce7" );
+    protected static final UUID                 SYNC_ID                     = UUID.randomUUID();
+    protected static final UUID                 SYNC_ID2                    = UUID.randomUUID();
+
     protected static final String               TITLE                       = "The Entity Set Title";
     protected static final String               DESCRIPTION                 = "This is a description for the entity set called employees.";
 
