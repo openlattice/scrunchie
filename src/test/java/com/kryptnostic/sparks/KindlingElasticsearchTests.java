@@ -39,6 +39,8 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
     public static void createIndicesAndData() {
         elasticsearchApi.saveEntitySetToElasticsearch( chicagoEmployees, propertyTypesList, owner );
         elasticsearchApi.saveEntitySetToElasticsearch( entitySet2, propertyTypesList, owner );
+        elasticsearchApi.createSecurableObjectIndex( chicagoEmployeesEntitySetId, SYNC_ID, propertyTypesList );
+        elasticsearchApi.createSecurableObjectIndex( entitySet2Id, SYNC_ID2, propertyTypesList );
         elasticsearchApi.createOrganization( organization, owner );
         createEntityData();
     }
@@ -62,14 +64,14 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
         propertyValues3.put( employeeDeptPropertyId, Sets.newHashSet( "POLICE" ) );
         propertyValues3.put( salaryPropertyId, Sets.newHashSet( "93240" ) );
         propertyValues3.put( employeeIdPropertyId, Sets.newHashSet( "12347" ) );
-        elasticsearchApi.createEntityData( chicagoEmployeesEntitySetId, UUID.randomUUID().toString(), propertyValues1 );
-        elasticsearchApi.createEntityData( chicagoEmployeesEntitySetId, UUID.randomUUID().toString(), propertyValues2 );
-        elasticsearchApi.createEntityData( chicagoEmployeesEntitySetId, UUID.randomUUID().toString(), propertyValues3 );
+        elasticsearchApi.createEntityData( chicagoEmployeesEntitySetId, SYNC_ID, UUID.randomUUID().toString(), propertyValues1 );
+        elasticsearchApi.createEntityData( chicagoEmployeesEntitySetId, SYNC_ID, UUID.randomUUID().toString(), propertyValues2 );
+        elasticsearchApi.createEntityData( chicagoEmployeesEntitySetId, SYNC_ID, UUID.randomUUID().toString(), propertyValues3 );
 
         Map<UUID, Object> entitySet2PropertyValues = Maps.newHashMap();
         entitySet2PropertyValues.put( employeeDeptPropertyId, Sets.newHashSet( "POLICE" ) );
         entitySet2PropertyValues.put( employeeIdPropertyId, Sets.newHashSet( "12347" ) );
-        elasticsearchApi.createEntityData( entitySet2Id, UUID.randomUUID().toString(), entitySet2PropertyValues );
+        elasticsearchApi.createEntityData( entitySet2Id, SYNC_ID, UUID.randomUUID().toString(), entitySet2PropertyValues );
     }
 
     @Test
@@ -109,6 +111,7 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
         authorizedPropertyTypes.add( salaryPropertyId );
         authorizedPropertyTypes.add( employeeIdPropertyId );
         elasticsearchApi.executeEntitySetDataSearch( chicagoEmployeesEntitySetId,
+                SYNC_ID,
                 "police",
                 0,
                 50,
@@ -117,10 +120,12 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
 
     @Test
     public void testSearchAcrossIndices() {
-        Set<UUID> entitySetIds = Sets.newHashSet( chicagoEmployeesEntitySetId, entitySet2Id );
+        Map<UUID, UUID> entitySetsAndSyncIds = Maps.newHashMap();
+        entitySetsAndSyncIds.put( chicagoEmployeesEntitySetId, SYNC_ID );
+        entitySetsAndSyncIds.put( entitySet2Id, SYNC_ID2 );
         Map<UUID, Set<String>> fieldSearches = Maps.newHashMap();
         fieldSearches.put( employeeIdPropertyId, Sets.newHashSet( "12347" ) );
-        elasticsearchApi.executeEntitySetDataSearchAcrossIndices( entitySetIds, fieldSearches, 50, true );
+        elasticsearchApi.executeEntitySetDataSearchAcrossIndices( entitySetsAndSyncIds, fieldSearches, 50, true );
     }
 
     @Test

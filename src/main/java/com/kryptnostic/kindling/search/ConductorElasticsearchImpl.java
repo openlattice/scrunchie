@@ -663,8 +663,10 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 .actionGet();
         List<Entity> results = Lists.newArrayList();
         for ( SearchHit hit : response.getHits() ) {
-            UUID entitySetId = UUID.fromString( hit.getIndex().substring( SECURABLE_OBJECT_INDEX_PREFIX.length() ) );
-            EntityKey key = new EntityKey( entitySetId, hit.getId() );
+            String[] entitySetIdAndSyncId = hit.getIndex().substring( SECURABLE_OBJECT_INDEX_PREFIX.length() ).split( "_" );
+            UUID entitySetId = UUID.fromString( entitySetIdAndSyncId[0] );
+            UUID syncId = UUID.fromString( entitySetIdAndSyncId[1] );
+            EntityKey key = new EntityKey( entitySetId, hit.getId(), syncId );
             results.add( new Entity( key, hit.getSource() ) );
         }
         return results;
@@ -752,6 +754,21 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             return false;
         }
 
+        return true;
+    }
+
+    @Override
+    public boolean deleteEntityData( UUID entitySetId, UUID syncId, String entityId ) {
+        try {
+            if ( !verifyElasticsearchConnection() )
+                return false;
+        } catch ( UnknownHostException e ) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+
+        client.prepareDelete( getIndexName( entitySetId, syncId ), getTypeName( entitySetId ), entityId ).execute()
+                .actionGet();
         return true;
     }
 
