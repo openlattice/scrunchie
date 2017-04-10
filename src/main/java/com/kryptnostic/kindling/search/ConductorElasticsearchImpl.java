@@ -64,6 +64,7 @@ import com.dataloom.edm.type.PropertyType;
 import com.dataloom.linking.Entity;
 import com.dataloom.mappers.ObjectMappers;
 import com.dataloom.organization.Organization;
+import com.dataloom.search.requests.SearchDetails;
 import com.dataloom.search.requests.SearchResult;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Optional;
@@ -955,7 +956,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     @Override
     public SearchResult executeAdvancedEntitySetDataSearch(
             UUID entitySetId,
-            Map<UUID, String> searches,
+            List<SearchDetails> searches,
             int start,
             int maxHits,
             Set<UUID> authorizedPropertyTypes ) {
@@ -977,12 +978,16 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 .collect( Collectors.toList() )
                 .toArray( new String[ authorizedPropertyTypes.size() ] );
 
-        BoolQueryBuilder query = QueryBuilders.boolQuery();
-        searches.entrySet().forEach( entry -> {
-            query.should( QueryBuilders.queryStringQuery( entry.getValue() )
-                    .field( entry.getKey().toString(), Float.valueOf( "1" ) ).lenient( true ) );
+        BoolQueryBuilder query = QueryBuilders.boolQuery().minimumNumberShouldMatch( 1 );
+        searches.forEach( search -> {
+            QueryStringQueryBuilder queryString = QueryBuilders.queryStringQuery( search.getSearchTerm() )
+                    .field( search.getPropertyType().toString(), Float.valueOf( "1" ) ).lenient( true );
+            if ( search.getExactMatch() ) {
+                query.must( queryString );
+                query.minimumNumberShouldMatch( 0 );
+            }
+            else query.should( queryString );
         } );
-        query.minimumNumberShouldMatch( 1 );
 
         SearchResponse response = client.prepareSearch( indexName )
                 .setQuery( query )
