@@ -21,6 +21,7 @@ package com.kryptnostic.kindling.search;
 
 import java.io.IOException;
 import java.net.UnknownHostException;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -51,7 +52,6 @@ import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.fetch.subphase.FetchSourceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.spark_project.guava.collect.Maps;
 import org.springframework.scheduling.annotation.Scheduled;
 
 import com.dataloom.authorization.Permission;
@@ -68,6 +68,7 @@ import com.dataloom.search.requests.SearchResult;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.kryptnostic.conductor.rpc.ConductorElasticsearchApi;
 import com.kryptnostic.conductor.rpc.SearchConfiguration;
@@ -667,6 +668,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             UUID entitySetId = UUID.fromString( entitySetIdAndSyncId[0] );
             UUID syncId = UUID.fromString( entitySetIdAndSyncId[1] );
             EntityKey key = new EntityKey( entitySetId, hit.getId(), syncId );
+            
             results.add( new Entity( key, hit.getSource() ) );
         }
         return results;
