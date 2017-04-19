@@ -891,7 +891,9 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 .actionGet();
         List<Map<String, Object>> hits = Lists.newArrayList();
         for ( SearchHit hit : response.getHits() ) {
-            hits.add( hit.getSource() );
+            Map<String, Object> result = hit.getSource();
+            result.put( ID, hit.getId() );
+            hits.add( result );
         }
         SearchResult result = new SearchResult( response.getHits().totalHits(), hits );
         return result;
