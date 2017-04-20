@@ -22,9 +22,12 @@ package com.kryptnostic.sparks;
 import com.datastax.driver.core.Cluster;
 import com.datastax.spark.connector.cql.CassandraConnectionFactory;
 import com.datastax.spark.connector.cql.CassandraConnectorConf;
+import com.datastax.spark.connector.cql.Scanner;
+import com.datastax.spark.connector.rdd.ReadConf;
 import com.google.common.base.Preconditions;
 import com.kryptnostic.rhizome.pods.SparkPod;
 
+import scala.collection.IndexedSeq;
 import scala.collection.immutable.Set;
 
 public class LoomCassandraConnectionFactory implements CassandraConnectionFactory {
@@ -55,6 +58,11 @@ public class LoomCassandraConnectionFactory implements CassandraConnectionFactor
     @Override
     public Set<String> properties() {
         return (Set<String>) scala.collection.immutable.Set$.MODULE$.empty();
+    }
+
+    @Override public Scanner getScanner(
+            ReadConf readConf, CassandraConnectorConf cassandraConnectorConf, IndexedSeq<String> indexedSeq ) {
+        return null;
     }
 
     public static void configureSparkPod() {
