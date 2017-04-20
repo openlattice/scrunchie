@@ -447,12 +447,12 @@ public class ConductorSparkImpl implements ConductorSparkApi {
     @Override
     public UUID getTopUtilizers(
             UUID entitySetId,
+            UUID syncId,
             Set<UUID> propertyTypeIds,
             Map<UUID, PropertyType> propertyTypes ) {
-        String indexName = "securable_object_" + entitySetId.toString();
+        String indexName = "securable_object_" + entitySetId.toString() + "_" + syncId.toString();
         String typeName = "type_" + entitySetId.toString();
         UUID requestId = UUID.randomUUID();
-
         Dataset<Row> table = sparkSession
                 .read()
                 .format( "org.elasticsearch.spark.sql" )
