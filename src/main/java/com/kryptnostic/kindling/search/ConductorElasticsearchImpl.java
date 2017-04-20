@@ -76,13 +76,16 @@ import com.kryptnostic.conductor.rpc.SearchConfiguration;
 
 public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 
-    private static final Logger                 logger    = LoggerFactory.getLogger( ConductorElasticsearchImpl.class );
+
+    private static final Logger logger = LoggerFactory.getLogger( ConductorElasticsearchImpl.class );
+
     private Client                              client;
     private ElasticsearchTransportClientFactory factory;
-    private boolean                             connected = true;
     private String                              server;
     private String                              cluster;
     private int                                 port;
+
+    private boolean connected = true;
 
     public ConductorElasticsearchImpl( SearchConfiguration config ) throws UnknownHostException {
         this( config, Optional.absent() );
@@ -115,11 +118,13 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         initializeEntityTypeIndex();
         initializePropertyTypeIndex();
     }
-    
+
     private XContentBuilder getMetaphoneSettings() throws IOException {
-    	XContentBuilder settings = XContentFactory.jsonBuilder()
-    	        .startObject()
-        	        .startObject( ANALYSIS )
+
+        // @formatter:off
+        XContentBuilder settings = XContentFactory.jsonBuilder()
+                .startObject()
+                    .startObject( ANALYSIS )
                         .startObject( FILTER )
                             .startObject( METAPHONE_FILTER )
                                 .field( TYPE, PHONETIC )
@@ -127,17 +132,19 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                                 .field( REPLACE, false )
                             .endObject()
                         .endObject()
-            	        .startObject( ANALYZER )
-                	        .startObject( METAPHONE_ANALYZER )
-                	            .field( TOKENIZER, STANDARD )
-                	            .field( FILTER, Lists.newArrayList( STANDARD, LOWERCASE, METAPHONE_FILTER ) )
-                	        .endObject()
-                	    .endObject()
-        	        .endObject()
-        	        .field( NUM_SHARDS, 3 )
-        	        .field( NUM_REPLICAS, 3 )
-    	        .endObject();
-    	return settings;
+                        .startObject( ANALYZER )
+                            .startObject( METAPHONE_ANALYZER )
+                                .field( TOKENIZER, STANDARD )
+                                .field( FILTER, Lists.newArrayList( STANDARD, LOWERCASE, METAPHONE_FILTER ) )
+                            .endObject()
+                        .endObject()
+                    .endObject()
+                    .field( NUM_SHARDS, 3 )
+                    .field( NUM_REPLICAS, 3 )
+                .endObject();
+        // @formatter:on
+
+        return settings;
     }
 
     private boolean initializeEntitySetDataModelIndex() {
@@ -345,8 +352,9 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 break;
             }
             case String: {
-                String analyzer = ( propertyType.getAnalyzer().equals( Analyzer.METAPHONE ) ) ? METAPHONE_ANALYZER
-                        : STANDARD;
+                String analyzer = ( propertyType.getAnalyzer().equals( Analyzer.METAPHONE ) ) ?
+                        METAPHONE_ANALYZER :
+                        STANDARD;
                 fieldMapping.put( TYPE, TEXT );
                 fieldMapping.put( ANALYZER, analyzer );
                 break;
@@ -646,8 +654,11 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         fieldSearches.entrySet().stream().forEach( entry -> {
             BoolQueryBuilder fieldQuery = new BoolQueryBuilder();
             entry.getValue().stream().forEach( searchTerm -> fieldQuery.should(
-                    QueryBuilders.matchQuery( entry.getKey().toString(), searchTerm ).fuzziness( Fuzziness.AUTO )
-                            .lenient( true ) ) );
+                    QueryBuilders
+                            .matchQuery( entry.getKey().toString(), searchTerm )
+                            .fuzziness( Fuzziness.AUTO )
+                            .lenient( true )
+            ) );
             fieldQuery.minimumNumberShouldMatch( 1 );
             query.should( fieldQuery );
         } );
