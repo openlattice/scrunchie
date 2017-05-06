@@ -31,6 +31,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.apache.lucene.search.join.ScoreMode;
+import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.update.UpdateRequest;
@@ -300,10 +301,6 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     private Map<String, String> getFieldMapping( PropertyType propertyType ) {
         Map<String, String> fieldMapping = Maps.newHashMap();
         switch ( propertyType.getDatatype() ) {
-            case Binary: {
-                fieldMapping.put( TYPE, BINARY );
-                break;
-            }
             case Boolean: {
                 fieldMapping.put( TYPE, BOOLEAN );
                 break;
@@ -407,7 +404,9 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         Map<String, Object> properties = Maps.newHashMap();
 
         for ( PropertyType propertyType : propertyTypes ) {
-            properties.put( propertyType.getId().toString(), getFieldMapping( propertyType ) );
+            if ( !propertyType.getDatatype().equals( EdmPrimitiveTypeKind.Binary ) ) {
+                properties.put( propertyType.getId().toString(), getFieldMapping( propertyType ) );
+            }
         }
 
         securableObjectData.put( ES_PROPERTIES, properties );
@@ -892,7 +891,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 .actionGet();
         List<Map<String, Object>> hits = Lists.newArrayList();
         for ( SearchHit hit : response.getHits() ) {
-            Map<String, Object> result = hit.getSource();
+            Map<String, Object> result = Maps.newHashMap();
             result.put( ID, hit.getId() );
             hits.add( result );
         }
@@ -1049,9 +1048,12 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 .setSize( maxHits )
                 .execute()
                 .actionGet();
+        
         List<Map<String, Object>> hits = Lists.newArrayList();
         for ( SearchHit hit : response.getHits() ) {
-            hits.add( hit.getSource() );
+            Map<String, Object> result = Maps.newHashMap();
+            result.put( ID, hit.getId() );
+            hits.add( result );
         }
         SearchResult result = new SearchResult( response.getHits().totalHits(), hits );
         return result;
