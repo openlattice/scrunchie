@@ -483,7 +483,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             permissionsQuery.should( QueryBuilders.hasChildQuery( ACLS, childQuery, ScoreMode.Avg )
                     .innerHit( new InnerHitBuilder()
                             .setFetchSourceContext( new FetchSourceContext( true, new String[] { ACLS }, null ) )
-                            .setName( hitName ) ) );
+                            .setName( hitName ) ,false ) );
         }
         permissionsQuery.minimumNumberShouldMatch( 1 );
 
@@ -923,7 +923,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             permissionsQuery.should( QueryBuilders.hasChildQuery( ACLS, childQuery, ScoreMode.Avg )
                     .innerHit( new InnerHitBuilder()
                             .setFetchSourceContext( new FetchSourceContext( true, new String[] { ACLS }, null ) )
-                            .setName( hitName ) ) );
+                            .setName( hitName ) , false ) );
         }
         permissionsQuery.minimumNumberShouldMatch( 1 );
 
