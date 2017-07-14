@@ -1242,11 +1242,12 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         }
 
         BoolQueryBuilder query = new BoolQueryBuilder();
-        query.should( QueryBuilders.matchQuery( TYPE + "." + NAME, searchTerm ).fuzziness( Fuzziness.AUTO ) )
-                .should( QueryBuilders.matchQuery( TYPE + "." + NAMESPACE, searchTerm ) )
-                .should( QueryBuilders.matchQuery( TITLE, searchTerm )
+        query.should( QueryBuilders.matchQuery( ENTITY_TYPE_FIELD + "." + TYPE + "." + NAME, searchTerm )
+                .fuzziness( Fuzziness.AUTO ) )
+                .should( QueryBuilders.matchQuery( ENTITY_TYPE_FIELD + "." + TYPE + "." + NAMESPACE, searchTerm ) )
+                .should( QueryBuilders.matchQuery( ENTITY_TYPE_FIELD + "." + TITLE, searchTerm )
                         .fuzziness( Fuzziness.AUTO ) )
-                .should( QueryBuilders.matchQuery( DESCRIPTION, searchTerm )
+                .should( QueryBuilders.matchQuery( ENTITY_TYPE_FIELD + "." + DESCRIPTION, searchTerm )
                         .fuzziness( Fuzziness.AUTO ) )
                 .minimumNumberShouldMatch( 1 );
 
