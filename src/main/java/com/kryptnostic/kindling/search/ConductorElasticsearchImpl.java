@@ -60,6 +60,7 @@ import com.dataloom.authorization.Principal;
 import com.dataloom.data.EntityKey;
 import com.dataloom.edm.EntitySet;
 import com.dataloom.edm.type.Analyzer;
+import com.dataloom.edm.type.AssociationType;
 import com.dataloom.edm.type.EntityType;
 import com.dataloom.edm.type.PropertyType;
 import com.dataloom.linking.Entity;
@@ -114,9 +115,10 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         initializeEntitySetDataModelIndex();
         initializeOrganizationIndex();
         initializeEntityTypeIndex();
+        initializeAssociationTypeIndex();
         initializePropertyTypeIndex();
     }
-    
+
     private XContentBuilder getMetaphoneSettings() throws IOException {
     	XContentBuilder settings = XContentFactory.jsonBuilder()
     	        .startObject()
@@ -269,6 +271,31 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                         .put( NUM_SHARDS, 3 )
                         .put( NUM_REPLICAS, 2 ) )
                 .addMapping( ENTITY_TYPE, mapping )
+                .execute().actionGet();
+        return true;
+    }
+
+    private boolean initializeAssociationTypeIndex() {
+        try {
+            if ( !verifyElasticsearchConnection() )
+                return false;
+        } catch ( UnknownHostException e ) {
+            e.printStackTrace();
+        }
+
+        boolean exists = client.admin().indices()
+                .prepareExists( ASSOCIATION_TYPE_INDEX ).execute().actionGet().isExists();
+        if ( exists ) {
+            return true;
+        }
+
+        Map<String, Object> mapping = Maps.newHashMap();
+        mapping.put( ASSOCIATION_TYPE, Maps.newHashMap() );
+        client.admin().indices().prepareCreate( ASSOCIATION_TYPE_INDEX )
+                .setSettings( Settings.builder()
+                        .put( NUM_SHARDS, 3 )
+                        .put( NUM_REPLICAS, 2 ) )
+                .addMapping( ASSOCIATION_TYPE, mapping )
                 .execute().actionGet();
         return true;
     }
@@ -925,7 +952,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             permissionsQuery.should( QueryBuilders.hasChildQuery( ACLS, childQuery, ScoreMode.Avg )
                     .innerHit( new InnerHitBuilder()
                             .setFetchSourceContext( new FetchSourceContext( true, new String[] { ACLS }, null ) )
-                            .setName( hitName ) , false ) );
+                            .setName( hitName ), false ) );
         }
         permissionsQuery.minimumNumberShouldMatch( 1 );
 
@@ -1082,6 +1109,34 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     }
 
     @Override
+    public boolean saveAssociationTypeToElasticsearch( AssociationType associationType ) {
+        try {
+            if ( !verifyElasticsearchConnection() )
+                return false;
+        } catch ( UnknownHostException e ) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+
+        EntityType entityType = associationType.getAssociationEntityType();
+        if ( entityType == null ) {
+            logger.debug( "An association type must have an entity type present in order to save to elawsticsearch" );
+            return false;
+        }
+
+        try {
+            String s = ObjectMappers.getJsonMapper().writeValueAsString( associationType );
+            client.prepareIndex( ASSOCIATION_TYPE_INDEX, ASSOCIATION_TYPE, entityType.getId().toString() )
+                    .setSource( s )
+                    .execute().actionGet();
+            return true;
+        } catch ( JsonProcessingException e ) {
+            logger.debug( "error saving association type to elasticsearch" );
+        }
+        return false;
+    }
+
+    @Override
     public boolean savePropertyTypeToElasticsearch( PropertyType propertyType ) {
         try {
             if ( !verifyElasticsearchConnection() )
@@ -1112,6 +1167,21 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         }
 
         client.prepareDelete( ENTITY_TYPE_INDEX, ENTITY_TYPE, entityTypeId.toString() ).execute().actionGet();
+        return true;
+    }
+
+    @Override
+    public boolean deleteAssociationType( UUID associationTypeId ) {
+        try {
+            if ( !verifyElasticsearchConnection() )
+                return false;
+        } catch ( UnknownHostException e ) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+
+        client.prepareDelete( ASSOCIATION_TYPE_INDEX, ASSOCIATION_TYPE, associationTypeId.toString() ).execute()
+                .actionGet();
         return true;
     }
 
@@ -1150,6 +1220,41 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 
         SearchResponse response = client.prepareSearch( ENTITY_TYPE_INDEX )
                 .setTypes( ENTITY_TYPE )
+                .setQuery( query )
+                .setFrom( start )
+                .setSize( maxHits )
+                .execute()
+                .actionGet();
+
+        List<Map<String, Object>> hits = Lists.newArrayList();
+        for ( SearchHit hit : response.getHits() ) {
+            hits.add( hit.getSource() );
+        }
+        return new SearchResult( response.getHits().getTotalHits(), hits );
+    }
+
+    @Override
+    public SearchResult executeAssociationTypeSearch( String searchTerm, int start, int maxHits ) {
+        try {
+            if ( !verifyElasticsearchConnection() )
+                return new SearchResult( 0, Lists.newArrayList() );
+        } catch ( UnknownHostException e ) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+
+        BoolQueryBuilder query = new BoolQueryBuilder();
+        query.should( QueryBuilders.matchQuery( ENTITY_TYPE_FIELD + "." + TYPE + "." + NAME, searchTerm )
+                .fuzziness( Fuzziness.AUTO ) )
+                .should( QueryBuilders.matchQuery( ENTITY_TYPE_FIELD + "." + TYPE + "." + NAMESPACE, searchTerm ) )
+                .should( QueryBuilders.matchQuery( ENTITY_TYPE_FIELD + "." + TITLE, searchTerm )
+                        .fuzziness( Fuzziness.AUTO ) )
+                .should( QueryBuilders.matchQuery( ENTITY_TYPE_FIELD + "." + DESCRIPTION, searchTerm )
+                        .fuzziness( Fuzziness.AUTO ) )
+                .minimumNumberShouldMatch( 1 );
+
+        SearchResponse response = client.prepareSearch( ASSOCIATION_TYPE_INDEX )
+                .setTypes( ASSOCIATION_TYPE )
                 .setQuery( query )
                 .setFrom( start )
                 .setSize( maxHits )
