@@ -510,7 +510,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             permissionsQuery.should( QueryBuilders.hasChildQuery( ACLS, childQuery, ScoreMode.Avg )
                     .innerHit( new InnerHitBuilder()
                             .setFetchSourceContext( new FetchSourceContext( true, new String[] { ACLS }, null ) )
-                            .setName( hitName ) ,false ) );
+                            .setName( hitName ), false ) );
         }
         permissionsQuery.minimumNumberShouldMatch( 1 );
 
@@ -518,12 +518,13 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 
         if ( optionalSearchTerm.isPresent() ) {
             String searchTerm = optionalSearchTerm.get();
-            query.should( QueryBuilders.matchQuery( ENTITY_SET + "." + NAME, searchTerm ).fuzziness( Fuzziness.AUTO ) )
-                    .should( QueryBuilders.matchQuery( ENTITY_SET + "." + TITLE, searchTerm )
-                            .fuzziness( Fuzziness.AUTO ) )
-                    .should( QueryBuilders.matchQuery( ENTITY_SET + "." + DESCRIPTION, searchTerm )
-                            .fuzziness( Fuzziness.AUTO ) )
-                    .minimumNumberShouldMatch( 1 );
+            Map<String, Float> fieldsMap = Maps.newHashMap();
+            fieldsMap.put( ENTITY_SET + "." + NAME, Float.valueOf( "1" ) );
+            fieldsMap.put( ENTITY_SET + "." + TITLE, Float.valueOf( "1" ) );
+            fieldsMap.put( ENTITY_SET + "." + DESCRIPTION, Float.valueOf( "1" ) );
+
+            query.must( QueryBuilders.queryStringQuery( searchTerm ).fields( fieldsMap )
+                    .lenient( true ).fuzziness( Fuzziness.AUTO ) );
         }
 
         if ( optionalEntityType.isPresent() ) {
@@ -691,11 +692,12 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 .actionGet();
         List<Entity> results = Lists.newArrayList();
         for ( SearchHit hit : response.getHits() ) {
-            String[] entitySetIdAndSyncId = hit.getIndex().substring( SECURABLE_OBJECT_INDEX_PREFIX.length() ).split( "_" );
-            UUID entitySetId = UUID.fromString( entitySetIdAndSyncId[0] );
-            UUID syncId = UUID.fromString( entitySetIdAndSyncId[1] );
+            String[] entitySetIdAndSyncId = hit.getIndex().substring( SECURABLE_OBJECT_INDEX_PREFIX.length() )
+                    .split( "_" );
+            UUID entitySetId = UUID.fromString( entitySetIdAndSyncId[ 0 ] );
+            UUID syncId = UUID.fromString( entitySetIdAndSyncId[ 1 ] );
             EntityKey key = new EntityKey( entitySetId, hit.getId(), syncId );
-            
+
             results.add( new Entity( key, hit.getSource() ) );
         }
         return results;
@@ -1064,8 +1066,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             if ( search.getExactMatch() ) {
                 query.must( queryString );
                 query.minimumNumberShouldMatch( 0 );
-            }
-            else query.should( queryString );
+            } else
+                query.should( queryString );
         } );
 
         SearchResponse response = client.prepareSearch( getIndexName( entitySetId, syncId ) )
@@ -1075,7 +1077,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 .setSize( maxHits )
                 .execute()
                 .actionGet();
-        
+
         List<Map<String, Object>> hits = Lists.newArrayList();
         for ( SearchHit hit : response.getHits() ) {
             Map<String, Object> result = Maps.newHashMap();
