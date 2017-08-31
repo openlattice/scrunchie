@@ -1360,4 +1360,18 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         return new SearchResult( response.getHits().getTotalHits(), hits );
     }
 
+    @Override
+    public boolean clearAllData() {
+        client.admin().indices()
+                .delete( new DeleteIndexRequest( SECURABLE_OBJECT_INDEX_PREFIX + "*" ) );
+        DeleteByQueryAction.INSTANCE.newRequestBuilder( client )
+                .filter( QueryBuilders.matchAllQuery() ).source( ENTITY_SET_DATA_MODEL,
+                        ENTITY_TYPE_INDEX,
+                        PROPERTY_TYPE_INDEX,
+                        ASSOCIATION_TYPE_INDEX,
+                        ORGANIZATIONS )
+                .get();
+        return true;
+    }
+
 }
