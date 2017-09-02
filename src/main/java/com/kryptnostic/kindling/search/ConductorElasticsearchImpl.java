@@ -21,7 +21,6 @@ package com.kryptnostic.kindling.search;
 
 import java.io.IOException;
 import java.net.UnknownHostException;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -119,6 +118,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         initializePropertyTypeIndex();
     }
 
+ // @formatter:off
     private XContentBuilder getMetaphoneSettings() throws IOException {
     	XContentBuilder settings = XContentFactory.jsonBuilder()
     	        .startObject()
@@ -142,6 +142,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     	        .endObject();
     	return settings;
     }
+ // @formatter:on
 
     private boolean initializeEntitySetDataModelIndex() {
         try {
