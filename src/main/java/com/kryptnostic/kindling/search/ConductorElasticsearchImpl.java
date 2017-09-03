@@ -21,7 +21,6 @@ package com.kryptnostic.kindling.search;
 
 import java.io.IOException;
 import java.net.UnknownHostException;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -119,6 +118,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         initializePropertyTypeIndex();
     }
 
+ // @formatter:off
     private XContentBuilder getMetaphoneSettings() throws IOException {
     	XContentBuilder settings = XContentFactory.jsonBuilder()
     	        .startObject()
@@ -142,6 +142,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     	        .endObject();
     	return settings;
     }
+ // @formatter:on
 
     private boolean initializeEntitySetDataModelIndex() {
         try {
@@ -1358,6 +1359,20 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             hits.add( hit.getSource() );
         }
         return new SearchResult( response.getHits().getTotalHits(), hits );
+    }
+
+    @Override
+    public boolean clearAllData() {
+        client.admin().indices()
+                .delete( new DeleteIndexRequest( SECURABLE_OBJECT_INDEX_PREFIX + "*" ) );
+        DeleteByQueryAction.INSTANCE.newRequestBuilder( client )
+                .filter( QueryBuilders.matchAllQuery() ).source( ENTITY_SET_DATA_MODEL,
+                        ENTITY_TYPE_INDEX,
+                        PROPERTY_TYPE_INDEX,
+                        ASSOCIATION_TYPE_INDEX,
+                        ORGANIZATIONS )
+                .get();
+        return true;
     }
 
 }
