@@ -31,6 +31,8 @@ import java.util.stream.Collectors;
 
 import org.apache.lucene.search.join.ScoreMode;
 import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind;
+import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
+import org.deeplearning4j.util.ModelSerializer;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.update.UpdateRequest;
@@ -50,6 +52,7 @@ import org.elasticsearch.script.ScriptType;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.fetch.subphase.FetchSourceContext;
+import org.nd4j.linalg.factory.Nd4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -84,6 +87,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     private String                              server;
     private String                              cluster;
     private int                                 port;
+    private final MultiLayerNetwork             net;
+    private final ThreadLocal                   modelThread;
 
     public ConductorElasticsearchImpl( SearchConfiguration config ) throws UnknownHostException {
         this( config, Optional.absent() );
@@ -101,6 +106,18 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         init( config );
         client = someClient.or( factory.getClient() );
         initializeIndices();
+
+        MultiLayerNetwork network;
+        try {
+            network = ModelSerializer
+                    .restoreMultiLayerNetwork(
+                            Thread.currentThread().getContextClassLoader().getResourceAsStream( "model.bin" ) );
+        } catch ( IOException e ) {
+            network = null;
+            logger.error( "Unable to load neural net", e );
+        }
+        this.net = network;
+        modelThread = ThreadLocal.withInitial( () -> net.clone() );
     }
 
     private void init( SearchConfiguration config ) {
@@ -1373,6 +1390,11 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                         ORGANIZATIONS )
                 .get();
         return true;
+    }
+
+    @Override
+    public double getModelScore( double[][] features ) {
+        return ( (MultiLayerNetwork) modelThread.get() ).output( Nd4j.create( features ) ).getDouble( 1 );
     }
 
 }
