@@ -29,6 +29,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import com.kryptnostic.rhizome.hazelcast.objects.DelegatedStringSet;
 import org.apache.lucene.search.join.ScoreMode;
 import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind;
 import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
@@ -675,9 +676,9 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     }
 
     @Override
-    public List<Entity> executeEntitySetDataSearchAcrossIndices(
+    public List<EntityKey> executeEntitySetDataSearchAcrossIndices(
             Map<UUID, UUID> entitySetAndSyncIds,
-            Map<UUID, Set<String>> fieldSearches,
+            Map<UUID, DelegatedStringSet> fieldSearches,
             int size,
             boolean explain ) {
         try {
@@ -693,14 +694,15 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             entry.getValue().stream().forEach( searchTerm -> fieldQuery.should(
                     QueryBuilders.matchQuery( entry.getKey().toString(), searchTerm ).fuzziness( Fuzziness.AUTO )
                             .lenient( true ) ) );
-            fieldQuery.minimumNumberShouldMatch( 1 );
+            fieldQuery.minimumShouldMatch( 1 );
             query.should( fieldQuery );
         } );
-        query.minimumNumberShouldMatch( 1 );
+        query.minimumShouldMatch( 1 );
 
         List<String> indexNames = entitySetAndSyncIds.entrySet().stream()
                 .map( entry -> getIndexName( entry.getKey(), entry.getValue() ) )
                 .collect( Collectors.toList() );
+
         SearchResponse response = client.prepareSearch( indexNames.toArray( new String[ indexNames.size() ] ) )
                 .setQuery( query )
                 .setFrom( 0 )
@@ -708,7 +710,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 .setExplain( explain )
                 .execute()
                 .actionGet();
-        List<Entity> results = Lists.newArrayList();
+        List<EntityKey> results = Lists.newArrayList();
         for ( SearchHit hit : response.getHits() ) {
             String[] entitySetIdAndSyncId = hit.getIndex().substring( SECURABLE_OBJECT_INDEX_PREFIX.length() )
                     .split( "_" );
@@ -716,7 +718,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             UUID syncId = UUID.fromString( entitySetIdAndSyncId[ 1 ] );
             EntityKey key = new EntityKey( entitySetId, hit.getId(), syncId );
 
-            results.add( new Entity( key, hit.getSource() ) );
+            results.add( key );
         }
         return results;
     }

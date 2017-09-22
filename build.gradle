@@ -143,6 +143,25 @@ dependencies {
      compile ("org.elasticsearch.client:transport:5.4.1") {
      	exclude module: 'slf4j-log4j12'
      }
+     
+    /*
+     * DEEPLEARNING4J
+     */
+    compile("org.deeplearning4j:deeplearning4j-core:0.9.1") {
+            exclude module: 'guava'
+    }
+    
+    compile("org.nd4j:nd4j-native-platform:0.9.1") {
+            exclude module: 'guava'
+    }
+    
+    compile("org.deeplearning4j:dl4j-spark_2.11:0.9.1_spark_2") {
+            exclude module: 'guava'
+    }
+    
+    compile("org.deeplearning4j:deeplearning4j-ui_2.11:0.9.1") {
+            exclude module: 'guava'       
+    }
     
     /*
      * TESTING
