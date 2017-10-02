@@ -19,16 +19,26 @@
 
 package com.kryptnostic.kindling.search;
 
-import java.io.IOException;
-import java.net.UnknownHostException;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.util.UUID;
-import java.util.stream.Collectors;
-
+import com.dataloom.authorization.Permission;
+import com.dataloom.authorization.Principal;
+import com.dataloom.data.EntityKey;
+import com.dataloom.edm.EntitySet;
+import com.dataloom.edm.type.Analyzer;
+import com.dataloom.edm.type.AssociationType;
+import com.dataloom.edm.type.EntityType;
+import com.dataloom.edm.type.PropertyType;
+import com.dataloom.mappers.ObjectMappers;
+import com.dataloom.organization.Organization;
+import com.dataloom.search.requests.SearchDetails;
+import com.dataloom.search.requests.SearchResult;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import com.kryptnostic.conductor.rpc.ConductorElasticsearchApi;
+import com.kryptnostic.conductor.rpc.SearchConfiguration;
 import com.kryptnostic.rhizome.hazelcast.objects.DelegatedStringSet;
 import org.apache.lucene.search.join.ScoreMode;
 import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind;
@@ -42,10 +52,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.Fuzziness;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
-import org.elasticsearch.index.query.BoolQueryBuilder;
-import org.elasticsearch.index.query.InnerHitBuilder;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.index.query.QueryStringQueryBuilder;
+import org.elasticsearch.index.query.*;
 import org.elasticsearch.index.reindex.DeleteByQueryAction;
 import org.elasticsearch.index.reindex.DeleteByQueryRequestBuilder;
 import org.elasticsearch.script.Script;
@@ -58,38 +65,23 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 
-import com.dataloom.authorization.Permission;
-import com.dataloom.authorization.Principal;
-import com.dataloom.data.EntityKey;
-import com.dataloom.edm.EntitySet;
-import com.dataloom.edm.type.Analyzer;
-import com.dataloom.edm.type.AssociationType;
-import com.dataloom.edm.type.EntityType;
-import com.dataloom.edm.type.PropertyType;
-import com.dataloom.linking.Entity;
-import com.dataloom.mappers.ObjectMappers;
-import com.dataloom.organization.Organization;
-import com.dataloom.search.requests.SearchDetails;
-import com.dataloom.search.requests.SearchResult;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-import com.kryptnostic.conductor.rpc.ConductorElasticsearchApi;
-import com.kryptnostic.conductor.rpc.SearchConfiguration;
+import java.io.IOException;
+import java.net.UnknownHostException;
+import java.util.*;
+import java.util.Map.Entry;
+import java.util.stream.Collectors;
 
 public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 
-    private static final Logger                 logger    = LoggerFactory.getLogger( ConductorElasticsearchImpl.class );
+    private static final Logger logger = LoggerFactory.getLogger( ConductorElasticsearchImpl.class );
     private Client                              client;
     private ElasticsearchTransportClientFactory factory;
-    private boolean                             connected = true;
-    private String                              server;
-    private String                              cluster;
-    private int                                 port;
-    private final MultiLayerNetwork             net;
-    private final ThreadLocal                   modelThread;
+    private boolean connected = true;
+    private       String            server;
+    private       String            cluster;
+    private       int               port;
+    private final MultiLayerNetwork net;
+    private final ThreadLocal       modelThread;
 
     public ConductorElasticsearchImpl( SearchConfiguration config ) throws UnknownHostException {
         this( config, Optional.absent() );
@@ -136,7 +128,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         initializePropertyTypeIndex();
     }
 
- // @formatter:off
+    // @formatter:off
     private XContentBuilder getMetaphoneSettings() throws IOException {
     	XContentBuilder settings = XContentFactory.jsonBuilder()
     	        .startObject()
@@ -798,7 +790,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                     getIndexName( entitySetId, syncId ),
                     getTypeName( entitySetId ),
                     entityId ).script( script )
-                            .upsert( ObjectMappers.getJsonMapper().writeValueAsString( propertyValues ) );
+                    .upsert( ObjectMappers.getJsonMapper().writeValueAsString( propertyValues ) );
             client.update( request ).actionGet();
         } catch ( JsonProcessingException e ) {
             logger.debug( "error creating entity data in elasticsearch" );
@@ -1048,7 +1040,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     }
 
     @Scheduled(
-        fixedRate = 1800000 )
+            fixedRate = 1800000 )
     public void verifyRunner() throws UnknownHostException {
         verifyElasticsearchConnection();
     }
@@ -1219,6 +1211,19 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         return true;
     }
 
+    private Map<String, Float> getFieldsMap( boolean usePrefix ) {
+        float f = Float.valueOf( "1" );
+        Map<String, Float> fieldsMap = Maps.newHashMap();
+        List<String> fields = ImmutableList.of( TYPE + "." + NAME, TYPE + "." + NAMESPACE, TITLE, DESCRIPTION );
+        String prefix = ENTITY_TYPE_FIELD + ".";
+        fields.forEach( field -> {
+            String fieldStr = ( usePrefix ) ? prefix + field : field;
+            fieldsMap.put( fieldStr, f );
+        } );
+
+        return fieldsMap;
+    }
+
     @Override
     public SearchResult executeEntityTypeSearch( String searchTerm, int start, int maxHits ) {
         try {
@@ -1229,14 +1234,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             e.printStackTrace();
         }
 
-        BoolQueryBuilder query = new BoolQueryBuilder();
-        query.should( QueryBuilders.matchQuery( TYPE + "." + NAME, searchTerm ).fuzziness( Fuzziness.AUTO ) )
-                .should( QueryBuilders.matchQuery( TYPE + "." + NAMESPACE, searchTerm ) )
-                .should( QueryBuilders.matchQuery( TITLE, searchTerm )
-                        .fuzziness( Fuzziness.AUTO ) )
-                .should( QueryBuilders.matchQuery( DESCRIPTION, searchTerm )
-                        .fuzziness( Fuzziness.AUTO ) )
-                .minimumNumberShouldMatch( 1 );
+        Map<String, Float> fieldsMap = getFieldsMap( false );
+        QueryBuilder query = QueryBuilders.queryStringQuery( searchTerm ).fields( fieldsMap ).lenient( true );
 
         SearchResponse response = client.prepareSearch( ENTITY_TYPE_INDEX )
                 .setTypes( ENTITY_TYPE )
@@ -1263,15 +1262,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             e.printStackTrace();
         }
 
-        BoolQueryBuilder query = new BoolQueryBuilder();
-        query.should( QueryBuilders.matchQuery( ENTITY_TYPE_FIELD + "." + TYPE + "." + NAME, searchTerm )
-                .fuzziness( Fuzziness.AUTO ) )
-                .should( QueryBuilders.matchQuery( ENTITY_TYPE_FIELD + "." + TYPE + "." + NAMESPACE, searchTerm ) )
-                .should( QueryBuilders.matchQuery( ENTITY_TYPE_FIELD + "." + TITLE, searchTerm )
-                        .fuzziness( Fuzziness.AUTO ) )
-                .should( QueryBuilders.matchQuery( ENTITY_TYPE_FIELD + "." + DESCRIPTION, searchTerm )
-                        .fuzziness( Fuzziness.AUTO ) )
-                .minimumNumberShouldMatch( 1 );
+        Map<String, Float> fieldsMap = getFieldsMap( true );
+        QueryBuilder query = QueryBuilders.queryStringQuery( searchTerm ).fields( fieldsMap ).lenient( true );
 
         SearchResponse response = client.prepareSearch( ASSOCIATION_TYPE_INDEX )
                 .setTypes( ASSOCIATION_TYPE )
@@ -1327,14 +1319,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             e.printStackTrace();
         }
 
-        BoolQueryBuilder query = new BoolQueryBuilder();
-        query.should( QueryBuilders.matchQuery( TYPE + "." + NAME, searchTerm ).fuzziness( Fuzziness.AUTO ) )
-                .should( QueryBuilders.matchQuery( TYPE + "." + NAMESPACE, searchTerm ) )
-                .should( QueryBuilders.matchQuery( TITLE, searchTerm )
-                        .fuzziness( Fuzziness.AUTO ) )
-                .should( QueryBuilders.matchQuery( DESCRIPTION, searchTerm )
-                        .fuzziness( Fuzziness.AUTO ) )
-                .minimumNumberShouldMatch( 1 );
+        Map<String, Float> fieldsMap = getFieldsMap( false );
+        QueryBuilder query = QueryBuilders.queryStringQuery( searchTerm ).fields( fieldsMap ).lenient( true );
 
         SearchResponse response = client.prepareSearch( PROPERTY_TYPE_INDEX )
                 .setTypes( PROPERTY_TYPE )
@@ -1386,10 +1372,10 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 .delete( new DeleteIndexRequest( SECURABLE_OBJECT_INDEX_PREFIX + "*" ) );
         DeleteByQueryAction.INSTANCE.newRequestBuilder( client )
                 .filter( QueryBuilders.matchAllQuery() ).source( ENTITY_SET_DATA_MODEL,
-                        ENTITY_TYPE_INDEX,
-                        PROPERTY_TYPE_INDEX,
-                        ASSOCIATION_TYPE_INDEX,
-                        ORGANIZATIONS )
+                ENTITY_TYPE_INDEX,
+                PROPERTY_TYPE_INDEX,
+                ASSOCIATION_TYPE_INDEX,
+                ORGANIZATIONS )
                 .get();
         return true;
     }
