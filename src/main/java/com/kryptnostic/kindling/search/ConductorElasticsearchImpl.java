@@ -45,6 +45,8 @@ import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind;
 import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
 import org.deeplearning4j.util.ModelSerializer;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.elasticsearch.action.bulk.BulkRequestBuilder;
+import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.Client;
@@ -1383,6 +1385,126 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     @Override
     public double getModelScore( double[][] features ) {
         return ( (MultiLayerNetwork) modelThread.get() ).output( Nd4j.create( features ) ).getDouble( 1 );
+    }
+
+    @Override
+    public boolean triggerPropertyTypeIndex( List<PropertyType> propertyTypes ) {
+        try {
+            if ( !verifyElasticsearchConnection() )
+                return false;
+        } catch ( UnknownHostException e ) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+
+        BoolQueryBuilder deleteQuery = QueryBuilders.boolQuery();
+        BulkRequestBuilder bulkRequest = client.prepareBulk();
+
+        propertyTypes.forEach( propertyType -> {
+            try {
+                String id = propertyType.getId().toString();
+                String s = ObjectMappers.getJsonMapper().writeValueAsString( propertyType );
+                deleteQuery.mustNot( QueryBuilders.matchQuery( "_id", id ) );
+                bulkRequest
+                        .add( client.prepareIndex( PROPERTY_TYPE_INDEX, PROPERTY_TYPE, id )
+                                .setSource( s ) );
+            } catch ( JsonProcessingException e ) {
+                logger.debug( "Error re-indexing property types" );
+            }
+        } );
+
+        new DeleteByQueryRequestBuilder( client, DeleteByQueryAction.INSTANCE )
+                .filter( deleteQuery )
+                .source( PROPERTY_TYPE_INDEX )
+                .execute()
+                .actionGet();
+
+        BulkResponse bulkResponse = bulkRequest.get();
+        if (bulkResponse.hasFailures()) {
+            bulkResponse.forEach( item -> logger.debug( "Failure during attempted property type re-index: {}", item.getFailureMessage() ) );
+        }
+
+        return true;
+    }
+
+    @Override
+    public boolean triggerEntityTypeIndex( List<EntityType> entityTypes ) {
+        try {
+            if ( !verifyElasticsearchConnection() )
+                return false;
+        } catch ( UnknownHostException e ) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+
+        BoolQueryBuilder deleteQuery = QueryBuilders.boolQuery();
+        BulkRequestBuilder bulkRequest = client.prepareBulk();
+
+        entityTypes.forEach( entityType -> {
+            try {
+                String id = entityType.getId().toString();
+                String s = ObjectMappers.getJsonMapper().writeValueAsString( entityType );
+                deleteQuery.mustNot( QueryBuilders.matchQuery( "_id", id ) );
+                bulkRequest
+                        .add( client.prepareIndex( ENTITY_TYPE_INDEX, ENTITY_TYPE, id )
+                                .setSource( s ) );
+            } catch ( JsonProcessingException e ) {
+                logger.debug( "Error re-indexing entity types" );
+            }
+        } );
+
+        new DeleteByQueryRequestBuilder( client, DeleteByQueryAction.INSTANCE )
+                .filter( deleteQuery )
+                .source( ENTITY_TYPE_INDEX )
+                .execute()
+                .actionGet();
+
+        BulkResponse bulkResponse = bulkRequest.get();
+        if (bulkResponse.hasFailures()) {
+            bulkResponse.forEach( item -> logger.debug( "Failure during attempted entity type re-index: {}", item.getFailureMessage() ) );
+        }
+
+        return true;
+    }
+
+    @Override
+    public boolean triggerAssociationTypeIndex( List<AssociationType> associationTypes ) {
+        try {
+            if ( !verifyElasticsearchConnection() )
+                return false;
+        } catch ( UnknownHostException e ) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+
+        BoolQueryBuilder deleteQuery = QueryBuilders.boolQuery();
+        BulkRequestBuilder bulkRequest = client.prepareBulk();
+
+        associationTypes.forEach( associationType -> {
+            try {
+                String id = associationType.getAssociationEntityType().getId().toString();
+                String s = ObjectMappers.getJsonMapper().writeValueAsString( associationType );
+                deleteQuery.mustNot( QueryBuilders.matchQuery( "_id", id ) );
+                bulkRequest
+                        .add( client.prepareIndex( ASSOCIATION_TYPE_INDEX, ASSOCIATION_TYPE, id )
+                                .setSource( s ) );
+            } catch ( JsonProcessingException e ) {
+                logger.debug( "Error re-indexing association types" );
+            }
+        } );
+
+        new DeleteByQueryRequestBuilder( client, DeleteByQueryAction.INSTANCE )
+                .filter( deleteQuery )
+                .source( ASSOCIATION_TYPE_INDEX )
+                .execute()
+                .actionGet();
+
+        BulkResponse bulkResponse = bulkRequest.get();
+        if (bulkResponse.hasFailures()) {
+            bulkResponse.forEach( item -> logger.debug( "Failure during attempted association type re-index: {}", item.getFailureMessage() ) );
+        }
+
+        return true;
     }
 
 }
