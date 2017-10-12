@@ -58,69 +58,27 @@ configurations.all {
 }
 
 dependencies {
-    compile "com.fasterxml.jackson.dataformat:jackson-dataformat-csv:${jackson_version}"
-    //compile  "com.datastax.spark:spark-cassandra-connector_2.11:${spark_cassandra_connector_version}"
-    provided "org.apache.spark:spark-core_2.11:${spark_version}"
-    provided "org.apache.spark:spark-sql_2.11:${spark_version}"
-    provided "org.apache.spark:spark-mllib_2.11:${spark_version}"
-    provided "org.apache.spark:spark-graphx_2.11:${spark_version}"
-    provided "org.apache.spark:spark-streaming_2.11:${spark_version}"
-    
 
-	/*
-	 * Kryptnostic dependencies
-	 */
 	if (project.hasProperty("developmentMode") && project.developmentMode) {
         logger.quiet(project.name + " using project dependencies.")
         
-        compile( project(":loom-api") ) {
-            exclude module: 'cassandra-driver-core'
-            exclude module: 'cassandra-driver-mapping'
-            exclude module: 'cassandra-driver-extras'
-        }
+        compile( project(":loom-api")  )
 
-        compile( project(":conductor-client") ) {
-            exclude module: 'cassandra-driver-core'
-            exclude module: 'cassandra-driver-mapping'
-            exclude module: 'cassandra-driver-extras'
-        }
+        compile( project(":conductor-client") )
 
-        testCompile( project(path: ":rhizome", configuration: "tests")) {
-            exclude module: 'cassandra-driver-core'
-            exclude module: 'cassandra-driver-mapping'
-            exclude module: 'cassandra-driver-extras'
-        }
-
-        testCompile( project(":datastore")) {
-            exclude module: 'cassandra-driver-core'
-            exclude module: 'cassandra-driver-mapping'
-            exclude module: 'cassandra-driver-extras'
-        }
-
-        testCompile( project(path: ":rhizome-client", configuration: "tests")) 
+        testCompile( project(path: ":rhizome", configuration: "tests"))
+        testCompile( project(":datastore"))
+        testCompile( project(path: ":rhizome-client", configuration: "tests"))
         
     }
     else {
         logger.quiet(project.name + " using jar dependencies.")
 
-        compile ("com.kryptnostic:loom-api:${loom_api_version}"){
-            exclude module: 'cassandra-driver-core'
-            exclude module: 'cassandra-driver-mapping'
-            exclude module: 'cassandra-driver-extras'
-        }
+        compile ("com.kryptnostic:loom-api:${loom_api_version}")
 
-        compile ("com.kryptnostic:conductor-client:${conductor_client_version}"){
-            exclude module: 'cassandra-driver-core'
-            exclude module: 'cassandra-driver-mapping'
-            exclude module: 'cassandra-driver-extras'
-        }
+        compile ("com.kryptnostic:conductor-client:${conductor_client_version}")
         
-        testCompile ("com.kryptnostic:rhizome:${rhizome_version}:tests"){
-            exclude module: 'cassandra-driver-core'
-            exclude module: 'cassandra-driver-mapping'
-            exclude module: 'cassandra-driver-extras'
-        }
-        
+        testCompile ("com.kryptnostic:rhizome:${rhizome_version}:tests")
         testCompile "com.kryptnostic:rhizome-client:${rhizome_client_version}:tests"
     } 
 
@@ -154,15 +112,7 @@ dependencies {
     compile("org.nd4j:nd4j-native-platform:0.9.1") {
             exclude module: 'guava'
     }
-    
-    compile("org.deeplearning4j:dl4j-spark_2.11:0.9.1_spark_2") {
-            exclude module: 'guava'
-    }
-    
-    compile("org.deeplearning4j:deeplearning4j-ui_2.11:0.9.1") {
-            exclude module: 'guava'       
-    }
-    
+
     /*
      * TESTING
      */
