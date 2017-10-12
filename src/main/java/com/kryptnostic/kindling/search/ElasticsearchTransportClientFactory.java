@@ -61,6 +61,7 @@ public class ElasticsearchTransportClientFactory {
 
         logger.info( "getting kindling elasticsearch client on " + clientTransportHost + ":" + clientTransportPort
                 + " with elasticsearch cluster " + cluster );
+        System.setProperty("es.set.netty.runtime.available.processors", "false");
         Settings settings = Settings.builder().put( "cluster.name", cluster ).build();
         TransportClient client = new PreBuiltTransportClient( settings );
         client.addTransportAddress( new InetSocketTransportAddress(
