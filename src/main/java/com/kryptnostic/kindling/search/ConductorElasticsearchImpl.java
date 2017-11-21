@@ -39,7 +39,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.kryptnostic.conductor.rpc.ConductorElasticsearchApi;
 import com.kryptnostic.conductor.rpc.SearchConfiguration;
-import com.kryptnostic.rhizome.hazelcast.objects.DelegatedStringSet;
+import com.openlattice.rhizome.hazelcast.DelegatedStringSet;
 import org.apache.lucene.search.join.ScoreMode;
 import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind;
 import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
@@ -855,12 +855,13 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         Map<String, Object> organizationObject = Maps.newHashMap();
         organizationObject.put( TITLE, organization.getTitle() );
         organizationObject.put( DESCRIPTION, organization.getDescription() );
+        UUID organizationId = organization.getSecurablePrincipal().getId();
         try {
             String s = ObjectMappers.getJsonMapper().writeValueAsString( organizationObject );
-            client.prepareIndex( ORGANIZATIONS, ORGANIZATION_TYPE, organization.getId().toString() ).setSource( s )
+            client.prepareIndex( ORGANIZATIONS, ORGANIZATION_TYPE, organizationId.toString() ).setSource( s )
                     .execute().actionGet();
             updateOrganizationPermissions(
-                    organization.getId(),
+                    organizationId,
                     principal,
                     Sets.newHashSet( Permission.OWNER,
                             Permission.READ,
