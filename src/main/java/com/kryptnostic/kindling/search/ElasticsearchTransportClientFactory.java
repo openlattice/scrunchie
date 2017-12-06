@@ -32,7 +32,7 @@ import org.elasticsearch.client.node.NodeClient;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.cluster.node.DiscoveryNode;
 import org.elasticsearch.common.settings.Settings;
-import org.elasticsearch.common.transport.InetSocketTransportAddress;
+import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.transport.client.PreBuiltTransportClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,7 +64,7 @@ public class ElasticsearchTransportClientFactory {
         System.setProperty("es.set.netty.runtime.available.processors", "false");
         Settings settings = Settings.builder().put( "cluster.name", cluster ).build();
         TransportClient client = new PreBuiltTransportClient( settings );
-        client.addTransportAddress( new InetSocketTransportAddress(
+        client.addTransportAddress( new TransportAddress(
                 InetAddress.getByName( this.clientTransportHost ),
                 this.clientTransportPort )
         );

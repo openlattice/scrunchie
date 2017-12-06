@@ -26,14 +26,14 @@ plugins {
     id 'com.github.johnrengelman.shadow' version '1.2.3'
 }
 
-description = "Kryptnostic Spark RPC Library"
+description = "RPC Library"
 group = "com.kryptnostic"
 ext.projectName = "kindling"
 ext.scmUrl = 'scm:git:https://github.com/dataloom/kindling.git'
 ext.connectionUrl = 'scm:git:https://github.com/dataloom/kindling.git'
 ext.developerConnectionUrl = 'scm:git:https://github.com/dataloom/kindling.git'
 
-apply from: 'https://raw.githubusercontent.com/kryptnostic/gradles/master/kryptnostic.gradle'
+apply from: 'https://raw.githubusercontent.com/openlattice/gradles/master/openlattice.gradle'
 
 mainClassName = "com.kryptnostic.sparks.Kindling"
 applicationDefaultJvmArgs = ["-Xmx4G","-Xms4G","-server"]
@@ -50,12 +50,12 @@ sourceSets {
     test.runtimeClasspath += configurations.provided
 }
 
-configurations.all {
-  resolutionStrategy {
-    force 'com.fasterxml.jackson.core:jackson-core:2.6.5','com.fasterxml.jackson.core:jackson-databind:2.6.5','com.fasterxml.jackson.module:jackson-module-afterburner:2.6.5','com.fasterxml.jackson.datatype:jackson-datatype-guava:2.6.5','com.fasterxml.jackson.dataformat:jackson-dataformat-smile:2.6.5','com.fasterxml.jackson.module:jackson-module-jaxb-annotations:2.6.5','com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.6.5','com.fasterxml.jackson.jaxrs:jackson-jaxrs-json-provider:2.6.5'
-  }
-  exclude module: 'slf4j-log4j12'
-}
+//configurations.all {
+//  resolutionStrategy {
+//    force 'com.fasterxml.jackson.core:jackson-core:2.6.5','com.fasterxml.jackson.core:jackson-databind:2.6.5','com.fasterxml.jackson.module:jackson-module-afterburner:2.6.5','com.fasterxml.jackson.datatype:jackson-datatype-guava:2.6.5','com.fasterxml.jackson.dataformat:jackson-dataformat-smile:2.6.5','com.fasterxml.jackson.module:jackson-module-jaxb-annotations:2.6.5','com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.6.5','com.fasterxml.jackson.jaxrs:jackson-jaxrs-json-provider:2.6.5'
+//  }
+//  exclude module: 'slf4j-log4j12'
+//}
 
 dependencies {
 
@@ -91,14 +91,11 @@ dependencies {
    	 /*
       * ELASTICSEARCH
       */
-     compile ("org.elasticsearch:elasticsearch:5.4.1") {
+     compile ("org.elasticsearch:elasticsearch:${elastic_version}") {
      	exclude module: 'slf4j-log4j12'
      }
-     compile ("org.elasticsearch:elasticsearch-spark-20_2.11:5.4.1") {
-     	exclude module: 'apache-curator'
-     	exclude module: 'slf4j-log4j12'
-     }
-     compile ("org.elasticsearch.client:transport:5.4.1") {
+
+     compile ("org.elasticsearch.client:transport:${elastic_version}") {
      	exclude module: 'slf4j-log4j12'
      }
      
