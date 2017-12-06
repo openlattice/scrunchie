@@ -40,6 +40,7 @@ import com.google.common.collect.Sets;
 import com.kryptnostic.conductor.rpc.ConductorElasticsearchApi;
 import com.kryptnostic.conductor.rpc.SearchConfiguration;
 import com.openlattice.rhizome.hazelcast.DelegatedStringSet;
+
 import java.io.IOException;
 import java.net.UnknownHostException;
 import java.util.HashSet;
@@ -49,6 +50,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+
 import org.apache.lucene.search.join.ScoreMode;
 import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind;
 import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
@@ -63,6 +65,7 @@ import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.unit.Fuzziness;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
+import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.InnerHitBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
@@ -481,7 +484,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         entitySetDataModel.put( PROPERTY_TYPES, propertyTypes );
         try {
             String s = ObjectMappers.getJsonMapper().writeValueAsString( entitySetDataModel );
-            client.prepareIndex( ENTITY_SET_DATA_MODEL, ENTITY_SET_TYPE, entitySet.getId().toString() ).setSource( s )
+            client.prepareIndex( ENTITY_SET_DATA_MODEL, ENTITY_SET_TYPE, entitySet.getId().toString() )
+                    .setSource( s, XContentType.JSON )
                     .execute().actionGet();
             updateEntitySetPermissions(
                     entitySet.getId(),
@@ -592,7 +596,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         try {
             String s = ObjectMappers.getJsonMapper().writeValueAsString( acl );
             String id = entitySetId.toString() + "_" + principal.getType().toString() + "_" + principal.getId();
-            client.prepareIndex( ENTITY_SET_DATA_MODEL, ACLS, id ).setParent( entitySetId.toString() ).setSource( s )
+            client.prepareIndex( ENTITY_SET_DATA_MODEL, ACLS, id ).setParent( entitySetId.toString() )
+                    .setSource( s, XContentType.JSON )
                     .execute().actionGet();
             return true;
         } catch ( JsonProcessingException e ) {
@@ -617,7 +622,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             UpdateRequest updateRequest = new UpdateRequest(
                     ENTITY_SET_DATA_MODEL,
                     ENTITY_SET_TYPE,
-                    entitySetId.toString() ).doc( s );
+                    entitySetId.toString() ).doc( s, XContentType.JSON );
             client.update( updateRequest ).actionGet();
             return true;
         } catch ( IOException e ) {
@@ -732,7 +737,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         try {
             String s = ObjectMappers.getJsonMapper().writeValueAsString( acl );
             String id = organizationId.toString() + "_" + principal.getType().toString() + "_" + principal.getId();
-            client.prepareIndex( ORGANIZATIONS, ACLS, id ).setParent( organizationId.toString() ).setSource( s )
+            client.prepareIndex( ORGANIZATIONS, ACLS, id ).setParent( organizationId.toString() )
+                    .setSource( s, XContentType.JSON )
                     .execute().actionGet();
             return true;
         } catch ( JsonProcessingException e ) {
@@ -786,7 +792,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                     getIndexName( entitySetId, syncId ),
                     getTypeName( entitySetId ),
                     entityId ).script( script )
-                    .upsert( ObjectMappers.getJsonMapper().writeValueAsString( propertyValues ) );
+                    .upsert( ObjectMappers.getJsonMapper().writeValueAsString( propertyValues ), XContentType.JSON );
             client.update( request ).actionGet();
         } catch ( JsonProcessingException e ) {
             logger.debug( "error creating entity data in elasticsearch" );
@@ -826,7 +832,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             UpdateRequest updateRequest = new UpdateRequest(
                     ENTITY_SET_DATA_MODEL,
                     ENTITY_SET_TYPE,
-                    entitySet.getId().toString() ).doc( s );
+                    entitySet.getId().toString() ).doc( s, XContentType.JSON );
             client.update( updateRequest ).actionGet();
             return true;
         } catch ( IOException e ) {
@@ -849,7 +855,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         UUID organizationId = organization.getSecurablePrincipal().getId();
         try {
             String s = ObjectMappers.getJsonMapper().writeValueAsString( organizationObject );
-            client.prepareIndex( ORGANIZATIONS, ORGANIZATION_TYPE, organizationId.toString() ).setSource( s )
+            client.prepareIndex( ORGANIZATIONS, ORGANIZATION_TYPE, organizationId.toString() )
+                    .setSource( s, XContentType.JSON )
                     .execute().actionGet();
             updateOrganizationPermissions(
                     organizationId,
@@ -1007,7 +1014,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         }
         try {
             String s = ObjectMappers.getJsonMapper().writeValueAsString( updatedFields );
-            UpdateRequest updateRequest = new UpdateRequest( ORGANIZATIONS, ORGANIZATION_TYPE, id.toString() ).doc( s );
+            UpdateRequest updateRequest = new UpdateRequest( ORGANIZATIONS, ORGANIZATION_TYPE, id.toString() )
+                    .doc( s, XContentType.JSON );
             client.update( updateRequest ).actionGet();
             return true;
         } catch ( IOException e ) {
@@ -1099,7 +1107,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         }
         try {
             String s = ObjectMappers.getJsonMapper().writeValueAsString( entityType );
-            client.prepareIndex( ENTITY_TYPE_INDEX, ENTITY_TYPE, entityType.getId().toString() ).setSource( s )
+            client.prepareIndex( ENTITY_TYPE_INDEX, ENTITY_TYPE, entityType.getId().toString() )
+                    .setSource( s, XContentType.JSON )
                     .execute().actionGet();
             return true;
         } catch ( JsonProcessingException e ) {
@@ -1126,7 +1135,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         try {
             String s = ObjectMappers.getJsonMapper().writeValueAsString( associationType );
             client.prepareIndex( ASSOCIATION_TYPE_INDEX, ASSOCIATION_TYPE, entityType.getId().toString() )
-                    .setSource( s )
+                    .setSource( s, XContentType.JSON )
                     .execute().actionGet();
             return true;
         } catch ( JsonProcessingException e ) {
@@ -1145,7 +1154,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         }
         try {
             String s = ObjectMappers.getJsonMapper().writeValueAsString( propertyType );
-            client.prepareIndex( PROPERTY_TYPE_INDEX, PROPERTY_TYPE, propertyType.getId().toString() ).setSource( s )
+            client.prepareIndex( PROPERTY_TYPE_INDEX, PROPERTY_TYPE, propertyType.getId().toString() )
+                    .setSource( s, XContentType.JSON )
                     .execute().actionGet();
             return true;
         } catch ( JsonProcessingException e ) {
@@ -1382,7 +1392,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 deleteQuery.mustNot( QueryBuilders.matchQuery( "_id", id ) );
                 bulkRequest
                         .add( client.prepareIndex( PROPERTY_TYPE_INDEX, PROPERTY_TYPE, id )
-                                .setSource( s ) );
+                                .setSource( s, XContentType.JSON ) );
             } catch ( JsonProcessingException e ) {
                 logger.debug( "Error re-indexing property types" );
             }
@@ -1422,7 +1432,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 deleteQuery.mustNot( QueryBuilders.matchQuery( "_id", id ) );
                 bulkRequest
                         .add( client.prepareIndex( ENTITY_TYPE_INDEX, ENTITY_TYPE, id )
-                                .setSource( s ) );
+                                .setSource( s, XContentType.JSON ) );
             } catch ( JsonProcessingException e ) {
                 logger.debug( "Error re-indexing entity types" );
             }
@@ -1462,7 +1472,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 deleteQuery.mustNot( QueryBuilders.matchQuery( "_id", id ) );
                 bulkRequest
                         .add( client.prepareIndex( ASSOCIATION_TYPE_INDEX, ASSOCIATION_TYPE, id )
-                                .setSource( s ) );
+                                .setSource( s, XContentType.JSON ) );
             } catch ( JsonProcessingException e ) {
                 logger.debug( "Error re-indexing association types" );
             }
