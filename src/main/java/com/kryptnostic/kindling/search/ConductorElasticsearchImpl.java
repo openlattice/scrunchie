@@ -19,7 +19,6 @@
 
 package com.kryptnostic.kindling.search;
 
-import com.dataloom.authorization.Permission;
 import com.dataloom.authorization.Principal;
 import com.dataloom.data.EntityKey;
 import com.dataloom.edm.EntitySet;
@@ -36,21 +35,10 @@ import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.kryptnostic.conductor.rpc.ConductorElasticsearchApi;
 import com.kryptnostic.conductor.rpc.SearchConfiguration;
+import com.openlattice.authorization.AclKey;
 import com.openlattice.rhizome.hazelcast.DelegatedStringSet;
-
-import java.io.IOException;
-import java.net.UnknownHostException;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.util.UUID;
-import java.util.stream.Collectors;
-
 import org.apache.lucene.search.join.ScoreMode;
 import org.apache.olingo.commons.api.edm.EdmPrimitiveTypeKind;
 import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
@@ -67,22 +55,27 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.index.query.BoolQueryBuilder;
-import org.elasticsearch.index.query.InnerHitBuilder;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.QueryStringQueryBuilder;
 import org.elasticsearch.index.reindex.DeleteByQueryAction;
 import org.elasticsearch.index.reindex.DeleteByQueryRequestBuilder;
-import org.elasticsearch.join.query.JoinQueryBuilders;
 import org.elasticsearch.script.Script;
 import org.elasticsearch.script.ScriptType;
 import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.SearchHits;
-import org.elasticsearch.search.fetch.subphase.FetchSourceContext;
 import org.nd4j.linalg.factory.Nd4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
+
+import java.io.IOException;
+import java.net.UnknownHostException;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 
@@ -184,11 +177,9 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         Map<String, String> objectField = Maps.newHashMap();
         Map<String, String> nestedField = Maps.newHashMap();
         Map<String, String> keywordField = Maps.newHashMap();
-        Map<String, Object> aclParent = Maps.newHashMap();
         objectField.put( TYPE, OBJECT );
         nestedField.put( TYPE, NESTED );
         keywordField.put( TYPE, KEYWORD );
-        aclParent.put( TYPE, ENTITY_SET_TYPE );
 
         // entity_set type mapping
         Map<String, Object> properties = Maps.newHashMap();
@@ -199,24 +190,11 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         entitySetData.put( ES_PROPERTIES, properties );
         mapping.put( ENTITY_SET_TYPE, entitySetData );
 
-        // acl type mapping
-        Map<String, Object> aclProperties = Maps.newHashMap();
-        Map<String, Object> aclData = Maps.newHashMap();
-        Map<String, Object> aclMapping = Maps.newHashMap();
-        aclProperties.put( ACLS, keywordField );
-        aclProperties.put( TYPE, keywordField );
-        aclProperties.put( NAME, keywordField );
-        aclProperties.put( ENTITY_SET_ID, keywordField );
-        aclData.put( ES_PROPERTIES, aclProperties );
-        aclData.put( PARENT, aclParent );
-        aclMapping.put( ACLS, aclData );
-
         client.admin().indices().prepareCreate( ENTITY_SET_DATA_MODEL )
                 .setSettings( Settings.builder()
                         .put( NUM_SHARDS, 3 )
                         .put( NUM_REPLICAS, 2 ) )
                 .addMapping( ENTITY_SET_TYPE, mapping )
-                .addMapping( ACLS, aclMapping )
                 .execute().actionGet();
         return true;
     }
@@ -237,10 +215,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         // constant Map<String, String> type fields
         Map<String, String> objectField = Maps.newHashMap();
         Map<String, String> keywordField = Maps.newHashMap();
-        Map<String, Object> aclParent = Maps.newHashMap();
         objectField.put( TYPE, OBJECT );
         keywordField.put( TYPE, KEYWORD );
-        aclParent.put( TYPE, ORGANIZATION_TYPE );
 
         // entity_set type mapping
         Map<String, Object> properties = Maps.newHashMap();
@@ -250,24 +226,11 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         organizationData.put( ES_PROPERTIES, properties );
         organizationMapping.put( ORGANIZATION_TYPE, organizationData );
 
-        // acl type mapping
-        Map<String, Object> aclProperties = Maps.newHashMap();
-        Map<String, Object> aclData = Maps.newHashMap();
-        Map<String, Object> aclMapping = Maps.newHashMap();
-        aclProperties.put( ACLS, keywordField );
-        aclProperties.put( TYPE, keywordField );
-        aclProperties.put( NAME, keywordField );
-        aclProperties.put( ORGANIZATION_ID, keywordField );
-        aclData.put( ES_PROPERTIES, aclProperties );
-        aclData.put( PARENT, aclParent );
-        aclMapping.put( ACLS, aclData );
-
         client.admin().indices().prepareCreate( ORGANIZATIONS )
                 .setSettings( Settings.builder()
                         .put( NUM_SHARDS, 3 )
                         .put( NUM_REPLICAS, 2 ) )
                 .addMapping( ORGANIZATION_TYPE, organizationMapping )
-                .addMapping( ACLS, aclMapping )
                 .execute().actionGet();
         return true;
     }
@@ -487,14 +450,6 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             client.prepareIndex( ENTITY_SET_DATA_MODEL, ENTITY_SET_TYPE, entitySet.getId().toString() )
                     .setSource( s, XContentType.JSON )
                     .execute().actionGet();
-            updateEntitySetPermissions(
-                    entitySet.getId(),
-                    principal,
-                    Sets.newHashSet( Permission.OWNER,
-                            Permission.READ,
-                            Permission.WRITE,
-                            Permission.DISCOVER,
-                            Permission.LINK ) );
             return true;
         } catch ( JsonProcessingException e ) {
             logger.debug( "error saving entity set to elasticsearch" );
@@ -508,7 +463,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             Optional<String> optionalSearchTerm,
             Optional<UUID> optionalEntityType,
             Optional<Set<UUID>> optionalPropertyTypes,
-            Set<Principal> principals,
+            Set<AclKey> authorizedAclKeys,
             int start,
             int maxHits ) {
         try {
@@ -517,22 +472,15 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             logger.debug( "not connected to elasticsearch" );
             e.printStackTrace();
         }
-        BoolQueryBuilder permissionsQuery = new BoolQueryBuilder();
-        for ( Principal principal : principals ) {
-            BoolQueryBuilder childQuery = new BoolQueryBuilder();
-            childQuery.must( QueryBuilders.matchQuery( NAME, principal.getId() ) );
-            childQuery.must( QueryBuilders.matchQuery( TYPE, principal.getType().toString() ) );
-            childQuery.must( QueryBuilders.termQuery( ACLS, Permission.READ.toString() ) );
-            String hitName = "acl_" + principal.getType().toString() + "_" + principal.getId();
-            permissionsQuery.should( JoinQueryBuilders.hasChildQuery( ACLS, childQuery, ScoreMode.Avg )
-                    .innerHit( new InnerHitBuilder()
-                            .setFetchSourceContext( new FetchSourceContext( true, new String[] { ACLS }, null ) )
-                            .setName( hitName )
-                            .setExplain( false ) ) );
-        }
-        permissionsQuery.minimumShouldMatch( 1 );
 
-        BoolQueryBuilder query = new BoolQueryBuilder().must( permissionsQuery );
+        BoolQueryBuilder authorizedFilterQuery = new BoolQueryBuilder();
+        for ( AclKey aclKey : authorizedAclKeys ) {
+            authorizedFilterQuery
+                    .should( QueryBuilders.matchQuery( ENTITY_SET + "." + ID, aclKey.get( 0 ).toString() ) );
+        }
+        authorizedFilterQuery.minimumShouldMatch( 1 );
+
+        BoolQueryBuilder query = new BoolQueryBuilder().must( authorizedFilterQuery );
 
         if ( optionalSearchTerm.isPresent() ) {
             String searchTerm = optionalSearchTerm.get();
@@ -566,44 +514,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 .actionGet();
 
         List<Map<String, Object>> hits = Lists.newArrayList();
-        for ( SearchHit hit : response.getHits() ) {
-            Map<String, Object> match = hit.getSourceAsMap();
-            Set<String> permissions = Sets.newHashSet();
-            for ( SearchHits innerHits : hit.getInnerHits().values() ) {
-                for ( SearchHit innerHit : innerHits.getHits() ) {
-                    permissions.addAll( (List<String>) innerHit.getSourceAsMap().get( ACLS ) );
-                }
-            }
-            match.put( ACLS, permissions );
-            hits.add( match );
-        }
+        response.getHits().forEach( hit -> hits.add( hit.getSourceAsMap() ) );
         return new SearchResult( response.getHits().getTotalHits(), hits );
-    }
-
-    @Override
-    public boolean updateEntitySetPermissions( UUID entitySetId, Principal principal, Set<Permission> permissions ) {
-        try {
-            if ( !verifyElasticsearchConnection() ) { return false; }
-        } catch ( UnknownHostException e ) {
-            logger.debug( "not connected to elasticsearch" );
-            e.printStackTrace();
-        }
-        Map<String, Object> acl = Maps.newHashMap();
-        acl.put( ACLS, permissions );
-        acl.put( TYPE, principal.getType().toString() );
-        acl.put( NAME, principal.getId() );
-        acl.put( ENTITY_SET_ID, entitySetId.toString() );
-        try {
-            String s = ObjectMappers.getJsonMapper().writeValueAsString( acl );
-            String id = entitySetId.toString() + "_" + principal.getType().toString() + "_" + principal.getId();
-            client.prepareIndex( ENTITY_SET_DATA_MODEL, ACLS, id ).setParent( entitySetId.toString() )
-                    .setSource( s, XContentType.JSON )
-                    .execute().actionGet();
-            return true;
-        } catch ( JsonProcessingException e ) {
-            logger.debug( "error updating entity set permissions in elasticsearch" );
-        }
-        return false;
     }
 
     @Override
@@ -719,35 +631,6 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     }
 
     @Override
-    public boolean updateOrganizationPermissions(
-            UUID organizationId,
-            Principal principal,
-            Set<Permission> permissions ) {
-        try {
-            if ( !verifyElasticsearchConnection() ) { return false; }
-        } catch ( UnknownHostException e ) {
-            logger.debug( "not connected to elasticsearch" );
-            e.printStackTrace();
-        }
-        Map<String, Object> acl = Maps.newHashMap();
-        acl.put( ACLS, permissions );
-        acl.put( TYPE, principal.getType().toString() );
-        acl.put( NAME, principal.getId() );
-        acl.put( ORGANIZATION_ID, organizationId.toString() );
-        try {
-            String s = ObjectMappers.getJsonMapper().writeValueAsString( acl );
-            String id = organizationId.toString() + "_" + principal.getType().toString() + "_" + principal.getId();
-            client.prepareIndex( ORGANIZATIONS, ACLS, id ).setParent( organizationId.toString() )
-                    .setSource( s, XContentType.JSON )
-                    .execute().actionGet();
-            return true;
-        } catch ( JsonProcessingException e ) {
-            logger.debug( "error updating organization permissions in elasticsearch" );
-        }
-        return false;
-    }
-
-    @Override
     public boolean createEntityData(
             UUID entitySetId,
             UUID syncId,
@@ -858,14 +741,6 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             client.prepareIndex( ORGANIZATIONS, ORGANIZATION_TYPE, organizationId.toString() )
                     .setSource( s, XContentType.JSON )
                     .execute().actionGet();
-            updateOrganizationPermissions(
-                    organizationId,
-                    principal,
-                    Sets.newHashSet( Permission.OWNER,
-                            Permission.READ,
-                            Permission.WRITE,
-                            Permission.DISCOVER,
-                            Permission.LINK ) );
             return true;
         } catch ( JsonProcessingException e ) {
             logger.debug( "error creating organization in elasticsearch" );
@@ -942,7 +817,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     @Override
     public SearchResult executeOrganizationSearch(
             String searchTerm,
-            Set<Principal> principals,
+            Set<AclKey> authorizedOrganizationIds,
             int start,
             int maxHits ) {
         try {
@@ -952,22 +827,13 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             e.printStackTrace();
         }
 
-        BoolQueryBuilder permissionsQuery = new BoolQueryBuilder();
-        for ( Principal principal : principals ) {
-            BoolQueryBuilder childQuery = new BoolQueryBuilder();
-            childQuery.must( QueryBuilders.matchQuery( NAME, principal.getId() ) );
-            childQuery.must( QueryBuilders.matchQuery( TYPE, principal.getType().toString() ) );
-            childQuery.must( QueryBuilders.termQuery( ACLS, Permission.READ.toString() ) );
-            String hitName = "acl_" + principal.getType().toString() + "_" + principal.getId();
-            permissionsQuery.should( JoinQueryBuilders.hasChildQuery( ACLS, childQuery, ScoreMode.Avg )
-                    .innerHit( new InnerHitBuilder()
-                            .setFetchSourceContext( new FetchSourceContext( true, new String[] { ACLS }, null ) )
-                            .setName( hitName )
-                            .setExplain( false ) ) );
+        BoolQueryBuilder authorizedFilterQuery = new BoolQueryBuilder();
+        for ( AclKey aclKey : authorizedOrganizationIds ) {
+            authorizedFilterQuery.should( QueryBuilders.matchQuery( "_id", aclKey.get( 0 ).toString() ) );
         }
-        permissionsQuery.minimumShouldMatch( 1 );
+        authorizedFilterQuery.minimumShouldMatch( 1 );
 
-        BoolQueryBuilder query = new BoolQueryBuilder().must( permissionsQuery )
+        BoolQueryBuilder query = new BoolQueryBuilder().must( authorizedFilterQuery )
                 .should( QueryBuilders.matchQuery( TITLE, searchTerm ).fuzziness( Fuzziness.AUTO ) )
                 .should( QueryBuilders.matchQuery( DESCRIPTION, searchTerm ).fuzziness( Fuzziness.AUTO ) )
                 .minimumShouldMatch( 1 );
@@ -982,17 +848,11 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 
         List<Map<String, Object>> hits = Lists.newArrayList();
         for ( SearchHit hit : response.getHits() ) {
-            Map<String, Object> match = hit.getSourceAsMap();
-            match.put( ID, hit.getId() );
-            Set<String> permissions = new HashSet<>();
-            for ( SearchHits innerHits : hit.getInnerHits().values() ) {
-                for ( SearchHit innerHit : innerHits.getHits() ) {
-                    permissions.addAll( (List<String>) innerHit.getSourceAsMap().get( ACLS ) );
-                }
-            }
-            match.put( ACLS, permissions );
-            hits.add( match );
+            Map<String, Object> hitMap = hit.getSourceAsMap();
+            hitMap.put( "id", hit.getId() );
+            hits.add( hitMap );
         }
+
         return new SearchResult( response.getHits().getTotalHits(), hits );
     }
 

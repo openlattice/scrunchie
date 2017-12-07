@@ -23,6 +23,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import com.google.common.collect.ImmutableSet;
+import com.openlattice.authorization.AclKey;
+import com.openlattice.rhizome.hazelcast.DelegatedStringSet;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -75,14 +78,6 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
     }
 
     @Test
-    public void testAddEntitySetPermissions() {
-        Set<Permission> newPermissions = Sets.newHashSet();
-        newPermissions.add( Permission.WRITE );
-        newPermissions.add( Permission.READ );
-        elasticsearchApi.updateEntitySetPermissions( chicagoEmployeesEntitySetId, loomUser, newPermissions );
-    }
-
-    @Test
     public void testEntitySetKeywordSearch() {
         Set<Principal> principals = Sets.newHashSet();
         principals.add( loomUser );
@@ -92,7 +87,7 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
                 Optional.of( query ),
                 Optional.of( ENTITY_TYPE_ID ),
                 Optional.absent(),
-                principals,
+                ImmutableSet.of( new AclKey( chicagoEmployeesEntitySetId ) ),
                 0,
                 50 );
     }
@@ -123,8 +118,8 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
         Map<UUID, UUID> entitySetsAndSyncIds = Maps.newHashMap();
         entitySetsAndSyncIds.put( chicagoEmployeesEntitySetId, SYNC_ID );
         entitySetsAndSyncIds.put( entitySet2Id, SYNC_ID2 );
-        Map<UUID, Set<String>> fieldSearches = Maps.newHashMap();
-        fieldSearches.put( employeeIdPropertyId, Sets.newHashSet( "12347" ) );
+        Map<UUID, DelegatedStringSet> fieldSearches = Maps.newHashMap();
+        fieldSearches.put( employeeIdPropertyId, DelegatedStringSet.wrap( Sets.newHashSet( "12347" ) ) );
         elasticsearchApi.executeEntitySetDataSearchAcrossIndices( entitySetsAndSyncIds, fieldSearches, 50, true );
     }
 
@@ -132,7 +127,7 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
     public void testOrganizationKeywordSearch() {
         Set<Principal> principals = Sets.newHashSet();
         principals.add( owner );
-        elasticsearchApi.executeOrganizationSearch( "loom", principals, 0, 50 );
+        elasticsearchApi.executeOrganizationSearch( "loom", ImmutableSet.of( new AclKey( organizationId ) ), 0, 50 );
     }
 
     @Test
