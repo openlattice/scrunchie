@@ -19,7 +19,11 @@
 
 package com.kryptnostic.kindling.search;
 
+import com.dataloom.apps.App;
+import com.dataloom.apps.AppType;
 import com.dataloom.authorization.Principal;
+import com.dataloom.authorization.securable.AbstractSecurableObject;
+import com.dataloom.authorization.securable.SecurableObjectType;
 import com.dataloom.data.EntityKey;
 import com.dataloom.edm.EntitySet;
 import com.dataloom.edm.type.Analyzer;
@@ -75,6 +79,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
@@ -132,6 +137,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         initializeEntityTypeIndex();
         initializeAssociationTypeIndex();
         initializePropertyTypeIndex();
+        initializeAppIndex();
+        initializeAppTypeIndex();
     }
 
     // @formatter:off
@@ -303,6 +310,54 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                         .put( NUM_SHARDS, 3 )
                         .put( NUM_REPLICAS, 2 ) )
                 .addMapping( PROPERTY_TYPE, mapping )
+                .execute().actionGet();
+        return true;
+    }
+
+    private boolean initializeAppIndex() {
+        try {
+            if ( !verifyElasticsearchConnection() ) { return false; }
+        } catch ( UnknownHostException e ) {
+            e.printStackTrace();
+        }
+
+        boolean exists = client.admin().indices()
+                .prepareExists( APP_INDEX ).execute().actionGet().isExists();
+        if ( exists ) {
+            return true;
+        }
+
+        Map<String, Object> mapping = Maps.newHashMap();
+        mapping.put( APP, Maps.newHashMap() );
+        client.admin().indices().prepareCreate( APP_INDEX )
+                .setSettings( Settings.builder()
+                        .put( NUM_SHARDS, 3 )
+                        .put( NUM_REPLICAS, 2 ) )
+                .addMapping( APP, mapping )
+                .execute().actionGet();
+        return true;
+    }
+
+    private boolean initializeAppTypeIndex() {
+        try {
+            if ( !verifyElasticsearchConnection() ) { return false; }
+        } catch ( UnknownHostException e ) {
+            e.printStackTrace();
+        }
+
+        boolean exists = client.admin().indices()
+                .prepareExists( APP_TYPE_INDEX ).execute().actionGet().isExists();
+        if ( exists ) {
+            return true;
+        }
+
+        Map<String, Object> mapping = Maps.newHashMap();
+        mapping.put( APP_TYPE, Maps.newHashMap() );
+        client.admin().indices().prepareCreate( APP_TYPE_INDEX )
+                .setSettings( Settings.builder()
+                        .put( NUM_SHARDS, 3 )
+                        .put( NUM_REPLICAS, 2 ) )
+                .addMapping( APP_TYPE, mapping )
                 .execute().actionGet();
         return true;
     }
@@ -959,259 +1014,133 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 
     @Override
     public boolean saveEntityTypeToElasticsearch( EntityType entityType ) {
-        try {
-            if ( !verifyElasticsearchConnection() ) { return false; }
-        } catch ( UnknownHostException e ) {
-            logger.debug( "not connected to elasticsearch" );
-            e.printStackTrace();
-        }
-        try {
-            String s = ObjectMappers.getJsonMapper().writeValueAsString( entityType );
-            client.prepareIndex( ENTITY_TYPE_INDEX, ENTITY_TYPE, entityType.getId().toString() )
-                    .setSource( s, XContentType.JSON )
-                    .execute().actionGet();
-            return true;
-        } catch ( JsonProcessingException e ) {
-            logger.debug( "error saving entity set to elasticsearch" );
-        }
-        return false;
+        return saveObjectToElasticsearch( ENTITY_TYPE_INDEX, ENTITY_TYPE, entityType, entityType.getId().toString() );
     }
 
     @Override
     public boolean saveAssociationTypeToElasticsearch( AssociationType associationType ) {
-        try {
-            if ( !verifyElasticsearchConnection() ) { return false; }
-        } catch ( UnknownHostException e ) {
-            logger.debug( "not connected to elasticsearch" );
-            e.printStackTrace();
-        }
-
         EntityType entityType = associationType.getAssociationEntityType();
         if ( entityType == null ) {
-            logger.debug( "An association type must have an entity type present in order to save to elawsticsearch" );
+            logger.debug( "An association type must have an entity type present in order to save to elasticsearch" );
             return false;
         }
 
-        try {
-            String s = ObjectMappers.getJsonMapper().writeValueAsString( associationType );
-            client.prepareIndex( ASSOCIATION_TYPE_INDEX, ASSOCIATION_TYPE, entityType.getId().toString() )
-                    .setSource( s, XContentType.JSON )
-                    .execute().actionGet();
-            return true;
-        } catch ( JsonProcessingException e ) {
-            logger.debug( "error saving association type to elasticsearch" );
-        }
-        return false;
+        return saveObjectToElasticsearch( ASSOCIATION_TYPE_INDEX,
+                ASSOCIATION_TYPE,
+                associationType,
+                entityType.getId().toString() );
     }
 
     @Override
     public boolean savePropertyTypeToElasticsearch( PropertyType propertyType ) {
-        try {
-            if ( !verifyElasticsearchConnection() ) { return false; }
-        } catch ( UnknownHostException e ) {
-            logger.debug( "not connected to elasticsearch" );
-            e.printStackTrace();
-        }
-        try {
-            String s = ObjectMappers.getJsonMapper().writeValueAsString( propertyType );
-            client.prepareIndex( PROPERTY_TYPE_INDEX, PROPERTY_TYPE, propertyType.getId().toString() )
-                    .setSource( s, XContentType.JSON )
-                    .execute().actionGet();
-            return true;
-        } catch ( JsonProcessingException e ) {
-            logger.debug( "error saving entity set to elasticsearch" );
-        }
-        return false;
+        return saveObjectToElasticsearch( PROPERTY_TYPE_INDEX,
+                PROPERTY_TYPE,
+                propertyType,
+                propertyType.getId().toString() );
+    }
+
+    @Override
+    public boolean saveAppToElasticsearch( App app ) {
+        return saveObjectToElasticsearch( APP_INDEX, APP, app, app.getId().toString() );
+    }
+
+    @Override
+    public boolean saveAppTypeToElasticsearch( AppType appType ) {
+        return saveObjectToElasticsearch( APP_TYPE_INDEX, APP_TYPE, appType, appType.getId().toString() );
     }
 
     @Override
     public boolean deleteEntityType( UUID entityTypeId ) {
-        try {
-            if ( !verifyElasticsearchConnection() ) { return false; }
-        } catch ( UnknownHostException e ) {
-            logger.debug( "not connected to elasticsearch" );
-            e.printStackTrace();
-        }
-
-        client.prepareDelete( ENTITY_TYPE_INDEX, ENTITY_TYPE, entityTypeId.toString() ).execute().actionGet();
-        return true;
+        return deleteObjectById( ENTITY_TYPE_INDEX, ENTITY_TYPE, entityTypeId.toString() );
     }
 
     @Override
     public boolean deleteAssociationType( UUID associationTypeId ) {
-        try {
-            if ( !verifyElasticsearchConnection() ) { return false; }
-        } catch ( UnknownHostException e ) {
-            logger.debug( "not connected to elasticsearch" );
-            e.printStackTrace();
-        }
-
-        client.prepareDelete( ASSOCIATION_TYPE_INDEX, ASSOCIATION_TYPE, associationTypeId.toString() ).execute()
-                .actionGet();
-        return true;
+        return deleteObjectById( ASSOCIATION_TYPE_INDEX, ASSOCIATION_TYPE, associationTypeId.toString() );
     }
 
     @Override
     public boolean deletePropertyType( UUID propertyTypeId ) {
-        try {
-            if ( !verifyElasticsearchConnection() ) { return false; }
-        } catch ( UnknownHostException e ) {
-            logger.debug( "not connected to elasticsearch" );
-            e.printStackTrace();
-        }
-
-        client.prepareDelete( PROPERTY_TYPE_INDEX, PROPERTY_TYPE, propertyTypeId.toString() ).execute().actionGet();
-        return true;
+        return deleteObjectById( PROPERTY_TYPE_INDEX, PROPERTY_TYPE, propertyTypeId.toString() );
     }
 
-    private Map<String, Float> getFieldsMap( boolean usePrefix ) {
-        float f = Float.valueOf( "1" );
-        Map<String, Float> fieldsMap = Maps.newHashMap();
-        List<String> fields = ImmutableList.of( TYPE + "." + NAME, TYPE + "." + NAMESPACE, TITLE, DESCRIPTION );
-        String prefix = ENTITY_TYPE_FIELD + ".";
-        fields.forEach( field -> {
-            String fieldStr = ( usePrefix ) ? prefix + field : field;
-            fieldsMap.put( fieldStr, f );
-        } );
+    @Override
+    public boolean deleteApp( UUID appId ) {
+        return deleteObjectById( APP_INDEX, APP, appId.toString() );
+    }
 
-        return fieldsMap;
+    @Override
+    public boolean deleteAppType( UUID appTypeId ) {
+        return deleteObjectById( APP_TYPE_INDEX, APP_TYPE, appTypeId.toString() );
     }
 
     @Override
     public SearchResult executeEntityTypeSearch( String searchTerm, int start, int maxHits ) {
-        try {
-            if ( !verifyElasticsearchConnection() ) { return new SearchResult( 0, Lists.newArrayList() ); }
-        } catch ( UnknownHostException e ) {
-            logger.debug( "not connected to elasticsearch" );
-            e.printStackTrace();
-        }
-
-        Map<String, Float> fieldsMap = getFieldsMap( false );
-        QueryBuilder query = QueryBuilders.queryStringQuery( searchTerm ).fields( fieldsMap ).lenient( true );
-
-        SearchResponse response = client.prepareSearch( ENTITY_TYPE_INDEX )
-                .setTypes( ENTITY_TYPE )
-                .setQuery( query )
-                .setFrom( start )
-                .setSize( maxHits )
-                .execute()
-                .actionGet();
-
-        List<Map<String, Object>> hits = Lists.newArrayList();
-        for ( SearchHit hit : response.getHits() ) {
-            hits.add( hit.getSourceAsMap() );
-        }
-        return new SearchResult( response.getHits().getTotalHits(), hits );
+        Map<String, Float> fieldsMap = getFieldsMap( SecurableObjectType.EntityType );
+        return executeSearch( ENTITY_TYPE_INDEX, ENTITY_TYPE, searchTerm, start, maxHits, fieldsMap );
     }
 
     @Override
     public SearchResult executeAssociationTypeSearch( String searchTerm, int start, int maxHits ) {
-        try {
-            if ( !verifyElasticsearchConnection() ) { return new SearchResult( 0, Lists.newArrayList() ); }
-        } catch ( UnknownHostException e ) {
-            logger.debug( "not connected to elasticsearch" );
-            e.printStackTrace();
-        }
-
-        Map<String, Float> fieldsMap = getFieldsMap( true );
-        QueryBuilder query = QueryBuilders.queryStringQuery( searchTerm ).fields( fieldsMap ).lenient( true );
-
-        SearchResponse response = client.prepareSearch( ASSOCIATION_TYPE_INDEX )
-                .setTypes( ASSOCIATION_TYPE )
-                .setQuery( query )
-                .setFrom( start )
-                .setSize( maxHits )
-                .execute()
-                .actionGet();
-
-        List<Map<String, Object>> hits = Lists.newArrayList();
-        for ( SearchHit hit : response.getHits() ) {
-            hits.add( hit.getSourceAsMap() );
-        }
-        return new SearchResult( response.getHits().getTotalHits(), hits );
-    }
-
-    @Override
-    public SearchResult executeFQNEntityTypeSearch( String namespace, String name, int start, int maxHits ) {
-        try {
-            if ( !verifyElasticsearchConnection() ) { return new SearchResult( 0, Lists.newArrayList() ); }
-        } catch ( UnknownHostException e ) {
-            logger.debug( "not connected to elasticsearch" );
-            e.printStackTrace();
-        }
-
-        BoolQueryBuilder query = new BoolQueryBuilder();
-        query.must( QueryBuilders.regexpQuery( TYPE + "." + NAMESPACE, ".*" + namespace + ".*" ) )
-                .must( QueryBuilders.regexpQuery( TYPE + "." + NAME, ".*" + name + ".*" ) );
-
-        SearchResponse response = client.prepareSearch( ENTITY_TYPE_INDEX )
-                .setTypes( ENTITY_TYPE )
-                .setQuery( query )
-                .setFrom( start )
-                .setSize( maxHits )
-                .execute()
-                .actionGet();
-
-        List<Map<String, Object>> hits = Lists.newArrayList();
-        for ( SearchHit hit : response.getHits() ) {
-            hits.add( hit.getSourceAsMap() );
-        }
-        return new SearchResult( response.getHits().getTotalHits(), hits );
+        Map<String, Float> fieldsMap = getFieldsMap( SecurableObjectType.AssociationType );
+        return executeSearch( ASSOCIATION_TYPE_INDEX, ASSOCIATION_TYPE, searchTerm, start, maxHits, fieldsMap );
     }
 
     @Override
     public SearchResult executePropertyTypeSearch( String searchTerm, int start, int maxHits ) {
-        try {
-            if ( !verifyElasticsearchConnection() ) { return new SearchResult( 0, Lists.newArrayList() ); }
-        } catch ( UnknownHostException e ) {
-            logger.debug( "not connected to elasticsearch" );
-            e.printStackTrace();
-        }
+        Map<String, Float> fieldsMap = getFieldsMap( SecurableObjectType.PropertyTypeInEntitySet );
+        return executeSearch( PROPERTY_TYPE_INDEX, PROPERTY_TYPE, searchTerm, start, maxHits, fieldsMap );
+    }
 
-        Map<String, Float> fieldsMap = getFieldsMap( false );
-        QueryBuilder query = QueryBuilders.queryStringQuery( searchTerm ).fields( fieldsMap ).lenient( true );
+    @Override public SearchResult executeAppSearch( String searchTerm, int start, int maxHits ) {
+        Map<String, Float> fieldsMap = getFieldsMap( SecurableObjectType.App );
+        return executeSearch( APP_INDEX, APP, searchTerm, start, maxHits, fieldsMap );
+    }
 
-        SearchResponse response = client.prepareSearch( PROPERTY_TYPE_INDEX )
-                .setTypes( PROPERTY_TYPE )
-                .setQuery( query )
-                .setFrom( start )
-                .setSize( maxHits )
-                .execute()
-                .actionGet();
+    @Override public SearchResult executeAppTypeSearch( String searchTerm, int start, int maxHits ) {
+        Map<String, Float> fieldsMap = getFieldsMap( SecurableObjectType.AppType );
+        return executeSearch( APP_TYPE_INDEX, APP_TYPE, searchTerm, start, maxHits, fieldsMap );
+    }
 
-        List<Map<String, Object>> hits = Lists.newArrayList();
-        for ( SearchHit hit : response.getHits() ) {
-            hits.add( hit.getSourceAsMap() );
-        }
-        return new SearchResult( response.getHits().getTotalHits(), hits );
+    @Override
+    public SearchResult executeFQNEntityTypeSearch( String namespace, String name, int start, int maxHits ) {
+        return executeFQNSearch( ENTITY_TYPE_INDEX, ENTITY_TYPE, namespace, name, start, maxHits );
+
     }
 
     @Override
     public SearchResult executeFQNPropertyTypeSearch( String namespace, String name, int start, int maxHits ) {
-        try {
-            if ( !verifyElasticsearchConnection() ) { return new SearchResult( 0, Lists.newArrayList() ); }
-        } catch ( UnknownHostException e ) {
-            logger.debug( "not connected to elasticsearch" );
-            e.printStackTrace();
-        }
+        return executeFQNSearch( PROPERTY_TYPE_INDEX, PROPERTY_TYPE, namespace, name, start, maxHits );
+    }
 
-        BoolQueryBuilder query = new BoolQueryBuilder();
-        query.must( QueryBuilders.regexpQuery( TYPE + "." + NAMESPACE, ".*" + namespace + ".*" ) )
-                .must( QueryBuilders.regexpQuery( TYPE + "." + NAME, ".*" + name + ".*" ) );
+    @Override
+    public boolean triggerPropertyTypeIndex( List<PropertyType> propertyTypes ) {
+        Function<Object, String> idFn = pt -> ( (PropertyType) pt ).getId().toString();
+        return triggerIndex( PROPERTY_TYPE_INDEX, PROPERTY_TYPE, propertyTypes, idFn );
+    }
 
-        SearchResponse response = client.prepareSearch( PROPERTY_TYPE_INDEX )
-                .setTypes( PROPERTY_TYPE )
-                .setQuery( query )
-                .setFrom( start )
-                .setSize( maxHits )
-                .execute()
-                .actionGet();
+    @Override
+    public boolean triggerEntityTypeIndex( List<EntityType> entityTypes ) {
+        Function<Object, String> idFn = et -> ( (EntityType) et ).getId().toString();
+        return triggerIndex( ENTITY_TYPE_INDEX, ENTITY_TYPE, entityTypes, idFn );
+    }
 
-        List<Map<String, Object>> hits = Lists.newArrayList();
-        for ( SearchHit hit : response.getHits() ) {
-            hits.add( hit.getSourceAsMap() );
-        }
-        return new SearchResult( response.getHits().getTotalHits(), hits );
+    @Override
+    public boolean triggerAssociationTypeIndex( List<AssociationType> associationTypes ) {
+        Function<Object, String> idFn = at -> ( (AssociationType) at ).getAssociationEntityType().getId().toString();
+        return triggerIndex( ASSOCIATION_TYPE_INDEX, ASSOCIATION_TYPE, associationTypes, idFn );
+    }
+
+    @Override
+    public boolean triggerAppIndex( List<App> apps ) {
+        Function<Object, String> idFn = app -> ( (App) app ).getId().toString();
+        return triggerIndex( APP_INDEX, APP, apps, idFn );
+    }
+
+    @Override
+    public boolean triggerAppTypeIndex( List<AppType> appTypes ) {
+        Function<Object, String> idFn = at -> ( (AppType) at ).getId().toString();
+        return triggerIndex( APP_TYPE_INDEX, APP_TYPE, appTypes, idFn );
     }
 
     @Override
@@ -1223,7 +1152,9 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 ENTITY_TYPE_INDEX,
                 PROPERTY_TYPE_INDEX,
                 ASSOCIATION_TYPE_INDEX,
-                ORGANIZATIONS )
+                ORGANIZATIONS,
+                APP_INDEX,
+                APP_TYPE_INDEX )
                 .get();
         return true;
     }
@@ -1233,8 +1164,30 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         return ( (MultiLayerNetwork) modelThread.get() ).output( Nd4j.create( features ) ).getDouble( 1 );
     }
 
-    @Override
-    public boolean triggerPropertyTypeIndex( List<PropertyType> propertyTypes ) {
+
+
+    /* HELPERS */
+
+    private boolean saveObjectToElasticsearch( String index, String type, Object obj, String id ) {
+        try {
+            if ( !verifyElasticsearchConnection() ) { return false; }
+        } catch ( UnknownHostException e ) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+        try {
+            String s = ObjectMappers.getJsonMapper().writeValueAsString( obj );
+            client.prepareIndex( index, type, id )
+                    .setSource( s, XContentType.JSON )
+                    .execute().actionGet();
+            return true;
+        } catch ( JsonProcessingException e ) {
+            logger.debug( "error saving object to elasticsearch" );
+        }
+        return false;
+    }
+
+    private boolean deleteObjectById( String index, String type, String id ) {
         try {
             if ( !verifyElasticsearchConnection() ) { return false; }
         } catch ( UnknownHostException e ) {
@@ -1242,79 +1195,108 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             e.printStackTrace();
         }
 
-        BoolQueryBuilder deleteQuery = QueryBuilders.boolQuery();
-        BulkRequestBuilder bulkRequest = client.prepareBulk();
-
-        propertyTypes.forEach( propertyType -> {
-            try {
-                String id = propertyType.getId().toString();
-                String s = ObjectMappers.getJsonMapper().writeValueAsString( propertyType );
-                deleteQuery.mustNot( QueryBuilders.matchQuery( "_id", id ) );
-                bulkRequest
-                        .add( client.prepareIndex( PROPERTY_TYPE_INDEX, PROPERTY_TYPE, id )
-                                .setSource( s, XContentType.JSON ) );
-            } catch ( JsonProcessingException e ) {
-                logger.debug( "Error re-indexing property types" );
-            }
-        } );
-
-        new DeleteByQueryRequestBuilder( client, DeleteByQueryAction.INSTANCE )
-                .filter( deleteQuery )
-                .source( PROPERTY_TYPE_INDEX )
-                .execute()
-                .actionGet();
-
-        BulkResponse bulkResponse = bulkRequest.get();
-        if ( bulkResponse.hasFailures() ) {
-            bulkResponse.forEach( item -> logger
-                    .debug( "Failure during attempted property type re-index: {}", item.getFailureMessage() ) );
-        }
-
+        client.prepareDelete( index, type, id ).execute().actionGet();
         return true;
     }
 
-    @Override
-    public boolean triggerEntityTypeIndex( List<EntityType> entityTypes ) {
+    private SearchResult executeSearch(
+            String index,
+            String type,
+            String searchTerm,
+            int start,
+            int maxHits,
+            Map<String, Float> fieldsMap ) {
         try {
-            if ( !verifyElasticsearchConnection() ) { return false; }
+            if ( !verifyElasticsearchConnection() ) { return new SearchResult( 0, Lists.newArrayList() ); }
         } catch ( UnknownHostException e ) {
             logger.debug( "not connected to elasticsearch" );
             e.printStackTrace();
         }
 
-        BoolQueryBuilder deleteQuery = QueryBuilders.boolQuery();
-        BulkRequestBuilder bulkRequest = client.prepareBulk();
+        QueryBuilder query = QueryBuilders.queryStringQuery( searchTerm ).fields( fieldsMap ).lenient( true );
 
-        entityTypes.forEach( entityType -> {
-            try {
-                String id = entityType.getId().toString();
-                String s = ObjectMappers.getJsonMapper().writeValueAsString( entityType );
-                deleteQuery.mustNot( QueryBuilders.matchQuery( "_id", id ) );
-                bulkRequest
-                        .add( client.prepareIndex( ENTITY_TYPE_INDEX, ENTITY_TYPE, id )
-                                .setSource( s, XContentType.JSON ) );
-            } catch ( JsonProcessingException e ) {
-                logger.debug( "Error re-indexing entity types" );
-            }
-        } );
-
-        new DeleteByQueryRequestBuilder( client, DeleteByQueryAction.INSTANCE )
-                .filter( deleteQuery )
-                .source( ENTITY_TYPE_INDEX )
+        SearchResponse response = client.prepareSearch( index )
+                .setTypes( type )
+                .setQuery( query )
+                .setFrom( start )
+                .setSize( maxHits )
                 .execute()
                 .actionGet();
 
-        BulkResponse bulkResponse = bulkRequest.get();
-        if ( bulkResponse.hasFailures() ) {
-            bulkResponse.forEach( item -> logger
-                    .debug( "Failure during attempted entity type re-index: {}", item.getFailureMessage() ) );
+        List<Map<String, Object>> hits = Lists.newArrayList();
+        for ( SearchHit hit : response.getHits() ) {
+            hits.add( hit.getSourceAsMap() );
         }
-
-        return true;
+        return new SearchResult( response.getHits().getTotalHits(), hits );
     }
 
-    @Override
-    public boolean triggerAssociationTypeIndex( List<AssociationType> associationTypes ) {
+    private SearchResult executeFQNSearch(
+            String index,
+            String type,
+            String namespace,
+            String name,
+            int start,
+            int maxHits ) {
+        try {
+            if ( !verifyElasticsearchConnection() ) { return new SearchResult( 0, Lists.newArrayList() ); }
+        } catch ( UnknownHostException e ) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+
+        BoolQueryBuilder query = new BoolQueryBuilder();
+        query.must( QueryBuilders.regexpQuery( TYPE + "." + NAMESPACE, ".*" + namespace + ".*" ) )
+                .must( QueryBuilders.regexpQuery( TYPE + "." + NAME, ".*" + name + ".*" ) );
+
+        SearchResponse response = client.prepareSearch( index )
+                .setTypes( type )
+                .setQuery( query )
+                .setFrom( start )
+                .setSize( maxHits )
+                .execute()
+                .actionGet();
+
+        List<Map<String, Object>> hits = Lists.newArrayList();
+        for ( SearchHit hit : response.getHits() ) {
+            hits.add( hit.getSourceAsMap() );
+        }
+        return new SearchResult( response.getHits().getTotalHits(), hits );
+    }
+
+    private Map<String, Float> getFieldsMap( SecurableObjectType objectType ) {
+        float f = Float.valueOf( "1" );
+        Map<String, Float> fieldsMap = Maps.newHashMap();
+
+        List<String> fields = Lists.newArrayList( TITLE, DESCRIPTION );
+        switch ( objectType ) {
+            case AssociationType: {
+                fields.add( ENTITY_TYPE_FIELD + "." + TYPE + "." + NAME );
+                fields.add( ENTITY_TYPE_FIELD + "." + TYPE + "." + NAMESPACE );
+                break;
+            }
+
+            case App: {
+                fields.add( NAME );
+                fields.add( URL );
+                break;
+            }
+
+            default: {
+                fields.add( TYPE + "." + NAME );
+                fields.add( TYPE + "." + NAMESPACE );
+                break;
+            }
+        }
+
+        fields.forEach( field -> fieldsMap.put( field, f ) );
+        return fieldsMap;
+    }
+
+    public boolean triggerIndex(
+            String index,
+            String type,
+            Iterable<? extends Object> objects,
+            Function<Object, String> idFn ) {
         try {
             if ( !verifyElasticsearchConnection() ) { return false; }
         } catch ( UnknownHostException e ) {
@@ -1325,29 +1307,29 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         BoolQueryBuilder deleteQuery = QueryBuilders.boolQuery();
         BulkRequestBuilder bulkRequest = client.prepareBulk();
 
-        associationTypes.forEach( associationType -> {
+        objects.forEach( object -> {
             try {
-                String id = associationType.getAssociationEntityType().getId().toString();
-                String s = ObjectMappers.getJsonMapper().writeValueAsString( associationType );
+                String id = idFn.apply( object );
+                String s = ObjectMappers.getJsonMapper().writeValueAsString( object );
                 deleteQuery.mustNot( QueryBuilders.matchQuery( "_id", id ) );
                 bulkRequest
-                        .add( client.prepareIndex( ASSOCIATION_TYPE_INDEX, ASSOCIATION_TYPE, id )
+                        .add( client.prepareIndex( index, type, id )
                                 .setSource( s, XContentType.JSON ) );
             } catch ( JsonProcessingException e ) {
-                logger.debug( "Error re-indexing association types" );
+                logger.debug( "Error re-indexing securable object types" );
             }
         } );
 
         new DeleteByQueryRequestBuilder( client, DeleteByQueryAction.INSTANCE )
                 .filter( deleteQuery )
-                .source( ASSOCIATION_TYPE_INDEX )
+                .source( index )
                 .execute()
                 .actionGet();
 
         BulkResponse bulkResponse = bulkRequest.get();
         if ( bulkResponse.hasFailures() ) {
             bulkResponse.forEach( item -> logger
-                    .debug( "Failure during attempted association type re-index: {}", item.getFailureMessage() ) );
+                    .debug( "Failure during attempted re-index: {}", item.getFailureMessage() ) );
         }
 
         return true;
