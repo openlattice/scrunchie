@@ -22,7 +22,6 @@ package com.kryptnostic.kindling.search;
 import com.dataloom.apps.App;
 import com.dataloom.apps.AppType;
 import com.dataloom.authorization.Principal;
-import com.dataloom.authorization.securable.AbstractSecurableObject;
 import com.dataloom.authorization.securable.SecurableObjectType;
 import com.dataloom.data.EntityKey;
 import com.dataloom.edm.EntitySet;
@@ -36,7 +35,6 @@ import com.dataloom.search.requests.SearchDetails;
 import com.dataloom.search.requests.SearchResult;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Optional;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.kryptnostic.conductor.rpc.ConductorElasticsearchApi;
@@ -81,6 +79,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 
@@ -544,7 +543,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             fieldsMap.put( ENTITY_SET + "." + TITLE, Float.valueOf( "1" ) );
             fieldsMap.put( ENTITY_SET + "." + DESCRIPTION, Float.valueOf( "1" ) );
 
-            query.must( QueryBuilders.queryStringQuery( searchTerm ).fields( fieldsMap )
+            query.must( QueryBuilders.queryStringQuery( getFormattedFuzzyString( searchTerm ) ).fields( fieldsMap )
                     .lenient( true ).fuzziness( Fuzziness.AUTO ) );
         }
 
@@ -850,7 +849,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                 .collect( Collectors.toList() )
                 .toArray( new String[ authorizedPropertyTypes.size() ] );
 
-        QueryStringQueryBuilder query = QueryBuilders.queryStringQuery( searchTerm ).fields( fieldsMap )
+        QueryStringQueryBuilder query = QueryBuilders.queryStringQuery( getFormattedFuzzyString( searchTerm ) )
+                .fields( fieldsMap )
                 .lenient( true );
         SearchResponse response = client.prepareSearch( getIndexName( entitySetId, syncId ) )
                 .setQuery( query )
@@ -986,7 +986,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 
         BoolQueryBuilder query = QueryBuilders.boolQuery().minimumShouldMatch( 1 );
         searches.forEach( search -> {
-            QueryStringQueryBuilder queryString = QueryBuilders.queryStringQuery( search.getSearchTerm() )
+            QueryStringQueryBuilder queryString = QueryBuilders
+                    .queryStringQuery( getFormattedFuzzyString( search.getSearchTerm() ) )
                     .field( search.getPropertyType().toString(), Float.valueOf( "1" ) ).lenient( true );
             if ( search.getExactMatch() ) {
                 query.must( queryString );
@@ -1168,6 +1169,11 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 
     /* HELPERS */
 
+    private String getFormattedFuzzyString( String searchTerm ) {
+        return Stream.of( searchTerm.split( " " ) )
+                .map( term -> term.endsWith( "~" ) ? term : term + "~" ).collect( Collectors.joining( " " ) );
+    }
+
     private boolean saveObjectToElasticsearch( String index, String type, Object obj, String id ) {
         try {
             if ( !verifyElasticsearchConnection() ) { return false; }
@@ -1213,7 +1219,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             e.printStackTrace();
         }
 
-        QueryBuilder query = QueryBuilders.queryStringQuery( searchTerm ).fields( fieldsMap ).lenient( true );
+        QueryBuilder query = QueryBuilders.queryStringQuery( getFormattedFuzzyString( searchTerm ) ).fields( fieldsMap )
+                .lenient( true );
 
         SearchResponse response = client.prepareSearch( index )
                 .setTypes( type )
