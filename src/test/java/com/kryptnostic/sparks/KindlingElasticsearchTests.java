@@ -19,62 +19,68 @@
 
 package com.kryptnostic.sparks;
 
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-
-import com.google.common.collect.ImmutableSet;
+import com.dataloom.authorization.Principal;
+import com.google.common.base.Optional;
+import com.google.common.collect.*;
 import com.openlattice.authorization.AclKey;
 import com.openlattice.rhizome.hazelcast.DelegatedStringSet;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.dataloom.authorization.Permission;
-import com.dataloom.authorization.Principal;
-import com.google.common.base.Optional;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 public class KindlingElasticsearchTests extends BaseElasticsearchTest {
-    
+
     @BeforeClass
     public static void createIndicesAndData() {
-        elasticsearchApi.saveEntitySetToElasticsearch( chicagoEmployees, propertyTypesList, owner );
-        elasticsearchApi.saveEntitySetToElasticsearch( entitySet2, propertyTypesList, owner );
+        elasticsearchApi.saveEntitySetToElasticsearch( chicagoEmployees, propertyTypesList );
+        elasticsearchApi.saveEntitySetToElasticsearch( entitySet2, propertyTypesList );
         elasticsearchApi.createSecurableObjectIndex( chicagoEmployeesEntitySetId, SYNC_ID, propertyTypesList );
         elasticsearchApi.createSecurableObjectIndex( entitySet2Id, SYNC_ID2, propertyTypesList );
-        elasticsearchApi.createOrganization( organization, owner );
+        elasticsearchApi.createOrganization( organization );
         createEntityData();
     }
 
     public static void createEntityData() {
-        Map<UUID, Object> propertyValues1 = Maps.newHashMap();
+        SetMultimap<UUID, Object> propertyValues1 = HashMultimap.create();
         propertyValues1.put( namePropertyId, Sets.newHashSet( "APOSTOLOS,  DIMITRIOS M" ) );
         propertyValues1.put( employeeTitlePropertyId, Sets.newHashSet( "ASST CHIEF OPERATING ENGINEER" ) );
         propertyValues1.put( employeeDeptPropertyId, Sets.newHashSet( "AVIATION" ) );
         propertyValues1.put( salaryPropertyId, Sets.newHashSet( "108534" ) );
         propertyValues1.put( employeeIdPropertyId, Sets.newHashSet( "12345" ) );
-        Map<UUID, Object> propertyValues2 = Maps.newHashMap();
+        SetMultimap<UUID, Object> propertyValues2 = HashMultimap.create();
         propertyValues2.put( namePropertyId, Sets.newHashSet( "ALVAREZ,  ROBERT" ) );
         propertyValues2.put( employeeTitlePropertyId, Sets.newHashSet( "POLICE OFFICER" ) );
         propertyValues2.put( employeeDeptPropertyId, Sets.newHashSet( "POLICE" ) );
         propertyValues2.put( salaryPropertyId, Sets.newHashSet( "81550" ) );
         propertyValues2.put( employeeIdPropertyId, Sets.newHashSet( "12346" ) );
-        Map<UUID, Object> propertyValues3 = Maps.newHashMap();
+        SetMultimap<UUID, Object> propertyValues3 = HashMultimap.create();
         propertyValues3.put( namePropertyId, Sets.newHashSet( "ALTMAN,  PATRICIA A" ) );
         propertyValues3.put( employeeTitlePropertyId, Sets.newHashSet( "POLICE OFFICER" ) );
         propertyValues3.put( employeeDeptPropertyId, Sets.newHashSet( "POLICE" ) );
         propertyValues3.put( salaryPropertyId, Sets.newHashSet( "93240" ) );
         propertyValues3.put( employeeIdPropertyId, Sets.newHashSet( "12347" ) );
-        elasticsearchApi.createEntityData( chicagoEmployeesEntitySetId, SYNC_ID, UUID.randomUUID().toString(), propertyValues1 );
-        elasticsearchApi.createEntityData( chicagoEmployeesEntitySetId, SYNC_ID, UUID.randomUUID().toString(), propertyValues2 );
-        elasticsearchApi.createEntityData( chicagoEmployeesEntitySetId, SYNC_ID, UUID.randomUUID().toString(), propertyValues3 );
+        elasticsearchApi.createEntityData( chicagoEmployeesEntitySetId,
+                SYNC_ID,
+                UUID.randomUUID().toString(),
+                propertyValues1 );
+        elasticsearchApi.createEntityData( chicagoEmployeesEntitySetId,
+                SYNC_ID,
+                UUID.randomUUID().toString(),
+                propertyValues2 );
+        elasticsearchApi.createEntityData( chicagoEmployeesEntitySetId,
+                SYNC_ID,
+                UUID.randomUUID().toString(),
+                propertyValues3 );
 
-        Map<UUID, Object> entitySet2PropertyValues = Maps.newHashMap();
+        SetMultimap<UUID, Object> entitySet2PropertyValues = HashMultimap.create();
         entitySet2PropertyValues.put( employeeDeptPropertyId, Sets.newHashSet( "POLICE" ) );
         entitySet2PropertyValues.put( employeeIdPropertyId, Sets.newHashSet( "12347" ) );
-        elasticsearchApi.createEntityData( entitySet2Id, SYNC_ID, UUID.randomUUID().toString(), entitySet2PropertyValues );
+        elasticsearchApi
+                .createEntityData( entitySet2Id, SYNC_ID, UUID.randomUUID().toString(), entitySet2PropertyValues );
     }
 
     @Test
@@ -135,7 +141,7 @@ public class KindlingElasticsearchTests extends BaseElasticsearchTest {
         String newDescription = "this is a new description";
         elasticsearchApi.updateOrganization( organizationId, Optional.absent(), Optional.of( newDescription ) );
     }
-    
+
     @AfterClass
     public static void deleteIndices() {
         elasticsearchApi.deleteEntitySet( chicagoEmployeesEntitySetId );
