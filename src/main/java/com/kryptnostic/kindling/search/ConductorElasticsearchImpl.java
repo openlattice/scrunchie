@@ -37,6 +37,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.SetMultimap;
 import com.kryptnostic.conductor.rpc.ConductorElasticsearchApi;
 import com.kryptnostic.conductor.rpc.SearchConfiguration;
 import com.openlattice.authorization.AclKey;
@@ -48,6 +49,7 @@ import org.deeplearning4j.util.ModelSerializer;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
+import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.Client;
@@ -62,8 +64,6 @@ import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.index.query.QueryStringQueryBuilder;
 import org.elasticsearch.index.reindex.DeleteByQueryAction;
 import org.elasticsearch.index.reindex.DeleteByQueryRequestBuilder;
-import org.elasticsearch.script.Script;
-import org.elasticsearch.script.ScriptType;
 import org.elasticsearch.search.SearchHit;
 import org.nd4j.linalg.factory.Nd4j;
 import org.slf4j.Logger;
@@ -72,11 +72,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 
 import java.io.IOException;
 import java.net.UnknownHostException;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -486,10 +482,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     }
 
     @Override
-    public boolean saveEntitySetToElasticsearch(
-            EntitySet entitySet,
-            List<PropertyType> propertyTypes,
-            Principal principal ) {
+    public boolean saveEntitySetToElasticsearch( EntitySet entitySet, List<PropertyType> propertyTypes ) {
         try {
             if ( !verifyElasticsearchConnection() ) { return false; }
         } catch ( UnknownHostException e ) {
@@ -689,7 +682,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             UUID entitySetId,
             UUID syncId,
             String entityId,
-            Map<UUID, Object> propertyValues ) {
+            SetMultimap<UUID, Object> propertyValues ) {
         try {
             if ( !verifyElasticsearchConnection() ) { return false; }
         } catch ( UnknownHostException e ) {
@@ -697,46 +690,43 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             e.printStackTrace();
         }
 
-        StringBuilder builder = new StringBuilder();
-        Map<String, Object> paramValues = Maps.newHashMap();
-        for ( Entry<UUID, Object> entry : propertyValues.entrySet() ) {
-            List<Object> values = Lists.newArrayList( (Set<Object>) entry.getValue() );
-            String id = entry.getKey().toString();
-            paramValues.put( id, values );
-            for ( int i = 0; i < values.size(); i++ ) {
-                String paramName = id + "_" + String.valueOf( i );
-                builder.append( "if (ctx._source['" )
-                        .append( id )
-                        .append( "'] == null) ctx._source['" )
-                        .append( id )
-                        .append( "'] = [params['" )
-                        .append( paramName )
-                        .append( "']]; else if (!ctx._source['" )
-                        .append( id )
-                        .append( "'].contains(params['" )
-                        .append( paramName )
-                        .append( "'])) ctx._source['" )
-                        .append( id )
-                        .append( "'].add(params['" + paramName + "']);" );
-                paramValues.put( paramName, values.get( i ) );
-                paramValues.put( paramName, values.get( i ) );
-            }
-        }
-
-        Script script = new Script( ScriptType.INLINE, "painless", builder.toString(), paramValues );
         try {
-            UpdateRequest request = new UpdateRequest(
-                    getIndexName( entitySetId, syncId ),
-                    getTypeName( entitySetId ),
-                    entityId ).script( script )
-                    .upsert( ObjectMappers.getJsonMapper().writeValueAsString( propertyValues ), XContentType.JSON );
-            client.update( request ).actionGet();
+            String s = ObjectMappers.getJsonMapper().writeValueAsString( propertyValues );
+
+            client.prepareIndex( getIndexName( entitySetId, syncId ), getTypeName( entitySetId ), entityId )
+                    .setSource( s, XContentType.JSON )
+                    .execute().actionGet();
         } catch ( JsonProcessingException e ) {
             logger.debug( "error creating entity data in elasticsearch" );
             return false;
         }
 
         return true;
+
+    }
+
+    @Override
+    public boolean updateEntityData(
+            UUID entitySetId,
+            UUID syncId,
+            String entityId,
+            SetMultimap<UUID, Object> propertyValues ) {
+        try {
+            if ( !verifyElasticsearchConnection() ) { return false; }
+        } catch ( UnknownHostException e ) {
+            logger.debug( "not connected to elasticsearch" );
+            e.printStackTrace();
+        }
+
+        GetResponse result = client
+                .prepareGet( getIndexName( entitySetId, syncId ), getTypeName( entitySetId ), entityId ).get();
+        if ( result.isExists() ) {
+            result.getSourceAsMap().entrySet().forEach( entry ->
+                    propertyValues.putAll( UUID.fromString( entry.getKey() ), (Collection<Object>) entry.getValue() )
+            );
+        }
+
+        return createEntityData( entitySetId, syncId, entityId, propertyValues );
     }
 
     @Override
@@ -779,7 +769,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     }
 
     @Override
-    public boolean createOrganization( Organization organization, Principal principal ) {
+    public boolean createOrganization( Organization organization ) {
         try {
             if ( !verifyElasticsearchConnection() ) { return false; }
         } catch ( UnknownHostException e ) {
@@ -1130,6 +1120,23 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     public boolean triggerAssociationTypeIndex( List<AssociationType> associationTypes ) {
         Function<Object, String> idFn = at -> ( (AssociationType) at ).getAssociationEntityType().getId().toString();
         return triggerIndex( ASSOCIATION_TYPE_INDEX, ASSOCIATION_TYPE, associationTypes, idFn );
+    }
+
+    @Override
+    public boolean triggerEntitySetIndex(
+            Map<EntitySet, Set<UUID>> entitySets,
+            Map<UUID, PropertyType> propertyTypes ) {
+        Function<Object, String> idFn = map -> ( (Map<String, EntitySet>) map ).get( ENTITY_SET ).getId().toString();
+
+        List<Map<String, Object>> entitySetMaps = entitySets.entrySet().stream().map( entry -> {
+            Map<String, Object> entitySetMap = Maps.newHashMap();
+            entitySetMap.put( ENTITY_SET, entry.getKey() );
+            entitySetMap.put( PROPERTY_TYPES,
+                    entry.getValue().stream().map( id -> propertyTypes.get( id ) ).collect( Collectors.toList() ) );
+            return entitySetMap;
+        } ).collect( Collectors.toList() );
+
+        return triggerIndex( ENTITY_SET_DATA_MODEL, ENTITY_SET_TYPE, entitySetMaps, idFn );
     }
 
     @Override
