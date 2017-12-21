@@ -27,7 +27,7 @@ plugins {
 }
 
 description = "RPC Library"
-group = "com.kryptnostic"
+group = "com.openlattice"
 ext.projectName = "kindling"
 ext.scmUrl = 'scm:git:https://github.com/dataloom/kindling.git'
 ext.connectionUrl = 'scm:git:https://github.com/dataloom/kindling.git'
@@ -74,12 +74,12 @@ dependencies {
     else {
         logger.quiet(project.name + " using jar dependencies.")
 
-        compile ("com.kryptnostic:loom-api:${loom_api_version}")
+        compile ("com.openlattice:loom-api:${loom_api_version}")
 
-        compile ("com.kryptnostic:conductor-client:${conductor_client_version}")
+        compile ("com.openlattice:conductor-client:${conductor_client_version}")
         
-        testCompile ("com.kryptnostic:rhizome:${rhizome_version}:tests")
-        testCompile "com.kryptnostic:rhizome-client:${rhizome_client_version}:tests"
+        testCompile ("com.openlattice:rhizome:${rhizome_version}:tests")
+        testCompile "com.openlattice:rhizome-client:${rhizome_client_version}:tests"
     } 
 
      /**
