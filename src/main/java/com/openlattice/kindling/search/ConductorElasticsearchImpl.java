@@ -969,11 +969,11 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 
         BoolQueryBuilder valuesQuery = new BoolQueryBuilder();
 
-        fieldSearches.entrySet().stream().forEach( entry -> {
+        fieldSearches.forEach( ( key, value ) -> {
 
             BoolQueryBuilder fieldQuery = new BoolQueryBuilder();
-            entry.getValue().stream().forEach( searchTerm -> fieldQuery.should(
-                    QueryBuilders.matchQuery( getFieldName( entry.getKey() ), searchTerm ).fuzziness( Fuzziness.AUTO )
+            value.forEach( searchTerm -> fieldQuery.should(
+                    QueryBuilders.matchQuery( getFieldName( key ), searchTerm ).fuzziness( Fuzziness.AUTO )
                             .lenient( true ) ) );
             fieldQuery.minimumShouldMatch( 1 );
             valuesQuery.should( QueryBuilders.nestedQuery( ENTITY, fieldQuery, ScoreMode.Avg ) );
@@ -1314,7 +1314,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             Map<String, Object> entitySetMap = Maps.newHashMap();
             entitySetMap.put( ENTITY_SET, entry.getKey() );
             entitySetMap.put( PROPERTY_TYPES,
-                    entry.getValue().stream().map( id -> propertyTypes.get( id ) ).collect( Collectors.toList() ) );
+                    entry.getValue().stream().map( propertyTypes::get ).collect( Collectors.toList() ) );
             return entitySetMap;
         } ).collect( Collectors.toList() );
 
