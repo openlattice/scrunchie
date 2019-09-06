@@ -132,9 +132,6 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     private       Client                              client;
     private       ElasticsearchTransportClientFactory factory;
     private       boolean                             connected = true;
-    private       String                              server;
-    private       String                              cluster;
-    private       int                                 port;
     // @formatter:on
 
     public ConductorElasticsearchImpl( SearchConfiguration config ) {
@@ -150,15 +147,15 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     }
 
     private void init( SearchConfiguration config ) {
-        server = config.getElasticsearchUrl();
-        cluster = config.getElasticsearchCluster();
-        port = config.getElasticsearchPort();
+        String server = config.getElasticsearchUrl();
+        String cluster = config.getElasticsearchCluster();
+        int port = config.getElasticsearchPort();
         factory = new ElasticsearchTransportClientFactory( server, port, cluster );
     }
 
     /* INDEX CREATION */
 
-    public void initializeIndices() {
+    private void initializeIndices() {
         for ( String indexName : DEFAULT_INDICES ) {
             createIndex( indexName );
         }
@@ -186,9 +183,9 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 
     // @formatter:off
     private XContentBuilder getMetaphoneSettings( int numShards ) throws IOException {
-    	XContentBuilder settings = XContentFactory.jsonBuilder()
-    	        .startObject()
-        	        .startObject( ANALYSIS )
+        return XContentFactory.jsonBuilder()
+                .startObject()
+                    .startObject( ANALYSIS )
                         .startObject( FILTER )
                             .startObject( METAPHONE_FILTER )
                                 .field( TYPE, PHONETIC )
@@ -201,17 +198,16 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                                 .field( TOKEN_SEPARATOR, "" )
                             .endObject()
                         .endObject()
-            	        .startObject( ANALYZER )
-                	        .startObject( METAPHONE_ANALYZER )
-                	            .field( TOKENIZER, LOWERCASE )
-                	            .field( FILTER, Lists.newArrayList( LOWERCASE, SHINGLE_FILTER, METAPHONE_FILTER ) )
-                	        .endObject()
-                	    .endObject()
-        	        .endObject()
-        	        .field( NUM_SHARDS, numShards )
-        	        .field( NUM_REPLICAS, 2 )
-    	        .endObject();
-    	return settings;
+                        .startObject( ANALYZER )
+                            .startObject( METAPHONE_ANALYZER )
+                                .field( TOKENIZER, LOWERCASE )
+                                .field( FILTER, Lists.newArrayList( LOWERCASE, SHINGLE_FILTER, METAPHONE_FILTER ) )
+                            .endObject()
+                        .endObject()
+                    .endObject()
+                    .field( NUM_SHARDS, numShards )
+                    .field( NUM_REPLICAS, 2 )
+                .endObject();
     }
     // @formatter:on
 
@@ -383,7 +379,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 
     /*** ENTITY DATA INDEX CREATE / DELETE / UPDATE ***/
 
-    public boolean createEntityTypeDataIndex( EntityType entityType, List<PropertyType> propertyTypes ) {
+    private boolean createEntityTypeDataIndex( EntityType entityType, List<PropertyType> propertyTypes ) {
         if ( !verifyElasticsearchConnection() ) { return false; }
 
         UUID entityTypeId = entityType.getId();
@@ -532,7 +528,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
             Map<UUID, Set<Object>> entity = esEntry.getValue();
 
             Map<Object, Object> values = new HashMap<>( entity.size() + 1 );
-            entity.entrySet().forEach( entry -> values.put( entry.getKey(), entry.getValue() ) );
+            entity.forEach( values::put );
             values.put( ENTITY_SET_ID_KEY_ID.getId(), entitySetId );
 
             return values;
@@ -550,7 +546,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
     private byte[] formatEntity( UUID entitySetId, Map<UUID, Set<Object>> entity ) {
 
         Map<Object, Object> values = new HashMap<>( entity.size() + 1 );
-        entity.entrySet().forEach( entry -> values.put( entry.getKey(), entry.getValue() ) );
+        entity.forEach( values::put );
         values.put( ENTITY_SET_ID_KEY_ID.getId(), entitySetId );
 
         try {
@@ -666,6 +662,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         String type = getTypeName( entityTypeId );
 
         BulkRequestBuilder request = client.prepareBulk();
+//        TODO: Remove deprecated
         entityKeyIds.forEach( entityKeyId -> request.add( new DeleteRequest( index, type, entityKeyId.toString() ) ) );
 
         request.execute().actionGet();
@@ -737,7 +734,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 
         BoolQueryBuilder query = QueryBuilders.boolQuery().minimumShouldMatch( 1 );
         for ( SearchDetails search : constraints.getSearches().get() ) {
-            if ( authorizedFieldsMap.keySet().contains( search.getPropertyType() ) ) {
+            if ( authorizedFieldsMap.containsKey( search.getPropertyType() ) ) {
 
                 QueryStringQueryBuilder queryString = QueryBuilders
                         .queryStringQuery( search.getSearchTerm() )
@@ -897,12 +894,10 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         }
 
         BoolQueryBuilder entitySetQuery = QueryBuilders.boolQuery().minimumShouldMatch( 1 );
-        entitySetIds.forEach( entitySetId -> {
-            entitySetQuery.should(
-                    QueryBuilders.termQuery( getFieldName( ENTITY_SET_ID_KEY_ID.getId() ),
-                            entitySetId.toString() )
-            );
-        } );
+        entitySetIds.forEach( entitySetId -> entitySetQuery.should(
+                QueryBuilders.termQuery( getFieldName( ENTITY_SET_ID_KEY_ID.getId() ),
+                        entitySetId.toString() )
+        ) );
 
         query.must( QueryBuilders.nestedQuery( ENTITY, entitySetQuery, ScoreMode.Max ) );
 
@@ -1448,7 +1443,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         return fieldsMap;
     }
 
-    public boolean triggerIndex(
+    private boolean triggerIndex(
             String index,
             String type,
             Iterable<?> objects,
@@ -1489,9 +1484,9 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         return organizationObject;
     }
 
-    public boolean verifyElasticsearchConnection() {
+    private boolean verifyElasticsearchConnection() {
         if ( connected ) {
-            if ( !factory.isConnected( client ) ) {
+            if ( !ElasticsearchTransportClientFactory.isConnected( client ) ) {
                 connected = false;
             }
         } else {
