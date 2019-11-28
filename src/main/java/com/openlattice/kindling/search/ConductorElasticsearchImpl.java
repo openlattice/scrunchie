@@ -21,11 +21,14 @@
 package com.openlattice.kindling.search;
 
 import com.dataloom.mappers.ObjectMappers;
-import com.dataloom.streams.StreamUtil;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.google.common.collect.*;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.openlattice.authorization.AclKey;
 import com.openlattice.authorization.securable.AbstractSecurableObject;
 import com.openlattice.authorization.securable.SecurableObjectType;
@@ -42,7 +45,12 @@ import com.openlattice.organizations.Organization;
 import com.openlattice.rhizome.hazelcast.DelegatedStringSet;
 import com.openlattice.rhizome.hazelcast.DelegatedUUIDSet;
 import com.openlattice.search.SortDefinition;
-import com.openlattice.search.requests.*;
+import com.openlattice.search.requests.Constraint;
+import com.openlattice.search.requests.ConstraintGroup;
+import com.openlattice.search.requests.EntityDataKeySearchResult;
+import com.openlattice.search.requests.SearchConstraints;
+import com.openlattice.search.requests.SearchDetails;
+import com.openlattice.search.requests.SearchResult;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.lucene.search.join.ScoreMode;
@@ -66,23 +74,41 @@ import org.elasticsearch.common.unit.Fuzziness;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentType;
-import org.elasticsearch.index.query.*;
-import org.elasticsearch.index.reindex.*;
+import org.elasticsearch.index.query.BoolQueryBuilder;
+import org.elasticsearch.index.query.MatchQueryBuilder;
+import org.elasticsearch.index.query.Operator;
+import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.query.QueryStringQueryBuilder;
+import org.elasticsearch.index.query.RangeQueryBuilder;
+import org.elasticsearch.index.reindex.BulkByScrollResponse;
+import org.elasticsearch.index.reindex.DeleteByQueryAction;
+import org.elasticsearch.index.reindex.DeleteByQueryRequestBuilder;
 import org.elasticsearch.search.SearchHit;
-import org.elasticsearch.search.sort.*;
+import org.elasticsearch.search.sort.FieldSortBuilder;
+import org.elasticsearch.search.sort.GeoDistanceSortBuilder;
+import org.elasticsearch.search.sort.NestedSortBuilder;
+import org.elasticsearch.search.sort.ScoreSortBuilder;
+import org.elasticsearch.search.sort.SortBuilder;
+import org.elasticsearch.search.sort.SortOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 
 import java.io.IOException;
 import java.net.UnknownHostException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import static com.openlattice.IdConstants.*;
-import static com.openlattice.IdConstants.ENTITY_SET_ID_KEY_ID;
 import static java.util.stream.Collectors.toSet;
 
 public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
@@ -188,9 +214,9 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 
     // @formatter:off
     private XContentBuilder getMetaphoneSettings( int numShards ) throws IOException {
-    	XContentBuilder settings = XContentFactory.jsonBuilder()
-    	        .startObject()
-        	        .startObject( ANALYSIS )
+        return XContentFactory.jsonBuilder()
+                .startObject()
+                    .startObject( ANALYSIS )
                         .startObject( FILTER )
                             .startObject( METAPHONE_FILTER )
                                 .field( TYPE, PHONETIC )
@@ -203,17 +229,16 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
                                 .field( TOKEN_SEPARATOR, "" )
                             .endObject()
                         .endObject()
-            	        .startObject( ANALYZER )
-                	        .startObject( METAPHONE_ANALYZER )
-                	            .field( TOKENIZER, LOWERCASE )
-                	            .field( FILTER, Lists.newArrayList( LOWERCASE, SHINGLE_FILTER, METAPHONE_FILTER ) )
-                	        .endObject()
-                	    .endObject()
-        	        .endObject()
-        	        .field( NUM_SHARDS, numShards )
-        	        .field( NUM_REPLICAS, 2 )
-    	        .endObject();
-    	return settings;
+                        .startObject( ANALYZER )
+                            .startObject( METAPHONE_ANALYZER )
+                                .field( TOKENIZER, LOWERCASE )
+                                .field( FILTER, Lists.newArrayList( LOWERCASE, SHINGLE_FILTER, METAPHONE_FILTER ) )
+                            .endObject()
+                        .endObject()
+                    .endObject()
+                    .field( NUM_SHARDS, numShards )
+                    .field( NUM_REPLICAS, 2 )
+                .endObject();
     }
     // @formatter:on
 
@@ -742,8 +767,7 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 
         BoolQueryBuilder query = QueryBuilders.boolQuery().minimumShouldMatch( 1 );
         for ( SearchDetails search : constraints.getSearches().get() ) {
-            if ( authorizedFieldsMap.keySet().contains( search.getPropertyType() ) ) {
-
+            if ( authorizedFieldsMap.containsKey( search.getPropertyType() ) ) {
                 QueryStringQueryBuilder queryString = QueryBuilders
                         .queryStringQuery( search.getSearchTerm() )
                         .fields( authorizedFieldsMap.get( search.getPropertyType() ) ).lenient( true );
@@ -981,11 +1005,11 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
 
         BoolQueryBuilder valuesQuery = new BoolQueryBuilder();
 
-        fieldSearches.entrySet().stream().forEach( entry -> {
+        fieldSearches.forEach( ( UUID id, DelegatedStringSet values ) -> {
 
             BoolQueryBuilder fieldQuery = new BoolQueryBuilder();
-            entry.getValue().stream().forEach( searchTerm -> fieldQuery.should(
-                    mustMatchQuery( getFieldName( entry.getKey() ), searchTerm ).fuzziness( Fuzziness.AUTO )
+            values.forEach( searchTerm -> fieldQuery.should(
+                    mustMatchQuery( getFieldName( id ), searchTerm ).fuzziness( Fuzziness.AUTO )
                             .lenient( true ) ) );
             fieldQuery.minimumShouldMatch( 1 );
             valuesQuery.should( QueryBuilders.nestedQuery( ENTITY, fieldQuery, ScoreMode.Avg ) );
@@ -996,14 +1020,15 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         BoolQueryBuilder query = QueryBuilders.boolQuery().must( valuesQuery )
                 .must( QueryBuilders.existsQuery( ENTITY_SET_ID_FIELD ) );
 
-        return StreamUtil.stream( client.prepareSearch( getIndexName( entityTypeId ) )
+        return StreamSupport.stream( client.prepareSearch( getIndexName( entityTypeId ) )
                 .setQuery( query )
                 .setFrom( 0 )
                 .setSize( size )
                 .setExplain( explain )
                 .setFetchSource( ENTITY_SET_ID_FIELD, null )
                 .execute()
-                .actionGet().getHits() )
+                .actionGet()
+                .getHits().spliterator(), false  )
                 .map( hit -> Pair
                         .of( UUID.fromString( hit.getSourceAsMap().get( ENTITY_SET_ID_FIELD ).toString() ),
                                 UUID.fromString( hit.getId() ) ) )
@@ -1017,12 +1042,8 @@ public class ConductorElasticsearchImpl implements ConductorElasticsearchApi {
         if ( !verifyElasticsearchConnection() ) { return false; }
 
         Map<String, Object> updatedFields = Maps.newHashMap();
-        if ( optionalTitle.isPresent() ) {
-            updatedFields.put( SerializationConstants.TITLE_FIELD, optionalTitle.get() );
-        }
-        if ( optionalDescription.isPresent() ) {
-            updatedFields.put( SerializationConstants.DESCRIPTION_FIELD, optionalDescription.get() );
-        }
+        optionalTitle.ifPresent( s -> updatedFields.put( SerializationConstants.TITLE_FIELD, s ) );
+        optionalDescription.ifPresent( s -> updatedFields.put( SerializationConstants.DESCRIPTION_FIELD, s ) );
         try {
             String s = ObjectMappers.getJsonMapper().writeValueAsString( updatedFields );
             UpdateRequest updateRequest = new UpdateRequest( ORGANIZATIONS, ORGANIZATION_TYPE, id.toString() )

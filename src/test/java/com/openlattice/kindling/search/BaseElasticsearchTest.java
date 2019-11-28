@@ -20,9 +20,9 @@
 
 package com.openlattice.kindling.search;
 
-import com.clearspring.analytics.util.Lists;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.LinkedHashMultimap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.kryptnostic.rhizome.configuration.service.ConfigurationService.StaticLoader;
 import com.openlattice.authorization.Principal;
@@ -41,7 +41,10 @@ import org.junit.BeforeClass;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @SuppressFBWarnings( "MS_PKGPROTECT" )
