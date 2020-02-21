@@ -20,7 +20,7 @@ ext.connectionUrl = 'scm:git:https://github.com/openlattice/scrunchie.git'
 ext.developerConnectionUrl = 'scm:git:https://github.com/openlattice/scrunchie.git'
 
 apply plugin: 'kotlin'
-apply from: 'https://raw.githubusercontent.com/openlattice/gradles/master/openlattice.gradle'
+apply from: 'https://raw.githubusercontent.com/openlattice/gradles/hotfix-2020-02-20/openlattice.gradle'
 
 
 ext.sourceCompatibility = JavaVersion.VERSION_11
