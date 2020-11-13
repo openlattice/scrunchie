@@ -33,6 +33,7 @@ import com.openlattice.conductor.rpc.SearchConfiguration;
 import com.openlattice.edm.EntitySet;
 import com.openlattice.edm.type.EntityType;
 import com.openlattice.edm.type.PropertyType;
+import com.openlattice.mapstores.TestDataFactory;
 import com.openlattice.organizations.Organization;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.LinkedHashSet;
@@ -196,14 +197,6 @@ public class BaseElasticsearchTest {
         owner = new Principal( PrincipalType.USER, "support@openlattice.com" );
         openlatticeUser = new Principal( PrincipalType.ROLE, "openlatticeUser" );
 
-        organization = new Organization(
-                Optional.of( organizationId ),
-                new Principal( PrincipalType.ORGANIZATION, UUID.randomUUID().toString() ),
-                "Loom Employees",
-                Optional.of( "people that work at loom" ),
-                Sets.newHashSet(),
-                Sets.newHashSet(),
-                Sets.newHashSet() );
-
+        organization = TestDataFactory.organization();
     }
 }
